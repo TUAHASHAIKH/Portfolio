@@ -43,6 +43,7 @@ export function Projects() {
       description: 'Intelligent game bot using Monte Carlo and Expectimax algorithms',
       tags: ['Python', 'AI', 'Monte Carlo', 'Expectimax'],
       buttons: ['GitHub'],
+      githubLink: 'https://github.com/TUAHASHAIKH/2048-Ai-Game-Bot',
       image: '/images/projects/2048.png',
     },
     {
@@ -51,6 +52,7 @@ export function Projects() {
       description: 'E-commerce website for NUST startup selling fruits to students',
       tags: ['PHP', 'Bootstrap', 'MySQL'],
       buttons: ['GitHub'],
+      githubLink: 'https://github.com/TUAHASHAIKH/NustFruta',
       image: '/images/projects/NUSTFRUTAA.png',
     },
   ]
