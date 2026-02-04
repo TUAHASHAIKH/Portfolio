@@ -28,7 +28,7 @@ export function Skills() {
         <div className="relative mb-12">
           <h2 className="text-3xl font-bold text-foreground inline-flex items-center gap-4">
             <span className="text-accent">#</span>skills
-            <div className="w-72 h-px bg-accent"></div>
+            <div className="w-32 sm:w-44 lg:w-64 h-px bg-accent"></div>
           </h2>
         </div>
 
