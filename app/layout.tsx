@@ -1,37 +1,16 @@
-import React from "react"
-import type { Metadata } from 'next'
-import { Space_Mono } from 'next/font/google'
-import { Analytics } from '@vercel/analytics/next'
+import type { Metadata, Viewport } from 'next'
 import './globals.css'
-import { ThemeProvider } from '@/components/theme-provider'
-
-const spaceMono = Space_Mono({ 
-  weight: ['400', '700'],
-  subsets: ["latin"]
-});
-
 export const metadata: Metadata = {
-  title: 'Tuaha - Software Engineer & Full-Stack Developer',
-  description: 'Portfolio of Tuaha Shaikh, a software engineer and full-stack developer',
-  icons: {
-    icon: '/images/projects/logo.png',
-    apple: '/images/projects/logo.png',
-  },
+ metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'),
+ icons: { icon: '/icon.svg' },
+ title: 'Tuaha Shaikh — Software Engineer',
+ description: 'Tuaha Shaikh. Software engineering, full-stack development, and artificial intelligence. An interactive exploration.',
+ appleWebApp: { capable: true, statusBarStyle: 'black-translucent' },
+ other: { 'mobile-web-app-capable': 'yes' },
+ openGraph: { title: 'Tuaha Shaikh — Software Engineer', description: 'Building thoughtful software. Full Stack / AI / Experiments.', type: 'website', images: [{ url: '/opengraph-image', width: 1200, height: 630, alt: 'Tuaha Shaikh — Software Engineer' }] },
+ twitter: { card: 'summary_large_image', title: 'Tuaha Shaikh — Software Engineer', images: ['/opengraph-image'] },
 }
-
-export default function RootLayout({
-  children,
-}: Readonly<{
-  children: React.ReactNode
-}>) {
-  return (
-    <html lang="en" suppressHydrationWarning>
-      <body className={`${spaceMono.className} antialiased`}>
-        <ThemeProvider attribute="class" defaultTheme="dark" enableSystem>
-          {children}
-          <Analytics />
-        </ThemeProvider>
-      </body>
-    </html>
-  )
+export const viewport: Viewport = { width: 'device-width', initialScale: 1, viewportFit: 'cover', themeColor: '#a0a5b1' }
+export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
+ return <html lang="en"><body>{children}</body></html>
 }
