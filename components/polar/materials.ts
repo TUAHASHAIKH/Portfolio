@@ -16,16 +16,18 @@ export const surfaceVertex = `
   }
 `
 
-export function makeTerrainMaterial(map: THREE.Texture, options: { mountain?: boolean; patch?: boolean; glow?: THREE.Texture } = {}) {
+export function makeTerrainMaterial(map: THREE.Texture, options: { mountain?: boolean; patch?: boolean; glow?: THREE.Texture; wind?: THREE.Texture } = {}) {
   return new THREE.ShaderMaterial({
     transparent: true,
     depthWrite: true,
-    uniforms: { surface: { value: map }, glow: { value: options.glow || map }, groundLight: { value: 0 }, cursor: { value: new THREE.Vector3(0, -10, 0) }, resolution: { value: new THREE.Vector2(1440, 900) } },
-    defines: { MOUNTAIN: options.mountain ? 1 : 0, PATCH: options.patch ? 1 : 0, GROUND_GLOW: options.glow ? 1 : 0 },
+    uniforms: { surface: { value: map }, glow: { value: options.glow || map }, windTexture: { value: options.wind || map }, time: { value: 0 }, groundLight: { value: 0 }, cursor: { value: new THREE.Vector3(0, -10, 0) }, resolution: { value: new THREE.Vector2(1440, 900) } },
+    defines: { MOUNTAIN: options.mountain ? 1 : 0, PATCH: options.patch ? 1 : 0, GROUND_GLOW: options.glow ? 1 : 0, GROUND_WIND: options.wind ? 1 : 0 },
     vertexShader: surfaceVertex,
     fragmentShader: `
       uniform sampler2D surface;
       uniform sampler2D glow;
+      uniform sampler2D windTexture;
+      uniform float time;
       uniform float groundLight;
       uniform vec3 cursor;
       uniform vec2 resolution;
@@ -55,6 +57,13 @@ export function makeTerrainMaterial(map: THREE.Texture, options: { mountain?: bo
           float nearCursor = 1. - smoothstep(0., 5., distance(cursor.xz, worldPoint.xz));
           color += texture2D(glow, surfaceUv).rgb * color.r * (.25 + groundLight * .7);
           color += nearCursor * groundLight * vec3(.12,.17,.22) * color.r;
+        #endif
+        #if GROUND_WIND == 1
+          vec2 drift=vec2(-time*.15);
+          float snow=texture2D(windTexture,worldPoint.xz*.15+drift).r;
+          snow*=texture2D(windTexture,worldPoint.xz*.17+drift+vec2(.3,.7)).r;
+          float lowGround=1.-smoothstep(-1.3,.5,worldPoint.y);
+          color=mix(color,vec3(.9,.93,.98),clamp(snow*lowGround*.42,0.,.2));
         #endif
         gl_FragColor = vec4(color, alpha * painted);
       }

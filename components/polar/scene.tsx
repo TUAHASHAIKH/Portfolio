@@ -126,16 +126,17 @@ function World({ assets, onReady, reduced }: { assets: PolarAssets; onReady: () 
   const cameraUp = useMemo(() => new THREE.Vector3(), [])
   const worldUp = useMemo(() => new THREE.Vector3(0, 1, 0), [])
   const engaged = useRef(false)
+  const windTime = useRef(0)
   const cursor = useMemo(() => new THREE.Vector3(0, 2, 0), [])
   const target = useMemo(() => new THREE.Vector3(), [])
   const plane = useMemo(() => new THREE.Plane(), [])
   const normal = useMemo(() => new THREE.Vector3(), [])
   const ray = useMemo(() => new THREE.Raycaster(), [])
   const surfaces = useMemo(() => ({
-    ground: makeTerrainMaterial(assets.groundMap, { glow: assets.glow }),
+    ground: makeTerrainMaterial(assets.groundMap, { glow: assets.glow, wind: assets.wind }),
     mountain: makeTerrainMaterial(assets.mountainMap, { mountain: true }),
-    terrain: makeTerrainMaterial(assets.terrainMap),
-    patch: makeTerrainMaterial(assets.terrainMap, { patch: true }),
+    terrain: makeTerrainMaterial(assets.terrainMap, { wind: assets.wind }),
+    patch: makeTerrainMaterial(assets.terrainMap, { patch: true, wind: assets.wind }),
     haze: new THREE.ShaderMaterial({
       transparent: true, depthWrite: false,
       uniforms: { noise: { value: assets.wind }, time: { value: 0 } },
@@ -144,13 +145,16 @@ function World({ assets, onReady, reduced }: { assets: PolarAssets; onReady: () 
         uniform sampler2D noise;
         uniform float time;
         varying vec2 surfaceUv;
+        varying vec3 worldPoint;
         void main(){
           vec2 uv=surfaceUv*vec2(2.,1.);
-          vec2 drift=vec2(-time*.035,time*.012);
-          float wisps=texture2D(noise,uv+drift).r*texture2D(noise,uv*1.3+drift*.7).r;
-          float edge=smoothstep(0.,.4,surfaceUv.x)*(1.-smoothstep(.7,1.,surfaceUv.x));
-          float veil=wisps*edge*smoothstep(0.,.15,surfaceUv.y)*pow(1.-surfaceUv.y,2.)*.9;
-          gl_FragColor=vec4(vec3(.86,.88,.92),veil);
+          float phase=worldPoint.x>6.?.914:0.;
+          vec2 drift=vec2(-time*.15-phase,time*.06);
+          float wisps=texture2D(noise,uv+drift).r*texture2D(noise,uv*1.25+vec2(drift.x,.75)).r;
+          wisps*=texture2D(noise,uv*.5+vec2(drift.x,-time*.0525)).r;
+          float edge=smoothstep(0.,.5,surfaceUv.x)*(1.-smoothstep(.8,1.,surfaceUv.x));
+          float veil=wisps*edge*smoothstep(0.,.1,surfaceUv.y)*(1.-surfaceUv.y)*6.;
+          gl_FragColor=vec4(vec3(.86,.88,.92),min(veil,.45));
         }
       `,
     }),
@@ -180,7 +184,7 @@ function World({ assets, onReady, reduced }: { assets: PolarAssets; onReady: () 
   }, [gl, pointer])
   useEffect(() => { onReady() }, [onReady])
   useEffect(() => () => Object.values(surfaces).forEach(material => material.dispose()), [surfaces])
-  useFrame(({ clock }, frameDelta) => {
+  useFrame((_, frameDelta) => {
     const delta = Math.min(frameDelta, .25), mobile = size.width < 700
     const distance = mobile ? 1.65 : 1
     // Reference: ±pi/2 pointer mapping, .07/.025 angular gain and .035/frame easing.
@@ -201,9 +205,12 @@ function World({ assets, onReady, reduced }: { assets: PolarAssets; onReady: () 
     ray.ray.intersectPlane(plane, target)
     cursor.lerp(target, 1 - Math.exp(-pointerResponse * delta))
     const dpr = gl.getPixelRatio()
-    for (const material of Object.values(surfaces)) material.uniforms.resolution?.value.set(size.width * dpr, size.height * dpr)
+    if (!reduced) windTime.current += delta
+    for (const material of Object.values(surfaces)) {
+      material.uniforms.resolution?.value.set(size.width * dpr, size.height * dpr)
+      if (material.uniforms.time) material.uniforms.time.value = windTime.current
+    }
     surfaces.ground.uniforms.cursor.value.copy(cursor)
-    if (!reduced) surfaces.haze.uniforms.time.value = clock.elapsedTime
     surfaces.ground.uniforms.groundLight.value = THREE.MathUtils.damp(surfaces.ground.uniforms.groundLight.value, engaged.current && !reduced ? .8 : .1, 1.4, delta)
   })
   return <>
