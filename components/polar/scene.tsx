@@ -163,23 +163,6 @@ function World({ assets, onReady, reduced }: { assets: PolarAssets; onReady: () 
     mountain: makeTerrainMaterial(assets.mountainMap, { mountain: true }),
     terrain: makeTerrainMaterial(assets.terrainMap),
     patch: makeTerrainMaterial(assets.terrainMap, { patch: true }),
-    floor: new THREE.ShaderMaterial({
-      uniforms: { surface: { value: assets.terrainMap }, haze: { value: new THREE.Color('#b4bac6') } },
-      vertexShader: surfaceVertex,
-      fragmentShader: `
-        uniform sampler2D surface;
-        uniform vec3 haze;
-        varying vec3 worldPoint;
-        varying float viewDepth;
-        void main(){
-          // The baked atlas has black borders; only repeat its central snow region.
-          vec2 uv=fract(worldPoint.xz*.03)*.4+.3;
-          vec3 snow=max(texture2D(surface,uv).rgb,vec3(.12));
-          vec3 color=mix(snow,haze,smoothstep(20.,80.,viewDepth));
-          gl_FragColor=vec4(color,1.);
-        }
-      `,
-    }),
     haze: new THREE.ShaderMaterial({
       transparent: true, depthWrite: false,
       uniforms: { noise: { value: assets.wind }, time: { value: 0 } },
@@ -252,7 +235,6 @@ function World({ assets, onReady, reduced }: { assets: PolarAssets; onReady: () 
   })
   return <>
     <mesh material={surfaces.sky} renderOrder={-10}><sphereGeometry args={[700, 12, 12]} /></mesh>
-    <mesh position={[0,-3.5,0]} rotation={[-Math.PI/2,0,0]} material={surfaces.floor} renderOrder={-1}><planeGeometry args={[600,600]} /></mesh>
     {mountains.map((item, index) => <mesh key={`mountain-${index}`} geometry={assets.mountain} material={surfaces.mountain} position={tuple(item.position)} scale={tuple(item.scale)} rotation={tuple(item.rotation.map(radians))} renderOrder={0} />)}
     {terrain.map((item, index) => <mesh key={`terrain-${index}`} geometry={assets.ground} material={surfaces.terrain} position={tuple(item.position)} scale={tuple(item.scale)} rotation={tuple(item.rotation.map(radians))} renderOrder={1} />)}
     <mesh geometry={assets.patch} material={surfaces.patch} position={[-9.34,-1.77,6.96]} scale={7} renderOrder={0} />
