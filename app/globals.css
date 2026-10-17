@@ -17,3 +17,9 @@ html{--bgColor:#a0a5b1;--default-font:'IBM Plex Mono','Courier New',monospace;ba
 /* Browser audio extensions sometimes inject a centered volume HUD. */
 #volume-booster-visusalizer,#volume-booster-visualizer,[id^=volume-booster]{display:none!important;visibility:hidden!important;pointer-events:none!important}
 .intro nav{display:none}.vignette{background:radial-gradient(ellipse at 78% 25%,transparent 35%,#25273312 100%)}
+
+/* The reference name is an outlined logo; keep the personalized lettering font-independent. */
+.identity h1{width:clamp(155px,10.8vw,244px);font-size:inherit;line-height:0;letter-spacing:0;margin-bottom:18px}
+.wordmark-image{display:block;width:100%;height:auto;filter:drop-shadow(0 0 1px #ffffff80);user-select:none}
+.specialties,.intro,.sound-toggle{font-weight:500;text-shadow:0 0 1px #ffffff65}
+@media(max-width:640px){.identity h1{width:155px;margin-bottom:15px}}

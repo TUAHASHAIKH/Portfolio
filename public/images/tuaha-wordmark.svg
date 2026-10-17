@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="-2 -2 530 88" fill="#fff" stroke="#fff" stroke-width="1.5" stroke-linejoin="round">
+  <title>Tuaha</title>
+  <path d="M0 0h102v25H65v59H37V25H0Z"/>
+  <path transform="translate(108)" d="M0 0h28v49q0 11 18 11t18-11V0h28v52q0 32-46 32T0 52Z"/>
+  <path transform="translate(206)" fill-rule="evenodd" d="M0 84 38 0h31l39 84H78l-7-16H37l-7 16Zm54-57L43 51h22Z"/>
+  <path transform="translate(320)" d="M0 0h28v28h36V0h28v84H64V53H28v31H0Z"/>
+  <path transform="translate(418)" fill-rule="evenodd" d="M0 84 38 0h31l39 84H78l-7-16H37l-7 16Zm54-57L43 51h22Z"/>
+</svg>
