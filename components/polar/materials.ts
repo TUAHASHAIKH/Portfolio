@@ -35,6 +35,8 @@ export function makeTerrainMaterial(map: THREE.Texture, options: { mountain?: bo
       varying float viewDepth;
       void main() {
         vec3 color = texture2D(surface, surfaceUv).rgb;
+        // Unpainted atlas padding must reveal the snowy underlay, not black polygons.
+        float painted = smoothstep(.002, .02, max(color.r, max(color.g, color.b)));
         float radius = length(localPoint.xz);
         float alpha = 1. - smoothstep(.85, 1., radius * .1085);
         #if PATCH == 1
@@ -54,7 +56,7 @@ export function makeTerrainMaterial(map: THREE.Texture, options: { mountain?: bo
           color += texture2D(glow, surfaceUv).rgb * color.r * (.25 + groundLight * .7);
           color += nearCursor * groundLight * vec3(.12,.17,.22) * color.r;
         #endif
-        gl_FragColor = vec4(color, alpha);
+        gl_FragColor = vec4(color, alpha * painted);
       }
     `,
   })
