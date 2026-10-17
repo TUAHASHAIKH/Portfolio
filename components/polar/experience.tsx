@@ -59,7 +59,7 @@ export function PolarExperience() {
     </div>
     <div className="vignette" />
     <header className="identity">
-      <h1><Wordmark /></h1>
+      <h1><Wordmark reducedMotion={reducedMotion} /></h1>
       <p className="role">// Software Engineer</p>
       <p className="specialties">Built with curiosity.<br />Full Stack / AI / Experiments</p>
     </header>
