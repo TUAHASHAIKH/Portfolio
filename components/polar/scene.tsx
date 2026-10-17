@@ -141,7 +141,14 @@ function Ice({ assets, cursor, engaged, reduced }: { assets: PolarAssets; cursor
 }
 
 function World({ assets, onReady, reduced }: { assets: PolarAssets; onReady: () => void; reduced: boolean }) {
-  const { gl, camera, size, pointer } = useThree()
+  const { gl, camera, size } = useThree()
+  const pointer = useMemo(() => new THREE.Vector2(), [])
+  const orbit = useRef({ yaw: 0, pitch: 0 })
+  const cameraTarget = useMemo(() => new THREE.Vector3(0, 1.6, 0), [])
+  const cameraOffset = useMemo(() => new THREE.Vector3(), [])
+  const cameraRight = useMemo(() => new THREE.Vector3(), [])
+  const cameraUp = useMemo(() => new THREE.Vector3(), [])
+  const worldUp = useMemo(() => new THREE.Vector3(0, 1, 0), [])
   const engaged = useRef(false)
   const cursor = useMemo(() => new THREE.Vector3(0, 2, 0), [])
   const target = useMemo(() => new THREE.Vector3(), [])
@@ -179,21 +186,38 @@ function World({ assets, onReady, reduced }: { assets: PolarAssets; onReady: () 
     }),
   }), [assets])
   useEffect(() => {
-    const enter = () => { engaged.current = true }
-    const leave = () => { engaged.current = false }
-    const element = gl.domElement
-    element.addEventListener('pointermove', enter); element.addEventListener('pointerleave', leave)
-    return () => { element.removeEventListener('pointermove', enter); element.removeEventListener('pointerleave', leave) }
-  }, [gl])
+    const move = (event: Event) => {
+      const { clientX, clientY } = event as PointerEvent
+      const bounds = gl.domElement.getBoundingClientRect()
+      pointer.set(
+        THREE.MathUtils.clamp((clientX - bounds.left) / bounds.width * 2 - 1, -1, 1),
+        THREE.MathUtils.clamp(1 - (clientY - bounds.top) / bounds.height * 2, -1, 1),
+      )
+      engaged.current = true
+    }
+    const leave = () => { engaged.current = false; pointer.set(0, 0) }
+    // Include overlay areas: moving over the name must still move the landscape.
+    const element = gl.domElement.closest('#app') || gl.domElement
+    element.addEventListener('pointermove', move); element.addEventListener('pointerleave', leave)
+    window.addEventListener('blur', leave)
+    return () => { element.removeEventListener('pointermove', move); element.removeEventListener('pointerleave', leave); window.removeEventListener('blur', leave) }
+  }, [gl, pointer])
   useEffect(() => { onReady() }, [onReady])
   useEffect(() => () => Object.values(surfaces).forEach(material => material.dispose()), [surfaces])
   useFrame(({ clock }, frameDelta) => {
     const delta = Math.min(frameDelta, .25), mobile = size.width < 700
     const distance = mobile ? 1.65 : 1
-    camera.position.x = THREE.MathUtils.damp(camera.position.x, -14 * distance + (reduced ? 0 : pointer.x * .42), 1.1, delta)
-    camera.position.y = THREE.MathUtils.damp(camera.position.y, 4 * distance + (reduced ? 0 : pointer.y * .16), 1.1, delta)
-    camera.position.z = THREE.MathUtils.damp(camera.position.z, 14 * distance, 1.1, delta)
-    camera.lookAt(0, 1.6, 0)
+    // Reference: ±pi/2 pointer mapping, .07/.025 angular gain and .035/frame easing.
+    const orbitResponse = -60 * Math.log(1 - .035)
+    orbit.current.yaw = THREE.MathUtils.damp(orbit.current.yaw, reduced ? 0 : pointer.x * Math.PI / 2 * .07, orbitResponse, delta)
+    orbit.current.pitch = THREE.MathUtils.damp(orbit.current.pitch, reduced ? 0 : -pointer.y * Math.PI / 2 * .025, orbitResponse, delta)
+    cameraOffset.set(-14 * distance, 4 * distance, 14 * distance).sub(cameraTarget)
+    normal.copy(cameraOffset).normalize()
+    cameraRight.crossVectors(worldUp, normal).normalize()
+    cameraUp.crossVectors(normal, cameraRight).normalize()
+    cameraOffset.applyAxisAngle(cameraRight, orbit.current.pitch).applyAxisAngle(cameraUp, orbit.current.yaw)
+    camera.position.copy(cameraTarget).add(cameraOffset)
+    camera.lookAt(cameraTarget)
     camera.getWorldDirection(normal)
     target.copy(camera.position).addScaledVector(normal, mobile ? 31.8 : 19.25)
     plane.setFromNormalAndCoplanarPoint(normal, target)
