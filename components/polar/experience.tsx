@@ -58,6 +58,7 @@ export function PolarExperience() {
       {supported === false ? <Fallback /> : supported && <SceneBoundary onFailure={() => setReady(true)}><App3D onReady={() => setReady(true)} reducedMotion={reducedMotion} /></SceneBoundary>}
     </div>
     <div className="vignette" />
+    <div id="ice-measurements" aria-hidden="true" />
     <header className="identity">
       <h1><Wordmark reducedMotion={reducedMotion} /></h1>
       <p className="role">// Software Engineer</p>

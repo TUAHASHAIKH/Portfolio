@@ -11,6 +11,7 @@ import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js'
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js'
 import { loadPolarAssets, type PolarAssets } from './assets'
 import { makeIceMaterial, makeTerrainMaterial, surfaceVertex } from './materials'
+import { Measurements } from './measurements'
 
 type Motion = { fast: number; slow: number }
 const radians = (degrees: number) => degrees * Math.PI / 180
@@ -79,18 +80,14 @@ function PostProcessing({ assets }: { assets: PolarAssets }) {
 
 function Ice({ assets, cursor, engaged, reduced }: { assets: PolarAssets; cursor: THREE.Vector3; engaged: React.RefObject<boolean>; reduced: boolean }) {
   const meshes = useRef<(THREE.Mesh | null)[]>([])
-  const labels = useRef<(HTMLDivElement | null)[]>([])
   const resources = useMemo(() => assets.pieces.map(piece => {
     const material = makeIceMaterial(assets)
     material.uniforms.center.value.copy(piece.center)
     return { ...piece, material, motion: { fast: 0, slow: 0 } as Motion, point: piece.center.clone() }
   }), [assets])
-  const connections = useMemo(() => new THREE.BufferGeometry().setAttribute('position', new THREE.BufferAttribute(new Float32Array(48 * 6), 3)), [])
-  const wires = useRef<THREE.LineSegments>(null)
-  useEffect(() => () => { resources.forEach(piece => piece.material.dispose()); connections.dispose() }, [resources, connections])
+  useEffect(() => () => { resources.forEach(piece => piece.material.dispose()) }, [resources])
   useFrame((_, frameDelta) => {
     const delta = Math.min(frameDelta, .25)
-    const visible: number[] = []
     resources.forEach((piece, index) => {
       const mesh = meshes.current[index]
       if (!mesh) return
@@ -110,36 +107,11 @@ function Ice({ assets, cursor, engaged, reduced }: { assets: PolarAssets; cursor
       )
       piece.material.uniforms.separation.value = amount
       piece.point.copy(mesh.position)
-      // Reference measurements appear only on the opening side, away from the anchored base.
-      const front = piece.center.x - piece.center.z < .8
-      const alpha = front && index % 3 === 0 ? THREE.MathUtils.smoothstep(amount, .07, .23) : 0
-      if (labels.current[index]) labels.current[index]!.style.opacity = String(alpha)
-      if (alpha > .25) visible.push(index)
     })
-    const positions = connections.getAttribute('position') as THREE.BufferAttribute
-    let count = 0
-    for (let i = 0; i < visible.length && count < 48; i++) {
-      const start = resources[visible[i]].point
-      let nearest = -1, distance = Infinity
-      for (let j = i + 1; j < visible.length; j++) {
-        const d = start.distanceToSquared(resources[visible[j]].point)
-        if (d < distance && d < 5) { nearest = visible[j]; distance = d }
-      }
-      if (nearest >= 0) {
-        const end = resources[nearest].point
-        positions.setXYZ(count * 2, start.x, start.y, start.z)
-        positions.setXYZ(count * 2 + 1, end.x, end.y, end.z)
-        count++
-      }
-    }
-    connections.setDrawRange(0, count * 2); positions.needsUpdate = true
-    if (wires.current) wires.current.visible = count > 0
   })
   return <>
-    {resources.map((piece, index) => <mesh key={index} ref={mesh => { meshes.current[index] = mesh }} geometry={piece.geometry} material={piece.material} position={piece.center}>
-      {index % 3 === 0 && <Html center zIndexRange={[1, 0]} style={{ pointerEvents: 'none' }}><div className="block-label" ref={element => { labels.current[index] = element }} style={{ opacity: 0 }}>{String((index * 17 + 23) % 89).padStart(2, '0')}<span>+</span></div></Html>}
-    </mesh>)}
-    <lineSegments ref={wires} geometry={connections} visible={false} renderOrder={999}><lineBasicMaterial color="#ffffff" transparent opacity={.38} depthWrite={false} depthTest={false} /></lineSegments>
+    {resources.map((piece, index) => <mesh key={index} ref={mesh => { meshes.current[index] = mesh }} geometry={piece.geometry} material={piece.material} position={piece.center} />)}
+    <Measurements pieces={resources} cursor={cursor} reduced={reduced} />
   </>
 }
 
