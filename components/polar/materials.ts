@@ -87,12 +87,13 @@ export function makeIceMaterial(assets: PolarAssets) {
       varying vec3 localPoint;
       void main() {
         vec3 a = texture2D(closed, surfaceUv).rgb;
-        vec3 b = texture2D(opened, surfaceUv).rgb + .05;
+        vec3 b = min(texture2D(opened, surfaceUv).rgb + .025, vec3(.85));
         vec3 color = mix(a, b, clamp(separation * 5., 0., 1.));
         vec3 point = localPoint + center;
-        float frost = pow(iceLight, 2.);
-        color += frost * separation * vec3(.5,.7,1.);
-        color += pow(iceLight, 8.) * vec3(.5,.7,1.) * .13;
+        float rim = clamp(iceLight, 0., 1.);
+        float frost = rim * rim;
+        color += frost * separation * vec3(.5,.7,1.) * .32;
+        color += pow(rim, 8.) * vec3(.5,.7,1.) * .035;
         color += (point.x * .1 + .4) * .15 * min(point.y + .5, 1.);
         gl_FragColor = vec4(clamp(color, 0., 1.), 1.);
       }

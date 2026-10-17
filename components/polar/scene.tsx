@@ -66,7 +66,7 @@ function PostProcessing({ assets }: { assets: PolarAssets }) {
       `,
     })
     // Grade in display space, bloom in linear light, then convert once for the screen.
-    const bloom = new UnrealBloomPass(new THREE.Vector2(size.width, size.height), .42, .85, .72)
+    const bloom = new UnrealBloomPass(new THREE.Vector2(size.width, size.height), .14, .55, .9)
     const output = new OutputPass()
     composer.addPass(render); composer.addPass(grade); composer.addPass(bloom); composer.addPass(output)
     return { composer, render, grade, bloom, output }
