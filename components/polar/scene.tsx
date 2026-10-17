@@ -1,7 +1,7 @@
 'use client'
 
 import { Canvas, useFrame, useThree } from '@react-three/fiber'
-import { Html, Sparkles } from '@react-three/drei'
+import { Html } from '@react-three/drei'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import * as THREE from 'three'
 import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js'
@@ -12,6 +12,7 @@ import { OutputPass } from 'three/addons/postprocessing/OutputPass.js'
 import { loadPolarAssets, type PolarAssets } from './assets'
 import { makeIceMaterial, makeTerrainMaterial, surfaceVertex } from './materials'
 import { Measurements } from './measurements'
+import { Wind } from './wind'
 
 type Motion = { fast: number; slow: number }
 const radians = (degrees: number) => degrees * Math.PI / 180
@@ -215,7 +216,7 @@ function World({ assets, onReady, reduced }: { assets: PolarAssets; onReady: () 
     <mesh material={surfaces.haze} position={[-5,1.25,-10]} renderOrder={3}><planeGeometry args={[20,5]} /></mesh>
     <mesh material={surfaces.haze} position={[13.45,3,-4]} rotation={[0,radians(-10),0]} renderOrder={3}><planeGeometry args={[20,5]} /></mesh>
     <Ice assets={assets} cursor={cursor} engaged={engaged} reduced={reduced} />
-    {!reduced && <Sparkles count={65} scale={[25,12,25]} position={[0,5,0]} size={1.1} speed={.08} opacity={.28} />}
+    {!reduced && <Wind />}
     <PostProcessing assets={assets} />
   </>
 }
