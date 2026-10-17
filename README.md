@@ -24,6 +24,8 @@ npm start
 - `components/polar/experience.tsx`: accessible overlay, loading state, sound, WebGL fallback.
 - `components/polar/scene.tsx`: scene controller, reference-rate block motion, cursor orbit, haze, bloom, and color grading.
 - `components/polar/wordmark.tsx`: accessible geometric name mark with a 250 ms hover/focus glitch and reduced-motion support.
+- `components/polar/measurements.tsx`: five-point displacement readout with crosshair anchors, outward labels, and animated proximity connections.
+- `components/polar/wind.tsx`: 1,200 GPU-animated snow particles traveling continuously left to right.
 - `components/polar/assets.ts`: worker-based Draco and KTX2 loading and ice mesh separation.
 - `components/polar/materials.ts`: baked surface rendering and frost emission during separation.
 - `public/scene/`: detailed geometry, compressed baked maps, palette LUT, and decoder assets.
@@ -37,3 +39,7 @@ Set `NEXT_PUBLIC_SITE_URL` to the eventual public origin before deployment so so
 Rendering uses compressed GPU textures, capped device pixel ratio of 1.5, worker-based decoding, and pauses when the tab is hidden. Hover uses a stable interaction plane instead of raycasting against moving blocks. The reference's .05 pointer and .06 block interpolation coefficients at 60 Hz are converted into frame-rate-independent damping rates. Lower blocks stay anchored. The camera orbits the target with .07 horizontal and .025 vertical angular gain and .035 reference easing, including when the cursor is over the HTML overlay. Reduced-motion mode disables cursor orbit and the name animation. Actual frame rate depends on device and GPU. No deployment or merge into `main` is part of this screen build.
 
 The reference's heading is a raster logo rather than an installable display font. `public/images/tuaha-wordmark.svg` recreates its geometric lettering for Tuaha; surrounding text uses the reference's IBM Plex Mono font files. The personalized wordmark is an interpretation of that logo, not a claim to an identified original font.
+
+The measurement overlay selects up to five displaced pieces within two world units of the cursor's interaction point, shifted one unit toward the camera. Numbers are the final two digits of `floor(displacementDistance * 50)`. Crosses stay on the pieces while labels sit above and outward from them. Connections fade in over 100 ms and out over 60 ms. The DOM overlay stays outside post-processing so its fine white lines remain readable.
+
+Ice emission is bounded and bloom is reduced to preserve the textured faces during opening. Wind combines directional snow, faster drifting valley wisps, and an animated ground-snow layer. Wind does not require audio or cursor movement. Reduced-motion mode removes the particles, freezes haze and ground flow, and clears the measurements as the blocks close.
