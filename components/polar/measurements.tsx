@@ -60,7 +60,10 @@ export function Measurements({ pieces, cursor, reduced }: { pieces: Piece[]; cur
           if (exists || (degree.get(node.id) || 0) >= 2 || (degree.get(other.id) || 0) >= 2) continue
           links.push([node.id, other.id]); degree.set(node.id, (degree.get(node.id) || 0) + 1); degree.set(other.id, (degree.get(other.id) || 0) + 1)
         }
-        if (!degree.get(node.id) && neighbors.length) links.push([node.id, neighbors[0].id])
+        if (!degree.get(node.id) && neighbors.length) {
+          const neighbor = neighbors[0].id
+          links.push([node.id, neighbor]); degree.set(node.id, 1); degree.set(neighbor, (degree.get(neighbor) || 0) + 1)
+        }
       })
       edges.current = links
     }
@@ -77,7 +80,13 @@ export function Measurements({ pieces, cursor, reduced }: { pieces: Piece[]; cur
       group.setAttribute('opacity', String(node.progress))
       group.dataset.piece = String(node.id)
       const number = String(Math.floor(piece.center.distanceTo(piece.point) * 50) % 100).padStart(2, '0')
-      if (labels.current[index]) labels.current[index]!.textContent = number
+      const label = labels.current[index]
+      if (label) {
+        label.textContent = number
+        const rightSide = node.x > size.width * .5
+        label.setAttribute('x', rightSide ? '10' : '-10')
+        label.setAttribute('text-anchor', rightSide ? 'start' : 'end')
+      }
     }
     for (let index = 0; index < 10; index++) {
       const path = lines.current[index], edge = edges.current[index]
