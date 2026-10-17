@@ -14,6 +14,9 @@ import { makeIceMaterial, makeTerrainMaterial, surfaceVertex } from './materials
 
 type Motion = { fast: number; slow: number }
 const radians = (degrees: number) => degrees * Math.PI / 180
+// Convert the reference's 60 Hz interpolation coefficients into per-second rates.
+const pointerResponse = -60 * Math.log(1 - .05)
+const blockResponse = -60 * Math.log(1 - .06)
 const mountains = [
   { position: [59.53,-1,-11.84], scale: [4,3.14,4], rotation: [4.1,-42.8,5] },
   { position: [1,-2.21,-23], scale: [2,2,2], rotation: [3.5,30,0] },
@@ -92,12 +95,12 @@ function Ice({ assets, cursor, engaged, reduced }: { assets: PolarAssets; cursor
       const mesh = meshes.current[index]
       if (!mesh) return
       const distance = piece.center.distanceTo(cursor)
-      const influence = 1 - THREE.MathUtils.smoothstep(distance, .6, 3.1)
-      const anchored = THREE.MathUtils.smoothstep(piece.center.y, .45, .8)
+      const influence = 1 - THREE.MathUtils.smoothstep(distance, 1, 3)
+      const anchored = THREE.MathUtils.smoothstep(piece.center.y, .45, .7)
       const target = !reduced && engaged.current ? influence * .54 * anchored : 0
-      // Two cascaded, frame-rate-independent filters produce a slow ease-in and ease-out.
-      piece.motion.fast = THREE.MathUtils.damp(piece.motion.fast, target, 1.65, delta)
-      piece.motion.slow = THREE.MathUtils.damp(piece.motion.slow, piece.motion.fast, 1.65, delta)
+      // Preserve the reference's two-stage easing without the previous extra slowdown.
+      piece.motion.fast = THREE.MathUtils.damp(piece.motion.fast, target, blockResponse, delta)
+      piece.motion.slow = THREE.MathUtils.damp(piece.motion.slow, piece.motion.fast, blockResponse, delta)
       const amount = piece.motion.slow
       mesh.position.copy(piece.center).addScaledVector(piece.center, amount)
       mesh.rotation.set(
@@ -223,7 +226,7 @@ function World({ assets, onReady, reduced }: { assets: PolarAssets; onReady: () 
     plane.setFromNormalAndCoplanarPoint(normal, target)
     ray.setFromCamera(pointer, camera)
     ray.ray.intersectPlane(plane, target)
-    cursor.lerp(target, 1 - Math.exp(-1.8 * delta))
+    cursor.lerp(target, 1 - Math.exp(-pointerResponse * delta))
     const dpr = gl.getPixelRatio()
     for (const material of Object.values(surfaces)) material.uniforms.resolution?.value.set(size.width * dpr, size.height * dpr)
     surfaces.ground.uniforms.cursor.value.copy(cursor)
