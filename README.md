@@ -22,7 +22,8 @@ npm start
 ## Structure
 
 - `components/polar/experience.tsx`: accessible overlay, loading state, sound, WebGL fallback.
-- `components/polar/scene.tsx`: scene controller, two-stage motion smoothing, camera, haze, bloom, and color grading.
+- `components/polar/scene.tsx`: scene controller, reference-rate block motion, cursor orbit, haze, bloom, and color grading.
+- `components/polar/wordmark.tsx`: accessible geometric name mark with a 250 ms hover/focus glitch and reduced-motion support.
 - `components/polar/assets.ts`: worker-based Draco and KTX2 loading and ice mesh separation.
 - `components/polar/materials.ts`: baked surface rendering and frost emission during separation.
 - `public/scene/`: detailed geometry, compressed baked maps, palette LUT, and decoder assets.
@@ -33,4 +34,6 @@ The detailed meshes, baked textures, palette LUT, and font builds match the publ
 
 Set `NEXT_PUBLIC_SITE_URL` to the eventual public origin before deployment so social images resolve to the right domain. An example is in `.env.example`. Next.js provides the route announcer automatically. WebGL2 is required for the scene; descriptive HTML and the sound control remain available when it is unsupported.
 
-Rendering uses compressed GPU textures, capped device pixel ratio of 1.5, worker-based decoding, and pauses when the tab is hidden. Hover uses a stable interaction plane instead of raycasting against moving blocks. Cascaded smoothing slows both opening and closing without abrupt resets. Lower blocks stay anchored. Actual frame rate depends on device and GPU. No deployment or merge into `main` is part of this screen build.
+Rendering uses compressed GPU textures, capped device pixel ratio of 1.5, worker-based decoding, and pauses when the tab is hidden. Hover uses a stable interaction plane instead of raycasting against moving blocks. The reference's .05 pointer and .06 block interpolation coefficients at 60 Hz are converted into frame-rate-independent damping rates. Lower blocks stay anchored. The camera orbits the target with .07 horizontal and .025 vertical angular gain and .035 reference easing, including when the cursor is over the HTML overlay. Reduced-motion mode disables cursor orbit and the name animation. Actual frame rate depends on device and GPU. No deployment or merge into `main` is part of this screen build.
+
+The reference's heading is a raster logo rather than an installable display font. `public/images/tuaha-wordmark.svg` recreates its geometric lettering for Tuaha; surrounding text uses the reference's IBM Plex Mono font files. The personalized wordmark is an interpretation of that logo, not a claim to an identified original font.
