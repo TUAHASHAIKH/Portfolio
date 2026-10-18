@@ -1,5 +1,7 @@
 # Scene asset sources
 
+The ring passage uses the reference's public `shattered_ring2`, `shattered_ring`, `shattered_ring_smoke` and `floor` Draco meshes, their baked color/emission maps, `clouds_noise` and the `peachesbody_64` signed-distance volume. These are third-party assets. The scroll camera, fragment animation, portal fields, particle surface extraction and post-processing integration are implemented locally; reference JavaScript bundles are not distributed.
+
 The ice, ground, mountain and patch meshes, baked texture maps and color lookup were downloaded from the public assets of the user-supplied visual reference:
 
 https://my-portfolio-mu-vert-67.vercel.app/
