@@ -17,3 +17,5 @@ Crystal refinement also uses the reference's cube_scene color LUT, perlin-datate
 The surface-frost simulation uses the reference's public cubes/advect.png flow texture and the crystal's secondary UV atlas. The React GPU feedback controller and shader integration are implemented locally.
 
 The original downloaded crystal mesh remains unchanged on disk. At runtime, a small right-hand recess is smoothed to remove the dark puncture reported by the portfolio owner, retaining the reference UVs and texture maps.
+
+The second (projects) crystal uses the same reference's public `cubes/cube1.drc`, `cubes/cube1_normal.ktx2` and `cubes/cube1_roughness.ktx2`, stored locally as `projects-crystal.drc` and `projects_crystal_*`. Its secondary UV atlas is preserved for the existing hover simulation. The scroll choreography, labels and React integration are implemented locally; both crystals share the reflection environment and color grade.

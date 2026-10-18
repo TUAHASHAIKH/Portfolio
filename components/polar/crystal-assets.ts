@@ -32,7 +32,8 @@ export async function loadCrystalAssets(renderer: THREE.WebGLRenderer) {
   async function geometry(name: string) {
     const response = await fetch(`/scene/geometry/${name}.drc`)
     if (!response.ok) throw new Error(`Could not load ${name}`)
-    const attributes = name === 'crystal' ? ['position','normal','uv','uv1'] : ['position','normal','uv']
+    const isCrystal = name === 'crystal' || name === 'projects-crystal'
+    const attributes = isCrystal ? ['position','normal','uv','uv1'] : ['position','normal','uv']
     const decoder = draco as DRACOLoader & { decodeGeometry: (buffer: ArrayBuffer, config: object) => Promise<THREE.BufferGeometry> }
     const result = await decoder.decodeGeometry(await response.arrayBuffer(), {
       attributeIDs: Object.fromEntries(attributes.map((key,index)=>[key,index])),
@@ -43,7 +44,7 @@ export async function loadCrystalAssets(renderer: THREE.WebGLRenderer) {
     if(name==='crystal')fillCrystalPit(result)
     result.computeBoundingBox()
     result.computeBoundingSphere()
-    if (name === 'crystal') result.setAttribute('frostUv',result.getAttribute('uv1'))
+    if (isCrystal) result.setAttribute('frostUv',result.getAttribute('uv1'))
     return result
   }
   async function texture(name: string, color = false) {
@@ -58,7 +59,7 @@ export async function loadCrystalAssets(renderer: THREE.WebGLRenderer) {
     return result
   }
   try {
-    const [geometryMap, core, normal, roughness, coreMap, source, grade, mist, triangles, advect] = await Promise.all([
+    const [geometryMap, core, normal, roughness, coreMap, source, grade, mist, triangles, advect, projectsGeometry, projectsNormal, projectsRoughness] = await Promise.all([
       geometry('crystal'), geometry('crystal-core'), texture('crystal_normal'),
       texture('crystal_roughness'), texture('crystal_core', true),
       new EXRLoader().loadAsync('/scene/textures/crystal_env.exr').then(result => { resources.push(result); return result }),
@@ -66,12 +67,14 @@ export async function loadCrystalAssets(renderer: THREE.WebGLRenderer) {
       new THREE.TextureLoader().loadAsync('/scene/textures/crystal_advect.png').then(result => {
         result.colorSpace=THREE.NoColorSpace; result.wrapS=result.wrapT=THREE.RepeatWrapping; resources.push(result); return result
       }),
+      geometry('projects-crystal'), texture('projects_crystal_normal'), texture('projects_crystal_roughness'),
     ])
     const generator = new THREE.PMREMGenerator(renderer)
     const environment = generator.fromEquirectangular(source)
     generator.dispose()
     resources.push(environment)
     draco.dispose(); ktx.dispose()
-    return { geometry: geometryMap, core, normal, roughness, coreMap, environment: environment.texture, grade, mist, triangles, advect, dispose }
+    return { geometry: geometryMap, core, normal, roughness, coreMap, environment: environment.texture, grade, mist, triangles, advect,
+      projects: { geometry: projectsGeometry, normal: projectsNormal, roughness: projectsRoughness }, dispose }
   } catch (error) { dispose(); throw error }
 }
