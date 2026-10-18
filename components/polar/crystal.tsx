@@ -187,15 +187,14 @@ function CrystalView({ assets, noise, journey, reduced }: { assets: CrystalAsset
       const shard=reference.current
       if(!shard)return
       shard.visible=index===0 ? travel.crystal>0&&exchange<1 : p>index && p<index+2
-      const turn=index===0 ? 1-travel.crystal : 0
-      const rolling=index===0 ? -exchange*.25 : (index+1-p)*.25*(index===2?-1:1)
+      const rolling=(index+1-p)*.25*(index===2?-1:1)
       shard.position.y=index===0 ? skillsY : index===1 ? projectsY : aboutY
       // The reference rotates all three axes with distance from the resting
       // position. Scroll reversal follows this exact pose back, without tweens.
       shard.rotation.set(
-        reduced ? 0 : turn*1.6+rolling*11.2+Math.sin(time.current*.3+index*.7)*.055,
-        reduced ? 0 : turn*-2.2-rolling*9.8+Math.sin(time.current*.24+index*.9)*.09,
-        reduced ? 0 : turn*.7-rolling*4.8+Math.sin(time.current*.28+index*.5)*.04,
+        reduced ? 0 : rolling*11.2+Math.sin(time.current*.3+index*.7)*.055,
+        reduced ? 0 : -rolling*9.8+Math.sin(time.current*.24+index*.9)*.09,
+        reduced ? 0 : -rolling*4.8+Math.sin(time.current*.28+index*.5)*.04,
       )
       shard.scale.setScalar(size.width < 700 ? .68 : index===0 ? 1 : index===1 ? .88 : .9)
     })
