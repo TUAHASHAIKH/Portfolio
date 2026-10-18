@@ -15,3 +15,5 @@ The first portfolio crystal uses the reference's cube3 and abstractlogo meshes, 
 Crystal refinement also uses the reference's cube_scene color LUT, perlin-datatexture and triangles_tiling textures for the palette, mist and hover grid.
 
 The surface-frost simulation uses the reference's public cubes/advect.png flow texture and the crystal's secondary UV atlas. The React GPU feedback controller and shader integration are implemented locally.
+
+The original downloaded crystal mesh remains unchanged on disk. At runtime, a small right-hand recess is smoothed to remove the dark puncture reported by the portfolio owner, retaining the reference UVs and texture maps.
