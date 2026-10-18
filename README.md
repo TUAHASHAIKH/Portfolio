@@ -53,3 +53,7 @@ Scroll down through the pinned 3.2-viewport section. Native page scrolling (whee
 `components/polar/crystal.tsx` renders the detailed ice shard with an HDR reflection environment, surface normal and roughness maps, a textured inner form and an animated 18-point 3D plexus. Its assets load independently of the hero through `crystal-assets.ts`. `crystal-readout.tsx` supplies sharp HTML annotations and a native modal dialog populated from the existing portfolio skills. The temperature readout is decorative reference-style telemetry, not a live sensor.
 
 Reduced motion removes the radial distortion, camera interpolation and idle crystal/plexus movement. The skills dialog supports Escape, keyboard focus containment and a close control. The present journey stops at this first crystal; further crystals are not implemented.
+
+Crystal rendering now uses a dedicated half-float refraction buffer, the reference's crystal LUT, smoothly filtered Perlin mist and eight transmission samples. The hero retains its original grade. The scroll sequence completes its zoom-out before the bottom-to-top mist curtain and upward landscape exit.
+
+The entire crystal supports pointer/touch activation through geometry raycasting; the HTML explore control supports keyboard access. Hover sends a blue triangle-grid light wave across the ice from the pointer position. Fahrenheit and signed Celsius values drift together using the reference's slow sinusoidal temperature pattern; reduced-motion mode fixes the values. These remain decorative telemetry.
