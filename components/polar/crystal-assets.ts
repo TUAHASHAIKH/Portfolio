@@ -5,6 +5,24 @@ import { EXRLoader } from 'three/addons/loaders/EXRLoader.js'
 
 export type CrystalAssets = Awaited<ReturnType<typeof loadCrystalAssets>>
 
+function fillCrystalPit(geometry: THREE.BufferGeometry) {
+  const positions=geometry.getAttribute('position') as THREE.BufferAttribute
+  const normals=geometry.getAttribute('normal') as THREE.BufferAttribute
+  const normal=new THREE.Vector3(), faceNormal=new THREE.Vector3(.15,0,1).normalize()
+  // Close the deep right-hand recess that reads as a black puncture through refractive ice.
+  // Keep the original UVs and surface maps on the repaired faces.
+  for(let index=0;index<positions.count;index++){
+    const x=positions.getX(index),y=positions.getY(index),z=positions.getZ(index)
+    const radius=Math.hypot((x-.565)/.1,(y+.065)/.085)
+    const weight=(1-THREE.MathUtils.smoothstep(radius,.45,1.15))*THREE.MathUtils.smoothstep(z,.24,.35)*(1-THREE.MathUtils.smoothstep(z,.43,.57))
+    if(weight<=0)continue
+    positions.setZ(index,THREE.MathUtils.lerp(z,Math.max(z,.5-.15*(x-.565)),weight))
+    normal.fromBufferAttribute(normals,index).lerp(faceNormal,weight).normalize()
+    normals.setXYZ(index,normal.x,normal.y,normal.z)
+  }
+  positions.needsUpdate=true;normals.needsUpdate=true
+}
+
 // This section loads independently, so an unavailable crystal never prevents the hero loading.
 export async function loadCrystalAssets(renderer: THREE.WebGLRenderer) {
   const draco = new DRACOLoader().setDecoderPath('/scene/draco/').setWorkerLimit(1)
@@ -22,6 +40,7 @@ export async function loadCrystalAssets(renderer: THREE.WebGLRenderer) {
       useUniqueIDs: true, vertexColorSpace: THREE.LinearSRGBColorSpace,
     })
     resources.push(result)
+    if(name==='crystal')fillCrystalPit(result)
     result.computeBoundingBox()
     result.computeBoundingSphere()
     if (name === 'crystal') result.setAttribute('frostUv',result.getAttribute('uv1'))

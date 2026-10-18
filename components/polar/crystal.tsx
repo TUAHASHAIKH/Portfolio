@@ -42,10 +42,18 @@ function CrystalView({ assets, noise, journey, reduced }: { assets: CrystalAsset
     material.onBeforeCompile = (shader, renderer) => {
       compile.call(material, shader, renderer)
       shader.uniforms.surfaceFrost = frost
+      shader.uniforms.clearTransmission = {value:backBuffer.texture}
       shader.uniforms.frostTriangles = { value: assets.triangles }
       shader.vertexShader = 'attribute vec2 frostUv;varying vec2 vFrostUv;\n'+shader.vertexShader
       shader.vertexShader = shader.vertexShader.replace('#include <uv_vertex>','#include <uv_vertex>\nvFrostUv=frostUv;')
-      shader.fragmentShader = 'uniform sampler2D surfaceFrost;uniform sampler2D frostTriangles;varying vec2 vFrostUv;\n'+shader.fragmentShader
+      shader.fragmentShader = 'uniform sampler2D clearTransmission;uniform sampler2D surfaceFrost;uniform sampler2D frostTriangles;varying vec2 vFrostUv;\n'+shader.fragmentShader
+      shader.fragmentShader = shader.fragmentShader.replace('vec4 transmittedLight = getTransmissionSample( refractionCoords, roughness, ior );',`vec4 transmittedLight = getTransmissionSample(clamp(refractionCoords,vec2(.001),vec2(.999)),roughness,ior);
+        vec4 straightClip=projMatrix*viewMatrix*vec4(position,1.);
+        vec2 straightUv=clamp(straightClip.xy/straightClip.w*.5+.5,vec2(.001),vec2(.999));
+        vec4 clearLight=texture2D(clearTransmission,straightUv);
+        float valid=step(0.,refractionCoords.x)*step(refractionCoords.x,1.)*step(0.,refractionCoords.y)*step(refractionCoords.y,1.);
+        float energy=smoothstep(.004,.035,max(transmittedLight.r,max(transmittedLight.g,transmittedLight.b)));
+        transmittedLight=mix(clearLight,transmittedLight,valid*energy);`)
       shader.fragmentShader = shader.fragmentShader.replace('#include <roughnessmap_fragment>','#include <roughnessmap_fragment>\nroughnessFactor*=1.-texture2D(surfaceFrost,vFrostUv).r*.95;')
       shader.fragmentShader = shader.fragmentShader.replace('#include <normal_fragment_maps>',THREE.ShaderChunk.normal_fragment_maps.replace('mapN.xy *= normalScale;', 'mapN.xy *= normalScale;mapN.xy*=1.-texture2D(surfaceFrost,vFrostUv).r;'))
       shader.fragmentShader = shader.fragmentShader.replace('vec3 outgoingLight = totalDiffuse + totalSpecular + totalEmissiveRadiance;',`vec2 field=texture2D(surfaceFrost,vFrostUv).rg;
