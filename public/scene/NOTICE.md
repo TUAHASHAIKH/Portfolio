@@ -13,3 +13,5 @@ The introduction also uses the reference's public cage, outline, particle geomet
 The first portfolio crystal uses the reference's cube3 and abstractlogo meshes, normal and roughness maps, core color texture and cubes_env reflection environment. These are third-party assets. The native scroll controller, transition post-processing, React crystal scene and accessible skills panel are implemented separately.
 
 Crystal refinement also uses the reference's cube_scene color LUT, perlin-datatexture and triangles_tiling textures for the palette, mist and hover grid.
+
+The surface-frost simulation uses the reference's public cubes/advect.png flow texture and the crystal's secondary UV atlas. The React GPU feedback controller and shader integration are implemented locally.
