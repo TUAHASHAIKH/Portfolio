@@ -64,9 +64,12 @@ function CrystalView({ assets, noise, journey, reduced }: { assets: CrystalAsset
       shader.uniforms.surfaceFrost = fields[index]
       shader.uniforms.clearTransmission = {value:backBuffer.texture}
       shader.uniforms.frostTriangles = { value: assets.triangles }
+      shader.uniforms.iceTint = { value: new THREE.Vector3().fromArray(index===2?[.27,.34,.44]:[.42,.49,.60]) }
+      shader.uniforms.iceTintStrength = { value: index===2?.3:.22 }
+      shader.uniforms.iceSurfaceRoughness = { value: index===2?.7:1 }
       shader.vertexShader = 'attribute vec2 frostUv;varying vec2 vFrostUv;\n'+shader.vertexShader
       shader.vertexShader = shader.vertexShader.replace('#include <uv_vertex>','#include <uv_vertex>\nvFrostUv=frostUv;')
-      shader.fragmentShader = 'uniform sampler2D clearTransmission;uniform sampler2D surfaceFrost;uniform sampler2D frostTriangles;varying vec2 vFrostUv;\n'+shader.fragmentShader
+      shader.fragmentShader = 'uniform vec3 iceTint;uniform float iceTintStrength;uniform float iceSurfaceRoughness;uniform sampler2D clearTransmission;uniform sampler2D surfaceFrost;uniform sampler2D frostTriangles;varying vec2 vFrostUv;\n'+shader.fragmentShader
       shader.fragmentShader = shader.fragmentShader.replace('vec4 transmittedLight = getTransmissionSample( refractionCoords, roughness, ior );',`vec4 transmittedLight = getTransmissionSample(clamp(refractionCoords,vec2(.001),vec2(.999)),roughness,ior);
         vec4 straightClip=projMatrix*viewMatrix*vec4(position,1.);
         vec2 straightUv=clamp(straightClip.xy/straightClip.w*.5+.5,vec2(.001),vec2(.999));
@@ -74,14 +77,14 @@ function CrystalView({ assets, noise, journey, reduced }: { assets: CrystalAsset
         float valid=step(0.,refractionCoords.x)*step(refractionCoords.x,1.)*step(0.,refractionCoords.y)*step(refractionCoords.y,1.);
         float energy=smoothstep(.004,.035,max(transmittedLight.r,max(transmittedLight.g,transmittedLight.b)));
         transmittedLight=mix(clearLight,transmittedLight,valid*energy);`)
-      shader.fragmentShader = shader.fragmentShader.replace('#include <roughnessmap_fragment>','#include <roughnessmap_fragment>\nroughnessFactor*=1.-texture2D(surfaceFrost,vFrostUv).r*.95;')
+      shader.fragmentShader = shader.fragmentShader.replace('#include <roughnessmap_fragment>','#include <roughnessmap_fragment>\nroughnessFactor*=iceSurfaceRoughness*(1.-texture2D(surfaceFrost,vFrostUv).r*.95);')
       shader.fragmentShader = shader.fragmentShader.replace('#include <normal_fragment_maps>',THREE.ShaderChunk.normal_fragment_maps.replace('mapN.xy *= normalScale;', 'mapN.xy *= normalScale;mapN.xy*=1.-texture2D(surfaceFrost,vFrostUv).r;'))
       shader.fragmentShader = shader.fragmentShader.replace('vec3 outgoingLight = totalDiffuse + totalSpecular + totalEmissiveRadiance;',`vec2 field=texture2D(surfaceFrost,vFrostUv).rg;
         float grid=texture2D(frostTriangles,vNormalMapUv*9.).r;
         totalEmissiveRadiance+=vec3(.23,.36,.56)*field.g*2.+vec3(grid)*(field.g*10.+field.r*field.r);
         vec3 outgoingLight=totalDiffuse+totalSpecular+totalEmissiveRadiance;`)
       shader.fragmentShader = shader.fragmentShader.replace('#include <dithering_fragment>',
-        '#include <dithering_fragment>\ngl_FragColor.rgb=mix(clamp(gl_FragColor.rgb,0.,1.),vec3(.42,.49,.60),.22);')
+        '#include <dithering_fragment>\ngl_FragColor.rgb=mix(clamp(gl_FragColor.rgb,0.,1.),iceTint,iceTintStrength);')
     }
     material.needsUpdate = true
   }, [assets,fields,backBuffer])
