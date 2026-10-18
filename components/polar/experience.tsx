@@ -3,7 +3,7 @@
 import dynamic from 'next/dynamic'
 import { Component, useEffect, useRef, useState, type ReactNode } from 'react'
 import { Wordmark } from './wordmark'
-import { ease, JOURNEY_END, type Journey } from './journey'
+import { crystalCenter, ease, isCrystalKind, JOURNEY_END, type Journey } from './journey'
 import { CrystalReadout } from './crystal-readout'
 
 const App3D = dynamic(() => import('./scene'), { ssr: false })
@@ -50,8 +50,8 @@ export function PolarExperience() {
     }
     const centerCrystal = (event: Event) => {
       const kind=(event as CustomEvent<unknown>).detail
-      if ((kind!=='skills'&&kind!=='projects') || performance.now()<intentUntil) return
-      const destination=distance*(kind==='skills'?1:JOURNEY_END)/JOURNEY_END
+      if (!isCrystalKind(kind) || performance.now()<intentUntil) return
+      const destination=distance*crystalCenter(kind)/JOURNEY_END
       if (centering===destination || Math.abs(window.scrollY-destination)<1) return
       cancelAnimationFrame(animation)
       centering=destination
@@ -76,7 +76,7 @@ export function PolarExperience() {
     }
     const measure = () => {
       cancelCenter()
-      distance = Math.max(1, (track?.offsetHeight || window.innerHeight * 5.4) - window.innerHeight)
+      distance = Math.max(1, (track?.offsetHeight || window.innerHeight * (1+2.2*JOURNEY_END)) - window.innerHeight)
       update()
     }
     const observer = new ResizeObserver(measure)
@@ -133,6 +133,7 @@ export function PolarExperience() {
     <div id="ice-measurements" aria-hidden="true" />
     <CrystalReadout />
     <CrystalReadout kind="projects" />
+    <CrystalReadout kind="about" />
     <div className="crystal-atmosphere" aria-hidden="true"><span>DESIGN / ENGINEERING</span><span>01 / SYSTEMS</span></div>
     <header className="identity">
       <h1><Wordmark reducedMotion={reducedMotion} /></h1>
@@ -154,6 +155,6 @@ export function PolarExperience() {
     <div id="loader" data-ready={ready} role="status" aria-live="polite" aria-label={ready ? 'Scene ready' : 'Preparing the landscape'}>
       <span className="loader-name">TUAHA SHAIKH</span><span className="ascii" aria-hidden="true">---===+++===---</span><span className="loader-caption">ASSEMBLING A SMALL WORLD</span>
     </div>
-    <p className="sr-only">Interactive snowy landscape with an igloo. Move over its ice blocks to gently separate them. Scroll down to the skills crystal, then continue to the projects crystal. All links and sound controls are accessible by keyboard.</p>
+    <p className="sr-only">Interactive snowy landscape with an igloo. Move over its ice blocks to gently separate them. Scroll through the skills, projects, and about me crystals. All links and sound controls are accessible by keyboard.</p>
   </main></div>
 }

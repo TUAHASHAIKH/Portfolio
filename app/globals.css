@@ -45,18 +45,19 @@ html{--bgColor:#a0a5b1;--default-font:'IBM Plex Mono','Courier New',monospace;ba
 
 /* Native scrolling drives the pinned journey through skills and projects. */
 html{scrollbar-width:none}html::-webkit-scrollbar{display:none}
-.journey-track{height:540svh;position:relative}
-#app{position:sticky;top:0;--hero-opacity:1;--crystal-opacity:0;--skills-opacity:0;--projects-opacity:0}
+.journey-track{height:760svh;position:relative}
+#app{position:sticky;top:0;--hero-opacity:1;--crystal-opacity:0;--skills-opacity:0;--projects-opacity:0;--about-opacity:0}
 .identity .role,.identity .specialties,.intro{opacity:var(--hero-opacity)}
 #app[data-stage=crystal] .intro{visibility:hidden;pointer-events:none}
 .crystal-readout{position:absolute;inset:0;z-index:3;pointer-events:none;opacity:var(--skills-opacity);color:#f5f7fb;text-shadow:0 0 2px #ffffff65}
 .crystal-readout[data-crystal=projects]{opacity:var(--projects-opacity)}
+.crystal-readout[data-crystal=about]{opacity:var(--about-opacity)}
 .crystal-leaders{position:absolute;inset:0;width:100%;height:100%;fill:none;stroke:#f5f7fb;stroke-width:1;vector-effect:non-scaling-stroke}
 .crystal-leaders .crystal-plexus{opacity:.3;stroke-width:.65}
 .crystal-title{position:absolute;left:31%;top:16.4%;margin:0;font-size:clamp(13px,1.1vw,23px);font-weight:500;line-height:1.05;letter-spacing:-.035em}
 .crystal-temperature{position:absolute;left:56.5%;top:27%;font-size:clamp(10px,.85vw,18px);line-height:1.35}
 .crystal-explore{position:absolute;left:54%;top:65%;border:0;background:none;padding:9px 0;font-size:clamp(11px,.95vw,20px);line-height:1.15;text-align:right;cursor:pointer;pointer-events:none;visibility:hidden;text-shadow:inherit}
-#app[data-skills-interactive=true] [data-crystal=skills] .crystal-explore,#app[data-projects-interactive=true] [data-crystal=projects] .crystal-explore{pointer-events:auto;visibility:visible}
+#app[data-skills-interactive=true] [data-crystal=skills] .crystal-explore,#app[data-projects-interactive=true] [data-crystal=projects] .crystal-explore,#app[data-about-interactive=true] [data-crystal=about] .crystal-explore{pointer-events:auto;visibility:visible}
 .crystal-explore:hover{text-shadow:0 0 8px white}
 .crystal-unavailable{display:none;position:absolute;inset:45% 20%;text-align:center;font-size:12px}
 #app[data-crystal-error=true] .crystal-unavailable{display:block}

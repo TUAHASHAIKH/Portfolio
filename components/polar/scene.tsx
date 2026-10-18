@@ -15,7 +15,7 @@ import { Measurements } from './measurements'
 import { Wind, ForegroundWind } from './wind'
 import { Assembly, progress, smooth } from './assembly'
 import { Crystal } from './crystal'
-import { ease, range, journeyView, crystalJourney, JOURNEY_END, type Journey } from './journey'
+import { ease, range, journeyView, crystalJourney, CRYSTAL_KINDS, JOURNEY_END, type Journey } from './journey'
 
 type Motion = { fast: number; slow: number }
 const radians = (degrees: number) => degrees * Math.PI / 180
@@ -358,16 +358,15 @@ function JourneyMotion({ journey, reduced }: { journey: React.RefObject<Journey>
     const shards = crystalJourney(state.value)
     if (app.style.getPropertyValue('--hero-opacity') !== hero) app.style.setProperty('--hero-opacity', hero)
     if (app.style.getPropertyValue('--crystal-opacity') !== crystal) app.style.setProperty('--crystal-opacity', crystal)
-    for (const [property,value] of [['--skills-opacity',shards.skillsOpacity],['--projects-opacity',shards.projectsOpacity]] as const) {
-      const formatted = value.toFixed(4)
+    for (const kind of CRYSTAL_KINDS) {
+      const property = `--${kind}-opacity`
+      const formatted = shards[`${kind}Opacity`].toFixed(4)
       if (app.style.getPropertyValue(property) !== formatted) app.style.setProperty(property,formatted)
+      const enabled = String(shards[`${kind}Interactive`] && shards[`${kind}Opacity`]>.05)
+      if(app.dataset[`${kind}Interactive`]!==enabled)app.dataset[`${kind}Interactive`]=enabled
     }
-    const active = shards.projectsInteractive ? 'projects' : shards.skillsInteractive ? 'skills' : 'none'
+    const active = shards.aboutInteractive ? 'about' : shards.projectsInteractive ? 'projects' : shards.skillsInteractive ? 'skills' : 'none'
     if (app.dataset.activeCrystal !== active) app.dataset.activeCrystal = active
-    const skillsEnabled = String(shards.skillsInteractive && shards.skillsOpacity>.05)
-    const projectsEnabled = String(shards.projectsInteractive && shards.projectsOpacity>.05)
-    if(app.dataset.skillsInteractive!==skillsEnabled)app.dataset.skillsInteractive=skillsEnabled
-    if(app.dataset.projectsInteractive!==projectsEnabled)app.dataset.projectsInteractive=projectsEnabled
     const stage = state.value > .82 ? 'crystal' : state.value > .02 ? 'transition' : 'igloo'
     if (app.dataset.stage !== stage) app.dataset.stage = stage
   }, -2)

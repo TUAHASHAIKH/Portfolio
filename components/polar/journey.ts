@@ -1,5 +1,9 @@
 export type Journey = { target: number; value: number }
-export const JOURNEY_END = 2
+export const CRYSTAL_KINDS = ['skills','projects','about'] as const
+export type CrystalKind = typeof CRYSTAL_KINDS[number]
+export const JOURNEY_END = CRYSTAL_KINDS.length
+export const isCrystalKind = (value: unknown): value is CrystalKind => CRYSTAL_KINDS.some(kind=>kind===value)
+export const crystalCenter = (kind: CrystalKind) => CRYSTAL_KINDS.indexOf(kind)+1
 
 export const clamp = (value: number) => Math.min(1, Math.max(0, value))
 export const range = (value: number, start: number, end: number) => clamp((value - start) / (end - start))
@@ -23,19 +27,24 @@ function skillsHeight(value: number) {
   return (value-1)*5.75
 }
 
-// Keep the original 0..1 hero journey intact. The next interval carries both
-// shards through the same 5.75-unit vertical spacing as the reference scene.
+// Preserve every center as the journey grows; each following crystal occupies
+// one interval with the reference scene's 5.75-unit vertical spacing.
 export function crystalJourney(value: number) {
-  const exchange = range(value, 1, JOURNEY_END)
+  const exchange = range(value, 1, 2)
+  const aboutExchange = range(value, 2, 3)
   return {
     exchange,
     // Blend through the resting pose with a nonzero slope, rather than ending
     // the entrance, holding, and starting another movement at the center.
     skillsY: skillsHeight(value),
+    projectsY: (value-2)*5.75,
+    aboutY: (value-3)*5.75,
     skillsOpacity: ease(range(value,.83,1)) * (1-ease(range(exchange,0,.3))),
-    projectsOpacity: ease(range(exchange,.25,.75)),
+    projectsOpacity: ease(range(exchange,.25,.75)) * (1-ease(range(aboutExchange,0,.3))),
+    aboutOpacity: ease(range(aboutExchange,.25,.75)),
     skillsInteractive: value > .6 && value < 1.6,
-    projectsInteractive: value > 1.35,
+    projectsInteractive: value > 1.35 && value < 2.6,
+    aboutInteractive: value > 2.35,
   }
 }
 

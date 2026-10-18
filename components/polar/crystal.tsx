@@ -5,36 +5,38 @@ import { useFrame, useThree, type ThreeEvent } from '@react-three/fiber'
 import { createRef, useCallback, useEffect, useMemo, useRef, useState, type RefObject } from 'react'
 import * as THREE from 'three'
 import { loadCrystalAssets, type CrystalAssets } from './crystal-assets'
-import { crystalJourney, journeyView, type Journey } from './journey'
+import { CRYSTAL_KINDS, crystalJourney, journeyView, type Journey } from './journey'
 import { useCrystalFrost, type CrystalInteraction } from './crystal-frost'
 import { CrystalPlexus } from './crystal-plexus'
 import { CrystalAnnotations } from './crystal-annotations'
 
 function CrystalView({ assets, noise, journey, reduced }: { assets: CrystalAssets; noise: THREE.Texture; journey: RefObject<Journey>; reduced: boolean }) {
   const rig = useRef<THREE.Group>(null), crystals = useRef<THREE.Group>(null)
-  const shards = useMemo(() => [createRef<THREE.Group>(),createRef<THREE.Group>()], [])
-  const iceMeshes = useMemo(() => [createRef<THREE.Mesh>(),createRef<THREE.Mesh>()], [])
-  const rearMeshes = useMemo(() => [createRef<THREE.Mesh>(),createRef<THREE.Mesh>()], [])
+  const shards = useMemo(() => CRYSTAL_KINDS.map(()=>createRef<THREE.Group>()), [])
+  const iceMeshes = useMemo(() => CRYSTAL_KINDS.map(()=>createRef<THREE.Mesh>()), [])
+  const rearMeshes = useMemo(() => CRYSTAL_KINDS.map(()=>createRef<THREE.Mesh>()), [])
   const { size, gl, scene } = useThree()
   const buffer = useFBO(Math.round(size.width * .75), Math.round(size.height * .75), { type: THREE.HalfFloatType })
   const backBuffer = useFBO(Math.round(size.width*.75),Math.round(size.height*.75),{type:THREE.HalfFloatType})
   const time = useRef(0)
   const direction = useMemo(() => new THREE.Vector3(), [])
   const savedResolution = useMemo(() => new THREE.Vector2(), [])
-  const capture = useMemo(() => ({ frustum: new THREE.Frustum(), projection: new THREE.Matrix4(), sphere: new THREE.Sphere(), visible: [false,false] }), [])
+  const capture = useMemo(() => ({ frustum: new THREE.Frustum(), projection: new THREE.Matrix4(), sphere: new THREE.Sphere(), visible: CRYSTAL_KINDS.map(()=>false) }), [])
   const landscape = useMemo(() => scene.getObjectByName('polar-landscape'), [scene])
   const interaction = useRef<CrystalInteraction>({ active: false, uv: new THREE.Vector2(.5,.5) })
   const projectsInteraction = useRef<CrystalInteraction>({ active: false, uv: new THREE.Vector2(.5,.5) })
+  const aboutInteraction = useRef<CrystalInteraction>({ active: false, uv: new THREE.Vector2(.5,.5) })
   const frost = useCrystalFrost(assets,interaction,reduced)
   const projectsFrost = useCrystalFrost(assets,projectsInteraction,reduced)
-  const fields = useMemo(() => [frost,projectsFrost], [frost,projectsFrost])
-  const interactions = useMemo(() => [interaction,projectsInteraction], [])
-  const surfaces = useMemo(() => [assets,assets.projects], [assets])
+  const aboutFrost = useCrystalFrost(assets,aboutInteraction,reduced)
+  const fields = useMemo(() => [frost,projectsFrost,aboutFrost], [frost,projectsFrost,aboutFrost])
+  const interactions = useMemo(() => [interaction,projectsInteraction,aboutInteraction], [])
+  const surfaces = useMemo(() => [assets,assets.projects,assets.about], [assets])
   const interactive = (index: number) => {
     const state=crystalJourney(journey.current.value)
-    return index===0 ? state.skillsInteractive : state.projectsInteractive
+    return state[`${CRYSTAL_KINDS[index]}Interactive`]
   }
-  const center = (index: number) => window.dispatchEvent(new CustomEvent('portfolio:center-crystal',{detail:index===0?'skills':'projects'}))
+  const center = (index: number) => window.dispatchEvent(new CustomEvent('portfolio:center-crystal',{detail:CRYSTAL_KINDS[index]}))
   const move = (index: number, event: ThreeEvent<PointerEvent>) => {
     if (!interactive(index)) return
     event.stopPropagation()
@@ -50,7 +52,7 @@ function CrystalView({ assets, noise, journey, reduced }: { assets: CrystalAsset
     event.stopPropagation()
     center(index)
     leave(index)
-    window.dispatchEvent(new Event(index===0 ? 'portfolio:open-skills' : 'portfolio:open-projects'))
+    window.dispatchEvent(new Event(`portfolio:open-${CRYSTAL_KINDS[index]}`))
   }
   useEffect(() => () => { gl.domElement.style.cursor = '' }, [gl])
   const prepareIce = useCallback((material: THREE.MeshPhysicalMaterial | null, index: number) => {
@@ -177,14 +179,14 @@ function CrystalView({ assets, noise, journey, reduced }: { assets: CrystalAsset
       rig.current.position.copy(camera.position).addScaledVector(direction, 6.6)
       rig.current.quaternion.copy(camera.quaternion)
     }
-    const {exchange,skillsY}=crystalJourney(p)
+    const {exchange,skillsY,projectsY,aboutY}=crystalJourney(p)
     shards.forEach((reference,index)=>{
       const shard=reference.current
       if(!shard)return
-      shard.visible=index===0 ? travel.crystal>0&&exchange<1 : exchange>0
+      shard.visible=index===0 ? travel.crystal>0&&exchange<1 : p>index && p<index+2
       const turn=index===0 ? 1-travel.crystal : 0
-      const rolling=index===0 ? -exchange*.25 : (1-exchange)*.25
-      shard.position.y=index===0 ? skillsY : -5.75*(1-exchange)
+      const rolling=index===0 ? -exchange*.25 : (index+1-p)*.25*(index===2?-1:1)
+      shard.position.y=index===0 ? skillsY : index===1 ? projectsY : aboutY
       // The reference rotates all three axes with distance from the resting
       // position. Scroll reversal follows this exact pose back, without tweens.
       shard.rotation.set(
@@ -192,7 +194,7 @@ function CrystalView({ assets, noise, journey, reduced }: { assets: CrystalAsset
         reduced ? 0 : turn*-2.2-rolling*9.8+Math.sin(time.current*.24+index*.9)*.09,
         reduced ? 0 : turn*.7-rolling*4.8+Math.sin(time.current*.28+index*.5)*.04,
       )
-      shard.scale.setScalar(size.width < 700 ? .68 : index===0 ? 1 : .88)
+      shard.scale.setScalar(size.width < 700 ? .68 : index===0 ? 1 : index===1 ? .88 : .9)
     })
     materials.background.uniforms.alpha.value = travel.mist
     materials.background.uniforms.time.value = time.current
@@ -203,7 +205,7 @@ function CrystalView({ assets, noise, journey, reduced }: { assets: CrystalAsset
   return <group ref={rig} name="portfolio-crystals">
     <mesh position={[0,0,-4]} material={materials.background} renderOrder={7}><planeGeometry args={[40,30]} /></mesh>
     <group ref={crystals}>
-    {surfaces.map((surface,index)=><group key={index} ref={shards[index]} name={index===0?'skills-crystal':'projects-crystal'} onPointerMove={event=>move(index,event)} onPointerOut={()=>leave(index)} onClick={event=>explore(index,event)}>
+    {surfaces.map((surface,index)=><group key={CRYSTAL_KINDS[index]} ref={shards[index]} name={`${CRYSTAL_KINDS[index]}-crystal`} onPointerMove={event=>move(index,event)} onPointerOut={()=>leave(index)} onClick={event=>explore(index,event)}>
       <mesh ref={iceMeshes[index]} geometry={surface.geometry} renderOrder={12}>
         <MeshTransmissionMaterial ref={material => prepareIce(material as unknown as THREE.MeshPhysicalMaterial,index)} resolution={1} buffer={buffer.texture} samples={8} color="#e0e8ef" roughness={.65} roughnessMap={surface.roughness} normalMap={surface.normal} normalScale={new THREE.Vector2(1,1)} envMap={assets.environment} envMapIntensity={.91} envMapRotation={new THREE.Euler(0,Math.PI,0)} ior={1.18} reflectivity={.3} thickness={2} transmission={1} chromaticAberration={.1} anisotropicBlur={0} temporalDistortion={0} />
       </mesh>
@@ -212,7 +214,7 @@ function CrystalView({ assets, noise, journey, reduced }: { assets: CrystalAsset
       </mesh>
       <mesh geometry={assets.core} material={materials.core} renderOrder={11} />
       <CrystalPlexus reduced={reduced} active={shards[index]} radius={surface.geometry.boundingSphere!.radius*.9} />
-      <CrystalAnnotations crystal={shards[index]} bounds={surface.geometry.boundingBox!} kind={index===0?'skills':'projects'} journey={journey} />
+      <CrystalAnnotations crystal={shards[index]} bounds={surface.geometry.boundingBox!} kind={CRYSTAL_KINDS[index]} journey={journey} />
     </group>)}
     </group>
   </group>
