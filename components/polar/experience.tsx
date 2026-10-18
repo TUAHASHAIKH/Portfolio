@@ -3,7 +3,7 @@
 import dynamic from 'next/dynamic'
 import { Component, useEffect, useRef, useState, type ReactNode } from 'react'
 import { Wordmark } from './wordmark'
-import { JOURNEY_END, type Journey } from './journey'
+import { ease, JOURNEY_END, type Journey } from './journey'
 import { CrystalReadout } from './crystal-readout'
 
 const App3D = dynamic(() => import('./scene'), { ssr: false })
@@ -31,9 +31,51 @@ export function PolarExperience() {
   useEffect(() => {
     const track = document.querySelector<HTMLElement>('.journey-track')
     let distance = 1
+    let centering: number | null = null
+    let animation = 0
+    let intentUntil = 0
     // Scroll events only sample position; layout is measured when the track resizes.
-    const update = () => { journey.current.target = JOURNEY_END * Math.min(1, Math.max(0, window.scrollY / distance)) }
+    const update = () => {
+      journey.current.target = JOURNEY_END * Math.min(1, Math.max(0, window.scrollY / distance))
+      if (centering !== null && Math.abs(window.scrollY-centering)<1) centering=null
+    }
+    const cancelCenter = () => {
+      cancelAnimationFrame(animation)
+      centering=null
+      intentUntil=performance.now()+200
+    }
+    const navigationKey = (event: KeyboardEvent) => {
+      if(event.defaultPrevented)return
+      if (['ArrowUp','ArrowDown','PageUp','PageDown','Home','End',' '].includes(event.key)) cancelCenter()
+    }
+    const centerCrystal = (event: Event) => {
+      const kind=(event as CustomEvent<unknown>).detail
+      if ((kind!=='skills'&&kind!=='projects') || performance.now()<intentUntil) return
+      const destination=distance*(kind==='skills'?1:JOURNEY_END)/JOURNEY_END
+      if (centering===destination || Math.abs(window.scrollY-destination)<1) return
+      cancelAnimationFrame(animation)
+      centering=destination
+      if(window.matchMedia('(prefers-reduced-motion: reduce)').matches){
+        window.scrollTo({top:destination,behavior:'instant'})
+        update()
+        return
+      }
+      const start=window.scrollY, started=performance.now()
+      const duration=Math.min(900,Math.max(450,Math.abs(destination-start)*.8))
+      // Own only the hover animation. Canceling its RAF leaves the wheel's
+      // native scroll untouched, rather than aborting a browser smooth scroll.
+      const advance=(now:number)=>{
+        if(centering!==destination)return
+        const t=Math.min(1,(now-started)/duration)
+        window.scrollTo({top:start+(destination-start)*ease(t),behavior:'instant'})
+        update()
+        if(t<1&&centering!==null)animation=requestAnimationFrame(advance)
+        else centering=null
+      }
+      animation=requestAnimationFrame(advance)
+    }
     const measure = () => {
+      cancelCenter()
       distance = Math.max(1, (track?.offsetHeight || window.innerHeight * 5.4) - window.innerHeight)
       update()
     }
@@ -42,7 +84,17 @@ export function PolarExperience() {
     measure()
     window.addEventListener('scroll', update, { passive: true })
     window.addEventListener('resize', measure)
-    return () => { observer.disconnect(); window.removeEventListener('scroll', update); window.removeEventListener('resize', measure) }
+    window.addEventListener('portfolio:center-crystal',centerCrystal)
+    window.addEventListener('wheel',cancelCenter,{passive:true})
+    window.addEventListener('touchstart',cancelCenter,{passive:true})
+    window.addEventListener('keydown',navigationKey)
+    return () => {
+      cancelCenter();observer.disconnect()
+      window.removeEventListener('scroll',update);window.removeEventListener('resize',measure)
+      window.removeEventListener('portfolio:center-crystal',centerCrystal)
+      window.removeEventListener('wheel',cancelCenter);window.removeEventListener('touchstart',cancelCenter)
+      window.removeEventListener('keydown',navigationKey)
+    }
   }, [])
 
   useEffect(() => {

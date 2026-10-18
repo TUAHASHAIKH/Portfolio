@@ -364,6 +364,10 @@ function JourneyMotion({ journey, reduced }: { journey: React.RefObject<Journey>
     }
     const active = shards.projectsInteractive ? 'projects' : shards.skillsInteractive ? 'skills' : 'none'
     if (app.dataset.activeCrystal !== active) app.dataset.activeCrystal = active
+    const skillsEnabled = String(shards.skillsInteractive && shards.skillsOpacity>.05)
+    const projectsEnabled = String(shards.projectsInteractive && shards.projectsOpacity>.05)
+    if(app.dataset.skillsInteractive!==skillsEnabled)app.dataset.skillsInteractive=skillsEnabled
+    if(app.dataset.projectsInteractive!==projectsEnabled)app.dataset.projectsInteractive=projectsEnabled
     const stage = state.value > .82 ? 'crystal' : state.value > .02 ? 'transition' : 'igloo'
     if (app.dataset.stage !== stage) app.dataset.stage = stage
   }, -2)

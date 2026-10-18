@@ -34,6 +34,7 @@ function CrystalView({ assets, noise, journey, reduced }: { assets: CrystalAsset
     const state=crystalJourney(journey.current.value)
     return index===0 ? state.skillsInteractive : state.projectsInteractive
   }
+  const center = (index: number) => window.dispatchEvent(new CustomEvent('portfolio:center-crystal',{detail:index===0?'skills':'projects'}))
   const move = (index: number, event: ThreeEvent<PointerEvent>) => {
     if (!interactive(index)) return
     event.stopPropagation()
@@ -41,11 +42,13 @@ function CrystalView({ assets, noise, journey, reduced }: { assets: CrystalAsset
     if (event.uv1 && event.object === iceMeshes[index].current) state.uv.copy(event.uv1)
     state.active = true
     gl.domElement.style.cursor = 'pointer'
+    center(index)
   }
   const leave = (index: number) => { interactions[index].current.active = false; gl.domElement.style.cursor = '' }
   const explore = (index: number, event: ThreeEvent<MouseEvent>) => {
     if (!interactive(index) || event.delta > 6) return
     event.stopPropagation()
+    center(index)
     leave(index)
     window.dispatchEvent(new Event(index===0 ? 'portfolio:open-skills' : 'portfolio:open-projects'))
   }

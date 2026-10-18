@@ -56,7 +56,7 @@ html{scrollbar-width:none}html::-webkit-scrollbar{display:none}
 .crystal-title{position:absolute;left:31%;top:16.4%;margin:0;font-size:clamp(13px,1.1vw,23px);font-weight:500;line-height:1.05;letter-spacing:-.035em}
 .crystal-temperature{position:absolute;left:56.5%;top:27%;font-size:clamp(10px,.85vw,18px);line-height:1.35}
 .crystal-explore{position:absolute;left:54%;top:65%;border:0;background:none;padding:9px 0;font-size:clamp(11px,.95vw,20px);line-height:1.15;text-align:right;cursor:pointer;pointer-events:none;visibility:hidden;text-shadow:inherit}
-#app[data-active-crystal=skills] [data-crystal=skills] .crystal-explore,#app[data-active-crystal=projects] [data-crystal=projects] .crystal-explore{pointer-events:auto;visibility:visible}
+#app[data-skills-interactive=true] [data-crystal=skills] .crystal-explore,#app[data-projects-interactive=true] [data-crystal=projects] .crystal-explore{pointer-events:auto;visibility:visible}
 .crystal-explore:hover{text-shadow:0 0 8px white}
 .crystal-unavailable{display:none;position:absolute;inset:45% 20%;text-align:center;font-size:12px}
 #app[data-crystal-error=true] .crystal-unavailable{display:block}

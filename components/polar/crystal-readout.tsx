@@ -10,11 +10,15 @@ export function CrystalReadout({ kind = 'skills' }: { kind?: 'skills' | 'project
   const heading = useRef<HTMLHeadingElement>(null)
   const temperature = useRef<HTMLSpanElement>(null)
   const celsius = useRef<HTMLSpanElement>(null)
+  const center = useCallback(() => {
+    window.dispatchEvent(new CustomEvent('portfolio:center-crystal',{detail:kind}))
+  },[kind])
   const open = useCallback(() => {
     if (dialog.current?.open) return
+    center()
     dialog.current?.showModal()
     heading.current?.focus()
-  }, [])
+  }, [center])
   useEffect(() => {
     const event = `portfolio:open-${kind}`
     window.addEventListener(event, open)
@@ -41,7 +45,7 @@ export function CrystalReadout({ kind = 'skills' }: { kind?: 'skills' | 'project
     </svg>
     <h2 className="crystal-title">PORTFOLIO_CO_{index}<br />{title.toUpperCase()}</h2>
     <p className="crystal-temperature" aria-hidden="true">TEMP&nbsp;&nbsp; <span ref={temperature}>35.03</span><br />&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; <span ref={celsius}>+01.68</span></p>
-    <button className="crystal-explore" onClick={open} onKeyDown={event => { if(event.key==='Enter'||event.key===' '){event.preventDefault();open()} }} aria-haspopup="dialog">{index} / {title.toUpperCase()}<br />CLICK TO EXPLORE</button>
+    <button className="crystal-explore" onPointerEnter={center} onFocus={center} onClick={open} onKeyDown={event => { if(event.key==='Enter'||event.key===' '){event.preventDefault();open()} }} aria-haspopup="dialog">{index} / {title.toUpperCase()}<br />CLICK TO EXPLORE</button>
     <p className="crystal-unavailable" role="status">The crystal could not load. Refresh to try again.</p>
     <dialog ref={dialog} className="skills-dialog" aria-labelledby={`${kind}-heading`} onClick={event => { if(event.target === event.currentTarget) dialog.current?.close() }}>
       <form method="dialog"><button aria-label={`Close ${kind}`}>[ CLOSE ]</button></form>
