@@ -19,3 +19,5 @@ The surface-frost simulation uses the reference's public cubes/advect.png flow t
 The original downloaded crystal mesh remains unchanged on disk. At runtime, a small right-hand recess is smoothed to remove the dark puncture reported by the portfolio owner, retaining the reference UVs and texture maps.
 
 The second (projects) crystal uses the same reference's public `cubes/cube1.drc`, `cubes/cube1_normal.ktx2` and `cubes/cube1_roughness.ktx2`, stored locally as `projects-crystal.drc` and `projects_crystal_*`. Its secondary UV atlas is preserved for the existing hover simulation. The scroll choreography, labels and React integration are implemented locally; both crystals share the reflection environment and color grade.
+
+The third (about) crystal uses the reference's `cubes/cube2.drc`, `cubes/cube2_normal.ktx2` and `cubes/cube2_roughness.ktx2`, stored as `about-crystal.drc` and `about_crystal_*`. Its own surface maps and secondary UVs are retained. All three crystals share the reflection environment, core geometry and color grade; the third crystal's scrolling, hover and personalized About Me panel are implemented locally.
