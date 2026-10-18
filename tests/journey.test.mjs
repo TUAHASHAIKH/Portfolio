@@ -2,12 +2,13 @@ import assert from 'node:assert/strict'
 import { readFile } from 'node:fs/promises'
 import test from 'node:test'
 import ts from 'typescript'
+import vm from 'node:vm'
 
 // Exercise the actual pure TypeScript controller without adding a test runner.
 const source = await readFile(new URL('../components/polar/journey.ts', import.meta.url), 'utf8')
 const { outputText } = ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.ESNext } })
 const journeyUrl = `data:text/javascript;base64,${Buffer.from(outputText).toString('base64')}`
-const { crystalJourney, CRYSTAL_KINDS, crystalCenter, JOURNEY_END } = await import(journeyUrl)
+const { crystalJourney, CRYSTAL_KINDS, crystalCenter, JOURNEY_END, journeyView } = await import(journeyUrl)
 const ringsSource = await readFile(new URL('../components/polar/ring-journey.ts', import.meta.url), 'utf8')
 const ringsCode = ts.transpileModule(ringsSource, { compilerOptions: { module: ts.ModuleKind.ESNext } }).outputText.replace("'./journey'",JSON.stringify(journeyUrl))
 const { ringJourney } = await import(`data:text/javascript;base64,${Buffer.from(ringsCode).toString('base64')}`)
@@ -61,4 +62,36 @@ test('the ring camera descends continuously through every portal in either direc
   assert.equal(ringJourney(3).opacity,0)
   assert.equal(ringJourney(JOURNEY_END).coreGlow,0)
   assert(ringJourney(JOURNEY_END).floor>.6,'The final disc must be revealed')
+})
+
+test('the infinite journey ends in the same camera pose as its beginning',()=>{
+  assert.deepEqual(journeyView(JOURNEY_END),journeyView(0))
+  assert.equal(ringJourney(JOURNEY_END).opacity,0)
+  assert.equal(ringJourney(JOURNEY_END).contact,0)
+  assert.equal(ringJourney(7.2).contact,1)
+  assert.equal(ringJourney(3).contact,0)
+})
+
+test('the worker creates complete, finite particle targets for both social silhouettes',async()=>{
+  const source=await readFile(new URL('../public/workers/ring-core.js',import.meta.url),'utf8')
+  const size=8,data=new Uint8Array(size**3*4),mask=new Uint8Array(256**2)
+  for(let z=0;z<size;z++)for(let y=0;y<size;y++)for(let x=0;x<size;x++){
+    const point=[x-3.5,y-3.5,z-3.5],distance=Math.hypot(...point),offset=((z*size+y)*size+x)*4
+    for(let axis=0;axis<3;axis++)data[offset+axis]=Math.round((point[axis]/distance+1)*127.5)
+    data[offset+3]=Math.max(0,Math.min(255,127.5+(distance-2)*40))
+  }
+  for(let y=32;y<224;y++)for(let x=32;x<224;x++)mask[y*256+x]=255
+  let result
+  const context=vm.createContext({self:{postMessage:value=>{result=value}}})
+  vm.runInContext(source,context)
+  context.self.onmessage({data:{data,size,masks:[mask,mask]}})
+  assert(result.positions.length>0)
+  assert.equal(result.social.length,2)
+  for(const target of result.social){
+    assert.equal(target.positions.length,result.positions.length)
+    assert.equal(target.normals.length,result.normals.length)
+    assert(target.positions.every(Number.isFinite))
+    assert(target.normals.every(Number.isFinite))
+    assert(target.positions.every(position=>Math.abs(position)<.3))
+  }
 })
