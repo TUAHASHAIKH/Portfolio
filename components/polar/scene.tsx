@@ -12,7 +12,7 @@ import { OutputPass } from 'three/addons/postprocessing/OutputPass.js'
 import { loadPolarAssets, type PolarAssets } from './assets'
 import { makeIceMaterial, makeTerrainMaterial, surfaceVertex } from './materials'
 import { Measurements } from './measurements'
-import { Wind } from './wind'
+import { Wind, ForegroundWind } from './wind'
 import { Assembly, progress, smooth } from './assembly'
 
 type Motion = { fast: number; slow: number }
@@ -153,7 +153,7 @@ function World({ assets, onReady, reduced }: { assets: PolarAssets; onReady: () 
         varying vec3 worldPoint;
         void main(){
           vec2 uv=surfaceUv*vec2(2.,1.);
-          float phase=worldPoint.x>6.?.914:0.;
+          float phase=worldPoint.x > 6. ? .914 : 0.;
           vec2 drift=vec2(-time*.15-phase,time*.06);
           float wisps=texture2D(noise,uv+drift).r*texture2D(noise,uv*1.25+vec2(drift.x,.75)).r;
           wisps*=texture2D(noise,uv*.5+vec2(drift.x,-time*.0525)).r;
@@ -238,6 +238,7 @@ function World({ assets, onReady, reduced }: { assets: PolarAssets; onReady: () 
     <Ice assets={assets} cursor={cursor} engaged={engaged} reduced={reduced} intro={introTime} />
     {!reduced && <Assembly assets={assets} time={introTime} />}
     {!reduced && <Wind />}
+    {!reduced && <ForegroundWind noise={assets.wind} intro={introTime} />}
     <PostProcessing assets={assets} />
   </>
 }
