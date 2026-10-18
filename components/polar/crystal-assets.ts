@@ -23,6 +23,7 @@ export async function loadCrystalAssets(renderer: THREE.WebGLRenderer) {
     })
     resources.push(result)
     result.computeBoundingBox()
+    result.computeBoundingSphere()
     if (name === 'crystal') result.setAttribute('frostUv',result.getAttribute('uv1'))
     return result
   }

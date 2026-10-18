@@ -7,6 +7,8 @@ import * as THREE from 'three'
 import { loadCrystalAssets, type CrystalAssets } from './crystal-assets'
 import { journeyView, type Journey } from './journey'
 import { useCrystalFrost, type CrystalInteraction } from './crystal-frost'
+import { CrystalPlexus } from './crystal-plexus'
+import { CrystalAnnotations } from './crystal-annotations'
 
 function CrystalView({ assets, noise, journey, reduced }: { assets: CrystalAssets; noise: THREE.Texture; journey: RefObject<Journey>; reduced: boolean }) {
   const rig = useRef<THREE.Group>(null), crystal = useRef<THREE.Group>(null)
@@ -54,7 +56,7 @@ function CrystalView({ assets, noise, journey, reduced }: { assets: CrystalAsset
         '#include <dithering_fragment>\ngl_FragColor.rgb=mix(clamp(gl_FragColor.rgb,0.,1.),vec3(.42,.49,.60),.22);')
     }
     material.needsUpdate = true
-  }, [assets,frost])
+  }, [assets,frost,backBuffer])
   const materials = useMemo(() => {
     const core = new THREE.MeshBasicMaterial({ map: assets.coreMap })
     const background = new THREE.ShaderMaterial({
@@ -133,47 +135,10 @@ function CrystalView({ assets, noise, journey, reduced }: { assets: CrystalAsset
         <MeshTransmissionMaterial ref={material => prepareIce(material as unknown as THREE.MeshPhysicalMaterial)} buffer={buffer.texture} samples={8} color="#e0e8ef" roughness={.65} roughnessMap={assets.roughness} normalMap={assets.normal} normalScale={new THREE.Vector2(1,1)} envMap={assets.environment} envMapIntensity={.91} envMapRotation={new THREE.Euler(0,Math.PI,0)} ior={1.18} reflectivity={.3} thickness={2} transmission={1} chromaticAberration={.1} anisotropicBlur={0} temporalDistortion={0} />
       </mesh>
       <mesh geometry={assets.core} material={materials.core} renderOrder={11} />
-      <CrystalPlexus reduced={reduced} />
+      <CrystalPlexus reduced={reduced} radius={assets.geometry.boundingSphere!.radius*.9} />
+      <CrystalAnnotations crystal={crystal} bounds={assets.geometry.boundingBox!} />
     </group>
   </group>
-}
-
-function CrystalPlexus({ reduced }: { reduced: boolean }) {
-  const time = useRef(0)
-  const resources = useMemo(() => {
-    const geometry = new THREE.BufferGeometry()
-    geometry.setAttribute('position', new THREE.BufferAttribute(new Float32Array(18*3*2*3),3))
-    const material = new THREE.LineBasicMaterial({ color: '#edf2ff', opacity: .24, transparent: true, depthWrite: false })
-    const points = Array.from({length:18},(_,i)=>new THREE.Vector3())
-    return { geometry, material, points }
-  }, [])
-  useEffect(() => () => { resources.geometry.dispose(); resources.material.dispose() }, [resources])
-  useFrame((_, delta) => {
-    if (!reduced) time.current += Math.min(delta,.1)
-    const { points, geometry } = resources
-    points.forEach((point,index) => {
-      const angle=index*2.39996+time.current*.08
-      const y=THREE.MathUtils.euclideanModulo(index*.483+time.current*.07,3)-1.5
-      point.set(Math.cos(angle)*1.05,y,Math.sin(angle)*.85)
-    })
-    const attribute=geometry.getAttribute('position') as THREE.BufferAttribute
-    let vertex=0
-    points.forEach((point,index) => {
-      // Small crosshairs and nearby connections drift around the ice at a fixed cost.
-      attribute.setXYZ(vertex++,point.x-.012,point.y,point.z)
-      attribute.setXYZ(vertex++,point.x+.012,point.y,point.z)
-      attribute.setXYZ(vertex++,point.x,point.y-.018,point.z)
-      attribute.setXYZ(vertex++,point.x,point.y+.018,point.z)
-      const next=points[(index+5)%points.length]
-      if(point.distanceTo(next)<1.8){
-        attribute.setXYZ(vertex++,point.x,point.y,point.z)
-        attribute.setXYZ(vertex++,next.x,next.y,next.z)
-      }
-    })
-    geometry.setDrawRange(0,vertex)
-    attribute.needsUpdate=true
-  })
-  return <lineSegments geometry={resources.geometry} material={resources.material} frustumCulled={false} raycast={() => {}} renderOrder={16} />
 }
 
 export function Crystal({ noise, journey, reduced }: { noise: THREE.Texture; journey: RefObject<Journey>; reduced: boolean }) {
