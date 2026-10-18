@@ -1,31 +1,61 @@
 'use client'
 
-import { useFrame } from '@react-three/fiber'
-import { useEffect, useMemo, type RefObject } from 'react'
+import { useFrame, useThree } from '@react-three/fiber'
+import { useEffect, useMemo, useRef, type RefObject } from 'react'
 import * as THREE from 'three'
+import { FullScreenQuad } from 'three/addons/postprocessing/Pass.js'
 import type { CrystalAssets } from './crystal-assets'
 
-export type CrystalInteraction = { active: boolean; point: THREE.Vector3 }
+export type CrystalInteraction = { active: boolean; uv: THREE.Vector2 }
 
-export function CrystalFrost({ assets, interaction, reduced }: { assets: CrystalAssets; interaction: RefObject<CrystalInteraction>; reduced: boolean }) {
-  const material = useMemo(() => new THREE.ShaderMaterial({
-    transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, polygonOffset: true, polygonOffsetFactor: -1,
-    uniforms: { triangles: { value: assets.triangles }, hit: { value: new THREE.Vector3() }, radius: { value: 0 }, strength: { value: 0 } },
-    vertexShader: `varying vec3 point;varying vec2 surfaceUv;void main(){point=position;surfaceUv=uv;gl_Position=projectionMatrix*modelViewMatrix*vec4(position+normal*.002,1.);}`,
-    fragmentShader: `uniform sampler2D triangles;uniform vec3 hit;uniform float radius;uniform float strength;varying vec3 point;varying vec2 surfaceUv;
-      void main(){float distanceFromCursor=distance(point,hit);
-        float wave=exp(-pow((distanceFromCursor-radius)*9.,2.));
-        float field=1.-smoothstep(max(0.,radius-.45),radius+.08,distanceFromCursor);
-        float grid=texture2D(triangles,surfaceUv*9.).r;
-        float alpha=(grid*field*.32+wave*.13)*strength;
-        gl_FragColor=vec4(vec3(.45,.65,.92),alpha);}`,
-  }), [assets])
-  useEffect(() => () => material.dispose(), [material])
-  useFrame((_, delta) => {
-    const target = interaction.current
-    material.uniforms.hit.value.lerp(target.point, reduced ? 1 : 1-Math.exp(-8*delta))
-    material.uniforms.strength.value = THREE.MathUtils.damp(material.uniforms.strength.value,target.active ? 1 : 0, target.active ? 5 : 2.5,Math.min(delta,.1))
-    material.uniforms.radius.value = reduced ? .8 : THREE.MathUtils.damp(material.uniforms.radius.value,target.active ? 2.3 : 0, target.active ? 1.5 : 2,Math.min(delta,.1))
-  })
-  return <mesh name="crystal-hover-frost" geometry={assets.geometry} material={material} raycast={() => {}} renderOrder={14} />
+/** A moving pointer thaws the ice and lights the advancing edge in its surface atlas. */
+export function useCrystalFrost(assets: CrystalAssets, interaction: RefObject<CrystalInteraction>, reduced: boolean) {
+  const { gl } = useThree()
+  const motion = useRef({ previous: new THREE.Vector2(), velocity: 0, radius: 0, entered: false })
+  const simulation = useMemo(() => {
+    const first = new THREE.WebGLRenderTarget(512,512,{type:THREE.HalfFloatType,depthBuffer:false})
+    const second = first.clone()
+    const material = new THREE.ShaderMaterial({
+      depthTest:false,depthWrite:false,
+      uniforms:{ previous:{value:first.texture}, advect:{value:assets.advect}, point:{value:new THREE.Vector2()}, lastPoint:{value:new THREE.Vector2()}, radius:{value:0}, step:{value:1} },
+      vertexShader:'varying vec2 vUv;void main(){vUv=uv;gl_Position=vec4(position.xy,0.,1.);}',
+      fragmentShader:`uniform sampler2D previous;uniform sampler2D advect;uniform vec2 point;uniform vec2 lastPoint;uniform float radius;uniform float step;varying vec2 vUv;
+        float segment(vec2 p,vec2 a,vec2 b){vec2 line=b-a;float t=clamp(dot(p-a,line)/max(dot(line,line),1e-8),0.,1.);return length(p-a-line*t);}
+        void main(){vec2 offset=vec2(1./512.)*step;
+          vec2 uv=vUv+(texture2D(advect,vUv*3.).rg*2.-1.)*offset;
+          float old=texture2D(previous,uv).r;
+          float next=max(max(texture2D(previous,uv+vec2(offset.x,0.)).r,texture2D(previous,uv-vec2(offset.x,0.)).r),max(texture2D(previous,uv+vec2(0.,offset.y)).r,texture2D(previous,uv-vec2(0.,offset.y)).r));
+          float splat=radius>0. ? pow(clamp(1.-segment(vUv,lastPoint,point)/radius,0.,1.),3.) : 0.;
+          next=min((next+splat)*pow(.985,step),1.);
+          gl_FragColor=vec4(next,max(next-old,0.),0.,1.);}`,
+    })
+    return { first,second,current:first,material,quad:new FullScreenQuad(material),field:{value:first.texture} }
+  }, [assets])
+  useEffect(() => {
+    const previous=gl.getRenderTarget(), clear=gl.getClearColor(new THREE.Color()), alpha=gl.getClearAlpha()
+    gl.setClearColor(0,0)
+    for(const target of [simulation.first,simulation.second]){gl.setRenderTarget(target);gl.clear()}
+    gl.setRenderTarget(previous);gl.setClearColor(clear,alpha)
+    return () => { simulation.first.dispose();simulation.second.dispose();simulation.material.dispose();simulation.quad.dispose() }
+  }, [gl,simulation])
+  useFrame((_,delta) => {
+    const state=interaction.current, movement=motion.current
+    const distance=state.uv.distanceTo(movement.previous)
+    if(state.active&&!movement.entered){movement.previous.copy(state.uv);movement.velocity=.35}
+    movement.entered=state.active
+    const step=Math.min(delta*60,2)
+    movement.velocity=THREE.MathUtils.clamp((movement.velocity+(state.active&&distance<.3?distance*6:0))*Math.pow(.88,step),0,1)
+    movement.radius=THREE.MathUtils.damp(movement.radius,state.active?movement.velocity:0,6,Math.min(delta,.1))
+    simulation.material.uniforms.point.value.copy(state.uv)
+    simulation.material.uniforms.lastPoint.value.copy(distance<.3?movement.previous:state.uv)
+    simulation.material.uniforms.radius.value=state.active ? .05*THREE.MathUtils.smoothstep(movement.radius,.03,.6) : 0
+    simulation.material.uniforms.step.value=reduced?0:step
+    movement.previous.copy(state.uv)
+    const previous=gl.getRenderTarget(), destination=simulation.current===simulation.first?simulation.second:simulation.first
+    simulation.material.uniforms.previous.value=simulation.current.texture
+    try {gl.setRenderTarget(destination);simulation.quad.render(gl)} finally {gl.setRenderTarget(previous)}
+    simulation.current=destination
+    simulation.field.value=destination.texture
+  }, .05)
+  return simulation.field
 }

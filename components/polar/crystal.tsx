@@ -6,20 +6,22 @@ import { useCallback, useEffect, useMemo, useRef, useState, type RefObject } fro
 import * as THREE from 'three'
 import { loadCrystalAssets, type CrystalAssets } from './crystal-assets'
 import { journeyView, type Journey } from './journey'
-import { CrystalFrost, type CrystalInteraction } from './crystal-frost'
+import { useCrystalFrost, type CrystalInteraction } from './crystal-frost'
 
 function CrystalView({ assets, noise, journey, reduced }: { assets: CrystalAssets; noise: THREE.Texture; journey: RefObject<Journey>; reduced: boolean }) {
   const rig = useRef<THREE.Group>(null), crystal = useRef<THREE.Group>(null)
   const iceMesh = useRef<THREE.Mesh>(null)
   const { size, gl, scene } = useThree()
   const buffer = useFBO(Math.round(size.width * .75), Math.round(size.height * .75), { type: THREE.HalfFloatType })
+  const backBuffer = useFBO(Math.round(size.width*.75),Math.round(size.height*.75),{type:THREE.HalfFloatType})
   const time = useRef(0)
   const direction = useMemo(() => new THREE.Vector3(), [])
-  const interaction = useRef<CrystalInteraction>({ active: false, point: new THREE.Vector3(0,0,.5) })
+  const interaction = useRef<CrystalInteraction>({ active: false, uv: new THREE.Vector2(.5,.5) })
+  const frost = useCrystalFrost(assets,interaction,reduced)
   const move = (event: ThreeEvent<PointerEvent>) => {
     if (journey.current.value < .9) return
     event.stopPropagation()
-    crystal.current?.worldToLocal(interaction.current.point.copy(event.point))
+    if (event.uv1 && event.object === iceMesh.current) interaction.current.uv.copy(event.uv1)
     interaction.current.active = true
     gl.domElement.style.cursor = 'pointer'
   }
@@ -37,11 +39,22 @@ function CrystalView({ assets, noise, journey, reduced }: { assets: CrystalAsset
     const compile = material.onBeforeCompile
     material.onBeforeCompile = (shader, renderer) => {
       compile.call(material, shader, renderer)
+      shader.uniforms.surfaceFrost = frost
+      shader.uniforms.frostTriangles = { value: assets.triangles }
+      shader.vertexShader = 'attribute vec2 frostUv;varying vec2 vFrostUv;\n'+shader.vertexShader
+      shader.vertexShader = shader.vertexShader.replace('#include <uv_vertex>','#include <uv_vertex>\nvFrostUv=frostUv;')
+      shader.fragmentShader = 'uniform sampler2D surfaceFrost;uniform sampler2D frostTriangles;varying vec2 vFrostUv;\n'+shader.fragmentShader
+      shader.fragmentShader = shader.fragmentShader.replace('#include <roughnessmap_fragment>','#include <roughnessmap_fragment>\nroughnessFactor*=1.-texture2D(surfaceFrost,vFrostUv).r*.95;')
+      shader.fragmentShader = shader.fragmentShader.replace('#include <normal_fragment_maps>',THREE.ShaderChunk.normal_fragment_maps.replace('mapN.xy *= normalScale;', 'mapN.xy *= normalScale;mapN.xy*=1.-texture2D(surfaceFrost,vFrostUv).r;'))
+      shader.fragmentShader = shader.fragmentShader.replace('vec3 outgoingLight = totalDiffuse + totalSpecular + totalEmissiveRadiance;',`vec2 field=texture2D(surfaceFrost,vFrostUv).rg;
+        float grid=texture2D(frostTriangles,vNormalMapUv*9.).r;
+        totalEmissiveRadiance+=vec3(.23,.36,.56)*field.g*2.+vec3(grid)*(field.g*10.+field.r*field.r);
+        vec3 outgoingLight=totalDiffuse+totalSpecular+totalEmissiveRadiance;`)
       shader.fragmentShader = shader.fragmentShader.replace('#include <dithering_fragment>',
-        '#include <dithering_fragment>\ngl_FragColor.rgb=mix(clamp(gl_FragColor.rgb,0.,1.),vec3(.42,.49,.60),.38);')
+        '#include <dithering_fragment>\ngl_FragColor.rgb=mix(clamp(gl_FragColor.rgb,0.,1.),vec3(.42,.49,.60),.22);')
     }
     material.needsUpdate = true
-  }, [])
+  }, [assets,frost])
   const materials = useMemo(() => {
     const core = new THREE.MeshBasicMaterial({ map: assets.coreMap })
     const background = new THREE.ShaderMaterial({
@@ -66,18 +79,28 @@ function CrystalView({ assets, noise, journey, reduced }: { assets: CrystalAsset
   }, [assets, noise])
   useEffect(() => { scene.userData.crystalGrade = assets.grade; return () => { delete scene.userData.crystalGrade } }, [scene, assets])
   useFrame(({ gl, scene, camera }) => {
-    if (journey.current.value < .6 || !iceMesh.current) return
-    const previous = gl.getRenderTarget(), alpha = materials.background.uniforms.alpha.value
-    const resolution = materials.background.uniforms.resolution.value.clone()
-    const frost = scene.getObjectByName('crystal-hover-frost'), frostVisible = frost?.visible
-    if (frost) frost.visible = false
-    const landscape = scene.getObjectByName('polar-landscape'), visible = landscape?.visible
-    iceMesh.current.visible = false
-    if (landscape) landscape.visible = false
-    materials.background.uniforms.alpha.value = 1
-    materials.background.uniforms.resolution.value.set(buffer.width, buffer.height)
-    try { gl.setRenderTarget(buffer); gl.clear(); gl.render(scene, camera) }
-    finally { gl.setRenderTarget(previous); materials.background.uniforms.alpha.value = alpha; materials.background.uniforms.resolution.value.copy(resolution); iceMesh.current.visible = true; if (landscape) landscape.visible = Boolean(visible); if (frost) frost.visible = Boolean(frostVisible) }
+    if (journeyView(journey.current.value).crystal <= 0 || !iceMesh.current) return
+    const mesh=iceMesh.current, material=mesh.material as THREE.MeshPhysicalMaterial & { uniforms: Record<string,{value:unknown}> }
+    const previous=gl.getRenderTarget(), alpha=materials.background.uniforms.alpha.value
+    const resolution=materials.background.uniforms.resolution.value.clone()
+    const landscape=scene.getObjectByName('polar-landscape'), visible=landscape?.visible
+    const side=material.side
+    mesh.visible=false
+    if(landscape) landscape.visible=false
+    materials.background.uniforms.alpha.value=1
+    materials.background.uniforms.resolution.value.set(buffer.width,buffer.height)
+    try {
+      gl.setRenderTarget(backBuffer);gl.clear();gl.render(scene,camera)
+      mesh.visible=true
+      material.side=THREE.BackSide;material.needsUpdate=true
+      material.uniforms.buffer.value=backBuffer.texture
+      gl.setRenderTarget(buffer);gl.clear();gl.render(scene,camera)
+    } finally {
+      material.side=side;material.needsUpdate=true;material.uniforms.buffer.value=buffer.texture
+      gl.setRenderTarget(previous);materials.background.uniforms.alpha.value=alpha
+      materials.background.uniforms.resolution.value.copy(resolution);mesh.visible=true
+      if(landscape) landscape.visible=Boolean(visible)
+    }
   }, .2)
   useEffect(() => () => Object.values(materials).forEach(material => material.dispose()), [materials])
   useFrame(({ camera, size, gl }, delta) => {
@@ -107,10 +130,9 @@ function CrystalView({ assets, noise, journey, reduced }: { assets: CrystalAsset
     <mesh position={[0,0,-4]} material={materials.background} renderOrder={7}><planeGeometry args={[40,30]} /></mesh>
     <group ref={crystal} onPointerMove={move} onPointerOut={leave} onClick={explore}>
       <mesh ref={iceMesh} geometry={assets.geometry} renderOrder={12}>
-        <MeshTransmissionMaterial ref={material => prepareIce(material as unknown as THREE.MeshPhysicalMaterial)} buffer={buffer.texture} samples={8} color="#e0e8ef" roughness={.45} roughnessMap={assets.roughness} normalMap={assets.normal} normalScale={new THREE.Vector2(1,1)} envMap={assets.environment} envMapIntensity={.91} envMapRotation={new THREE.Euler(0,Math.PI,0)} ior={1.18} reflectivity={.3} thickness={2} transmission={1} chromaticAberration={.06} anisotropicBlur={0} temporalDistortion={0} />
+        <MeshTransmissionMaterial ref={material => prepareIce(material as unknown as THREE.MeshPhysicalMaterial)} buffer={buffer.texture} samples={8} color="#e0e8ef" roughness={.65} roughnessMap={assets.roughness} normalMap={assets.normal} normalScale={new THREE.Vector2(1,1)} envMap={assets.environment} envMapIntensity={.91} envMapRotation={new THREE.Euler(0,Math.PI,0)} ior={1.18} reflectivity={.3} thickness={2} transmission={1} chromaticAberration={.1} anisotropicBlur={0} temporalDistortion={0} />
       </mesh>
       <mesh geometry={assets.core} material={materials.core} renderOrder={11} />
-      <CrystalFrost assets={assets} interaction={interaction} reduced={reduced} />
       <CrystalPlexus reduced={reduced} />
     </group>
   </group>
