@@ -6,6 +6,7 @@
     "build": "next build",
     "dev": "next dev",
     "lint": "eslint .",
+    "test:journey": "node --test tests/journey.test.mjs",
     "start": "next start"
   },
   "dependencies": {
