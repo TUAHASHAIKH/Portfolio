@@ -20,20 +20,26 @@ export async function loadCrystalAssets(renderer: THREE.WebGLRenderer) {
   async function texture(name: string, color = false) {
     const result = await ktx.loadAsync(`/scene/textures/${name}.ktx2`)
     result.colorSpace = color ? THREE.SRGBColorSpace : THREE.NoColorSpace
+    result.magFilter = THREE.LinearFilter
+    result.minFilter = result.mipmaps.length > 1 ? THREE.LinearMipmapLinearFilter : THREE.LinearFilter
+    if (name === 'crystal_grade') { result.minFilter = THREE.LinearFilter; result.magFilter = THREE.LinearFilter }
+    if (name === 'crystal_mist' || name === 'crystal_triangles') result.wrapS = result.wrapT = THREE.RepeatWrapping
+    result.needsUpdate = true
     resources.push(result)
     return result
   }
   try {
-    const [geometryMap, core, normal, roughness, coreMap, source] = await Promise.all([
+    const [geometryMap, core, normal, roughness, coreMap, source, grade, mist, triangles] = await Promise.all([
       geometry('crystal'), geometry('crystal-core'), texture('crystal_normal'),
       texture('crystal_roughness'), texture('crystal_core', true),
       new EXRLoader().loadAsync('/scene/textures/crystal_env.exr').then(result => { resources.push(result); return result }),
+      texture('crystal_grade'), texture('crystal_mist'), texture('crystal_triangles', true),
     ])
     const generator = new THREE.PMREMGenerator(renderer)
     const environment = generator.fromEquirectangular(source)
     generator.dispose()
     resources.push(environment)
     draco.dispose(); ktx.dispose()
-    return { geometry: geometryMap, core, normal, roughness, coreMap, environment: environment.texture, dispose }
+    return { geometry: geometryMap, core, normal, roughness, coreMap, environment: environment.texture, grade, mist, triangles, dispose }
   } catch (error) { dispose(); throw error }
 }

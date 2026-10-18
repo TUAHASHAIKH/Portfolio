@@ -44,13 +44,15 @@ function PostProcessing({ assets, journey, reduced }: { assets: PolarAssets; jou
     const composer = new EffectComposer(gl)
     const render = new RenderPass(scene, camera)
     const grade = new ShaderPass({
-      uniforms: { tDiffuse: { value: null }, grade: { value: assets.grade } },
+      uniforms: { tDiffuse: { value: null }, grade: { value: assets.grade }, crystalGrade: { value: assets.grade }, crystalMix: { value: 0 } },
       vertexShader: 'varying vec2 vUv;void main(){vUv=uv;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.);}',
       fragmentShader: `
         uniform sampler2D tDiffuse;
         uniform highp sampler3D grade;
+        uniform highp sampler3D crystalGrade;
+        uniform float crystalMix;
         varying vec2 vUv;
-        vec3 lookup(vec3 point){return texture(grade,(point+.5)/32.).rgb;}
+        vec3 lookup(vec3 point){return mix(texture(grade,(point+.5)/32.).rgb,texture(crystalGrade,(point+.5)/32.).rgb,crystalMix);}
         vec3 interpolateGrade(vec3 color){
           vec3 point=clamp(color,0.,1.)*31.;
           vec3 base=floor(point), weights=fract(point);
@@ -95,6 +97,8 @@ function PostProcessing({ assets, journey, reduced }: { assets: PolarAssets; jou
   useEffect(() => () => { pipeline.render.dispose(); pipeline.grade.dispose(); pipeline.bloom.dispose(); pipeline.distortion.dispose(); pipeline.output.dispose(); pipeline.composer.dispose() }, [pipeline])
   useFrame((_, delta) => {
     const p = journey.current.value
+    pipeline.grade.uniforms.crystalGrade.value = scene.userData.crystalGrade || assets.grade
+    pipeline.grade.uniforms.crystalMix.value = ease(range(p, .4, .9))
     const strength = Math.sin(range(p, .01, .92) * Math.PI)
     pipeline.distortion.uniforms.amount.value = reduced ? 0 : strength
     pipeline.distortion.enabled = !reduced && strength > .001
