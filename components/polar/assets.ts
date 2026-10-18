@@ -54,10 +54,10 @@ export async function loadPolarAssets(renderer: THREE.WebGLRenderer) {
   const draco = new DRACOLoader().setDecoderPath('/scene/draco/').setWorkerLimit(1)
   const ktx = new KTX2Loader().setTranscoderPath('/scene/basis/').setWorkerLimit(2).detectSupport(renderer)
   const geometries: THREE.BufferGeometry[] = [], textures: THREE.Texture[] = []
-  async function geometry(name: string, ice = false) {
+  async function geometry(name: string, ice = false, customAttributes?: string[]) {
     const response = await fetch(`/scene/geometry/${name}.drc`)
     if (!response.ok) throw new Error(`Could not load ${name}`)
-    const attributes = ice ? ['position', 'normal', 'uv', 'centr', 'rand', 'emission', 'batchId'] : ['position', 'normal', 'uv']
+    const attributes = customAttributes || (ice ? ['position', 'normal', 'uv', 'centr', 'rand', 'emission', 'batchId'] : ['position', 'normal', 'uv'])
     const result = await (draco as AttributeDecoder).decodeGeometry(await response.arrayBuffer(), {
       attributeIDs: Object.fromEntries(attributes.map((key, index) => [key, index])),
       attributeTypes: Object.fromEntries(attributes.map(key => [key, key === 'batchId' ? 'Uint16Array' : 'Float32Array'])),
@@ -78,10 +78,13 @@ export async function loadPolarAssets(renderer: THREE.WebGLRenderer) {
   }
   const dispose = () => { geometries.forEach(item => item.dispose()); textures.forEach(item => item.dispose()); draco.dispose(); ktx.dispose() }
   try {
-    const [ice, ground, mountain, patch, closed, opened, groundMap, glow, terrainMap, mountainMap, grade, wind] = await Promise.all([
+    const [ice, ground, mountain, patch, closed, opened, groundMap, glow, terrainMap, mountainMap, grade, wind, introCage, introOutline, introParticles, numbers] = await Promise.all([
       geometry('igloo', true), geometry('ground'), geometry('mountain'), geometry('patch'),
       texture('igloo_color'), texture('igloo_exploded_color'), texture('ground_color'), texture('ground_glow'),
       texture('terrain_color'), texture('mountain_color'), texture('grade', true), texture('wind_noise'),
+      geometry('intro-cage', false, ['position', 'color', 'centr']),
+      geometry('intro-outline', false, ['position', 'color']),
+      geometry('intro-particles', false, ['position', 'color']), texture('numbers', true),
     ])
     const pieces = separateIce(ice)
     pieces.forEach(piece => geometries.push(piece.geometry))
@@ -89,6 +92,6 @@ export async function loadPolarAssets(renderer: THREE.WebGLRenderer) {
     wind.needsUpdate = true
     // Decoders are only needed during the initial load.
     draco.dispose(); ktx.dispose()
-    return { pieces, ground, mountain, patch, closed, opened, groundMap, glow, terrainMap, mountainMap, grade, wind, dispose }
+    return { pieces, ground, mountain, patch, closed, opened, groundMap, glow, terrainMap, mountainMap, grade, wind, introCage, introOutline, introParticles, numbers, dispose }
   } catch (error) { dispose(); throw error }
 }
