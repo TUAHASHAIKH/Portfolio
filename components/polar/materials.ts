@@ -66,7 +66,8 @@ export function makeTerrainMaterial(map: THREE.Texture, options: { mountain?: bo
           float lowGround=1.-smoothstep(-1.3,.5,worldPoint.y);
           color=mix(color,vec3(.9,.93,.98),clamp(snow*lowGround*.42,0.,.2));
         #endif
-        gl_FragColor = vec4(color, alpha * painted * (1. - smoothstep(reveal * 180. - 8., reveal * 180., length(worldPoint.xz))));
+        float assembly = reveal >= .999 ? 1. : 1. - smoothstep(reveal * 180. - 8., reveal * 180., length(worldPoint.xz));
+        gl_FragColor = vec4(color, alpha * painted * assembly);
       }
     `,
   })

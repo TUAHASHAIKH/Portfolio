@@ -20,6 +20,7 @@ export function Assembly({ assets, time }: { assets: PolarAssets; time: RefObjec
           gl_FragColor=vec4(.65,.70,.84,alpha*scan*flicker);}`,
     })
     const cage = wire.clone()
+    cage.wireframe = true
     cage.vertexShader = `attribute vec3 centr;varying vec3 point;void main(){point=centr;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.);}`
     cage.fragmentShader = `uniform float progress;uniform float alpha;uniform float time;varying vec3 point;
       void main(){float wave=1.-smoothstep(1.,5.,abs(length(point)-progress*25.));
@@ -45,7 +46,7 @@ export function Assembly({ assets, time }: { assets: PolarAssets; time: RefObjec
     materials.wire.uniforms.alpha.value = 1 - smooth(progress(t, 2, 3))
     materials.wire.uniforms.time.value = t
     materials.cage.uniforms.progress.value = smooth(progress(t, 0, 4))
-    materials.cage.uniforms.alpha.value = .4 * (1 - smooth(progress(t, 2.1, 3)))
+    materials.cage.uniforms.alpha.value = .16 * (1 - smooth(progress(t, 2.1, 3)))
     materials.cage.uniforms.time.value = t
     materials.particles.uniforms.progress.value = Math.sin(progress(t, .5, 4) * Math.PI / 2)
     materials.particles.uniforms.alpha.value = 1 - progress(t, 1.75, 2)

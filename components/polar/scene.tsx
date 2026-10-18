@@ -130,6 +130,7 @@ function World({ assets, onReady, reduced }: { assets: PolarAssets; onReady: () 
   const engaged = useRef(false)
   const windTime = useRef(0)
   const introTime = useRef(-.7)
+  const [assembling, setAssembling] = useState(!reduced)
   const introCamera = useMemo(() => new THREE.Vector3(), [])
   const introTarget = useMemo(() => new THREE.Vector3(), [])
   const cursor = useMemo(() => new THREE.Vector3(0, 2, 0), [])
@@ -202,6 +203,7 @@ function World({ assets, onReady, reduced }: { assets: PolarAssets; onReady: () 
     cameraUp.crossVectors(normal, cameraRight).normalize()
     cameraOffset.applyAxisAngle(cameraRight, orbit.current.pitch).applyAxisAngle(cameraUp, orbit.current.yaw)
     introTime.current = reduced ? 9 : Math.min(9, introTime.current + frameDelta)
+    if (assembling && introTime.current >= 5.2) setAssembling(false)
     const arrival = smooth(progress(introTime.current, 2, 5.5))
     introCamera.set(-14 * distance, 21 * distance, 14 * distance)
     camera.position.copy(cameraTarget).add(cameraOffset).lerp(introCamera, 1 - arrival)
@@ -210,7 +212,8 @@ function World({ assets, onReady, reduced }: { assets: PolarAssets; onReady: () 
     for (const material of [surfaces.ground, surfaces.terrain, surfaces.patch, surfaces.mountain]) {
       material.uniforms.reveal.value = reduced ? 1 : smooth(progress(introTime.current, .7, 7.5))
     }
-    gl.domElement.closest('#app')?.setAttribute('data-introduced', String(introTime.current >= 4.5))
+    const app = gl.domElement.closest('#app'), introduced = String(introTime.current >= 4.5)
+    if (app?.getAttribute('data-introduced') !== introduced) app?.setAttribute('data-introduced', introduced)
     camera.getWorldDirection(normal)
     target.copy(camera.position).addScaledVector(normal, mobile ? 31.8 : 19.25)
     plane.setFromNormalAndCoplanarPoint(normal, target)
@@ -236,7 +239,7 @@ function World({ assets, onReady, reduced }: { assets: PolarAssets; onReady: () 
     <mesh material={surfaces.haze} position={[-5,1.25,-10]} renderOrder={3}><planeGeometry args={[20,5]} /></mesh>
     <mesh material={surfaces.haze} position={[13.45,3,-4]} rotation={[0,radians(-10),0]} renderOrder={3}><planeGeometry args={[20,5]} /></mesh>
     <Ice assets={assets} cursor={cursor} engaged={engaged} reduced={reduced} intro={introTime} />
-    {!reduced && <Assembly assets={assets} time={introTime} />}
+    {!reduced && assembling && <Assembly assets={assets} time={introTime} />}
     {!reduced && <Wind />}
     {!reduced && <ForegroundWind noise={assets.wind} intro={introTime} />}
     <PostProcessing assets={assets} />
