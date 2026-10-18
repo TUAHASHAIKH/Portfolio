@@ -11,7 +11,7 @@ export type CrystalInteraction = { active: boolean; uv: THREE.Vector2 }
 /** A moving pointer thaws the ice and lights the advancing edge in its surface atlas. */
 export function useCrystalFrost(assets: CrystalAssets, interaction: RefObject<CrystalInteraction>, reduced: boolean) {
   const { gl } = useThree()
-  const motion = useRef({ previous: new THREE.Vector2(), velocity: 0, radius: 0, entered: false })
+  const motion = useRef({ previous: new THREE.Vector2(), velocity: 0, radius: 0, entered: false, idle: 10 })
   const simulation = useMemo(() => {
     const first = new THREE.WebGLRenderTarget(512,512,{type:THREE.HalfFloatType,depthBuffer:false})
     const second = first.clone()
@@ -40,6 +40,13 @@ export function useCrystalFrost(assets: CrystalAssets, interaction: RefObject<Cr
   }, [gl,simulation])
   useFrame((_,delta) => {
     const state=interaction.current, movement=motion.current
+    movement.idle=state.active?0:movement.idle+delta
+    // The targets start clear. Skip the feedback draw until a pointer touches
+    // the crystal, and sleep again once its visible afterglow has dissipated.
+    if(movement.idle>=10){
+      movement.previous.copy(state.uv);movement.entered=false;movement.velocity=0;movement.radius=0
+      return
+    }
     const distance=state.uv.distanceTo(movement.previous)
     if(state.active&&!movement.entered){movement.previous.copy(state.uv);movement.velocity=.35}
     movement.entered=state.active
