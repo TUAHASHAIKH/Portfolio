@@ -174,14 +174,14 @@ function CrystalView({ assets, noise, journey, reduced }: { assets: CrystalAsset
       rig.current.position.copy(camera.position).addScaledVector(direction, 6.6)
       rig.current.quaternion.copy(camera.quaternion)
     }
-    const {exchange}=crystalJourney(p)
+    const {exchange,skillsY}=crystalJourney(p)
     shards.forEach((reference,index)=>{
       const shard=reference.current
       if(!shard)return
       shard.visible=index===0 ? travel.crystal>0&&exchange<1 : exchange>0
       const turn=index===0 ? 1-travel.crystal : 0
       const rolling=index===0 ? -exchange*.25 : (1-exchange)*.25
-      shard.position.y=index===0 ? -3.2*turn+5.75*exchange : -5.75*(1-exchange)
+      shard.position.y=index===0 ? skillsY : -5.75*(1-exchange)
       // The reference rotates all three axes with distance from the resting
       // position. Scroll reversal follows this exact pose back, without tweens.
       shard.rotation.set(

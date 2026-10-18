@@ -8,13 +8,19 @@ export const ease = (value: number) => value * value * (3 - 2 * value)
 // Keep the original 0..1 hero journey intact. The next interval carries both
 // shards through the same 5.75-unit vertical spacing as the reference scene.
 export function crystalJourney(value: number) {
-  const exchange = range(value, 1.1, JOURNEY_END)
+  const exchange = range(value, 1, JOURNEY_END)
+  const arrival = -3.2 * (1-journeyView(value).crystal)
+  const departing = (value-1)*5.75
+  const blend = ease(range(value,.84,1.16))
   return {
     exchange,
+    // Blend through the resting pose with a nonzero slope, rather than ending
+    // the entrance, holding, and starting another movement at the center.
+    skillsY: arrival*(1-blend)+departing*blend,
     skillsOpacity: ease(range(value,.83,1)) * (1-ease(range(exchange,0,.3))),
     projectsOpacity: ease(range(exchange,.25,.75)),
-    skillsInteractive: value >= .94 && exchange < .12,
-    projectsInteractive: exchange > .88,
+    skillsInteractive: value > .6 && value < 1.6,
+    projectsInteractive: value > 1.35,
   }
 }
 
