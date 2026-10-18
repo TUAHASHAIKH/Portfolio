@@ -1,16 +1,21 @@
 'use client'
 
-import { useEffect, useRef } from 'react'
+import { useCallback, useEffect, useRef } from 'react'
 
 export function CrystalReadout() {
   const dialog = useRef<HTMLDialogElement>(null)
+  const heading = useRef<HTMLHeadingElement>(null)
   const temperature = useRef<HTMLSpanElement>(null)
   const celsius = useRef<HTMLSpanElement>(null)
+  const open = useCallback(() => {
+    if (dialog.current?.open) return
+    dialog.current?.showModal()
+    heading.current?.focus()
+  }, [])
   useEffect(() => {
-    const open = () => { if (!dialog.current?.open) dialog.current?.showModal() }
     window.addEventListener('portfolio:open-skills', open)
     return () => window.removeEventListener('portfolio:open-skills', open)
-  }, [])
+  }, [open])
   useEffect(() => {
     const preference = window.matchMedia('(prefers-reduced-motion: reduce)')
     const started = performance.now()
@@ -33,11 +38,11 @@ export function CrystalReadout() {
     </svg>
     <h2 className="crystal-title">PORTFOLIO_CO_01<br />SKILLS</h2>
     <p className="crystal-temperature" aria-hidden="true">TEMP&nbsp;&nbsp; <span ref={temperature}>35.03</span><br />&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; <span ref={celsius}>+01.68</span></p>
-    <button className="crystal-explore" onClick={() => dialog.current?.showModal()} aria-haspopup="dialog">01 / SKILLS<br />CLICK TO EXPLORE</button>
+    <button className="crystal-explore" onClick={open} onKeyDown={event => { if(event.key==='Enter'||event.key===' '){event.preventDefault();open()} }} aria-haspopup="dialog">01 / SKILLS<br />CLICK TO EXPLORE</button>
     <p className="crystal-unavailable" role="status">The crystal could not load. Refresh to try again.</p>
     <dialog ref={dialog} className="skills-dialog" onClick={event => { if(event.target === event.currentTarget) dialog.current?.close() }}>
       <form method="dialog"><button aria-label="Close skills">[ CLOSE ]</button></form>
-      <p>PORTFOLIO_CO_01</p><h2>Skills</h2>
+      <p>PORTFOLIO_CO_01</p><h2 ref={heading} tabIndex={-1}>Skills</h2>
       <dl>
         <dt>Languages</dt><dd>C / C++ / Java / Python / PHP / JavaScript</dd>
         <dt>Web</dt><dd>React / Node.js / Express / Django / HTML / CSS</dd>
