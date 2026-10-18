@@ -29,7 +29,7 @@ export function PolarExperience() {
   const journey = useRef<Journey>({ target: 0, value: 0 })
 
   useEffect(() => {
-    const update = () => { journey.current.target = Math.min(1, Math.max(0, window.scrollY / (window.innerHeight * 2.2))) }
+    const update = () => { journey.current.target = Math.min(1, Math.max(0, window.scrollY / Math.max(1, (document.querySelector<HTMLElement>(".journey-track")?.offsetHeight || window.innerHeight * 3.2) - window.innerHeight))) }
     update()
     window.addEventListener('scroll', update, { passive: true })
     window.addEventListener('resize', update)

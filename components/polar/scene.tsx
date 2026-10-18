@@ -137,7 +137,7 @@ function Ice({ assets, cursor, engaged, reduced, intro, journey }: { assets: Pol
   })
   return <>
     {resources.map((piece, index) => <mesh key={index} ref={mesh => { meshes.current[index] = mesh }} geometry={piece.geometry} material={piece.material} position={piece.center} />)}
-    <Measurements pieces={resources} cursor={cursor} reduced={reduced || journey.current.value > .08} />
+    <Measurements pieces={resources} cursor={cursor} reduced={reduced} />
   </>
 }
 
