@@ -13,11 +13,13 @@ import { CrystalAnnotations } from './crystal-annotations'
 function CrystalView({ assets, noise, journey, reduced }: { assets: CrystalAssets; noise: THREE.Texture; journey: RefObject<Journey>; reduced: boolean }) {
   const rig = useRef<THREE.Group>(null), crystal = useRef<THREE.Group>(null)
   const iceMesh = useRef<THREE.Mesh>(null)
+  const rearMesh = useRef<THREE.Mesh>(null)
   const { size, gl, scene } = useThree()
   const buffer = useFBO(Math.round(size.width * .75), Math.round(size.height * .75), { type: THREE.HalfFloatType })
   const backBuffer = useFBO(Math.round(size.width*.75),Math.round(size.height*.75),{type:THREE.HalfFloatType})
   const time = useRef(0)
   const direction = useMemo(() => new THREE.Vector3(), [])
+  const savedResolution = useMemo(() => new THREE.Vector2(), [])
   const interaction = useRef<CrystalInteraction>({ active: false, uv: new THREE.Vector2(.5,.5) })
   const frost = useCrystalFrost(assets,interaction,reduced)
   const move = (event: ThreeEvent<PointerEvent>) => {
@@ -88,27 +90,49 @@ function CrystalView({ assets, noise, journey, reduced }: { assets: CrystalAsset
     return { core, background }
   }, [assets, noise])
   useEffect(() => { scene.userData.crystalGrade = assets.grade; return () => { delete scene.userData.crystalGrade } }, [scene, assets])
+  useEffect(() => {
+    if(!crystal.current)return
+    let cancelled=false
+    const warmScene=new THREE.Scene(), warmCamera=new THREE.PerspectiveCamera(30,1,.1,100)
+    const copy=crystal.current.clone(true)
+    copy.visible=true;copy.position.set(0,0,-6.6);copy.rotation.set(0,0,0)
+    copy.traverse(object=>{object.visible=true})
+    warmScene.add(copy)
+    const plane=new THREE.PlaneGeometry(40,30)
+    const backdrop=new THREE.Mesh(plane,materials.background)
+    backdrop.position.z=-10
+    warmScene.add(backdrop)
+    const target=new THREE.WebGLRenderTarget(16,16,{type:THREE.HalfFloatType})
+    // Compile both permanent face variants before either is needed on scroll.
+    // A tiny offscreen draw also uploads their textures and initializes the buffers.
+    void gl.compileAsync(warmScene,warmCamera).then(()=>{
+      if(cancelled)return
+      const previous=gl.getRenderTarget()
+      try{
+        gl.initRenderTarget(buffer);gl.initRenderTarget(backBuffer)
+        gl.setRenderTarget(target);gl.render(warmScene,warmCamera)
+      }finally{gl.setRenderTarget(previous);target.dispose();plane.dispose()}
+    }).catch(error=>{if(!cancelled)console.error('Crystal shader preparation:',error)})
+    return ()=>{cancelled=true;target.dispose();plane.dispose()}
+  },[gl,assets,buffer,backBuffer,materials])
   useFrame(({ gl, scene, camera }) => {
-    if (journeyView(journey.current.value).crystal <= 0 || !iceMesh.current) return
-    const mesh=iceMesh.current, material=mesh.material as THREE.MeshPhysicalMaterial & { uniforms: Record<string,{value:unknown}> }
+    if (journeyView(journey.current.value).crystal <= 0 || !iceMesh.current || !rearMesh.current) return
+    const mesh=iceMesh.current, rear=rearMesh.current
     const previous=gl.getRenderTarget(), alpha=materials.background.uniforms.alpha.value
-    const resolution=materials.background.uniforms.resolution.value.clone()
+    savedResolution.copy(materials.background.uniforms.resolution.value)
     const landscape=scene.getObjectByName('polar-landscape'), visible=landscape?.visible
-    const side=material.side
     mesh.visible=false
     if(landscape) landscape.visible=false
     materials.background.uniforms.alpha.value=1
     materials.background.uniforms.resolution.value.set(buffer.width,buffer.height)
     try {
       gl.setRenderTarget(backBuffer);gl.clear();gl.render(scene,camera)
-      mesh.visible=true
-      material.side=THREE.BackSide;material.needsUpdate=true
-      material.uniforms.buffer.value=backBuffer.texture
+      rear.visible=true
       gl.setRenderTarget(buffer);gl.clear();gl.render(scene,camera)
     } finally {
-      material.side=side;material.needsUpdate=true;material.uniforms.buffer.value=buffer.texture
+      rear.visible=false
       gl.setRenderTarget(previous);materials.background.uniforms.alpha.value=alpha
-      materials.background.uniforms.resolution.value.copy(resolution);mesh.visible=true
+      materials.background.uniforms.resolution.value.copy(savedResolution);mesh.visible=true
       if(landscape) landscape.visible=Boolean(visible)
     }
   }, .2)
@@ -140,7 +164,10 @@ function CrystalView({ assets, noise, journey, reduced }: { assets: CrystalAsset
     <mesh position={[0,0,-4]} material={materials.background} renderOrder={7}><planeGeometry args={[40,30]} /></mesh>
     <group ref={crystal} onPointerMove={move} onPointerOut={leave} onClick={explore}>
       <mesh ref={iceMesh} geometry={assets.geometry} renderOrder={12}>
-        <MeshTransmissionMaterial ref={material => prepareIce(material as unknown as THREE.MeshPhysicalMaterial)} buffer={buffer.texture} samples={8} color="#e0e8ef" roughness={.65} roughnessMap={assets.roughness} normalMap={assets.normal} normalScale={new THREE.Vector2(1,1)} envMap={assets.environment} envMapIntensity={.91} envMapRotation={new THREE.Euler(0,Math.PI,0)} ior={1.18} reflectivity={.3} thickness={2} transmission={1} chromaticAberration={.1} anisotropicBlur={0} temporalDistortion={0} />
+        <MeshTransmissionMaterial ref={material => prepareIce(material as unknown as THREE.MeshPhysicalMaterial)} resolution={1} buffer={buffer.texture} samples={8} color="#e0e8ef" roughness={.65} roughnessMap={assets.roughness} normalMap={assets.normal} normalScale={new THREE.Vector2(1,1)} envMap={assets.environment} envMapIntensity={.91} envMapRotation={new THREE.Euler(0,Math.PI,0)} ior={1.18} reflectivity={.3} thickness={2} transmission={1} chromaticAberration={.1} anisotropicBlur={0} temporalDistortion={0} />
+      </mesh>
+      <mesh ref={rearMesh} visible={false} geometry={assets.geometry} renderOrder={12} raycast={()=>{}}>
+        <MeshTransmissionMaterial ref={material => prepareIce(material as unknown as THREE.MeshPhysicalMaterial)} side={THREE.BackSide} resolution={1} buffer={backBuffer.texture} samples={8} color="#e0e8ef" roughness={.65} roughnessMap={assets.roughness} normalMap={assets.normal} normalScale={new THREE.Vector2(1,1)} envMap={assets.environment} envMapIntensity={.91} envMapRotation={new THREE.Euler(0,Math.PI,0)} ior={1.18} reflectivity={.3} thickness={2} transmission={1} chromaticAberration={.1} anisotropicBlur={0} temporalDistortion={0} />
       </mesh>
       <mesh geometry={assets.core} material={materials.core} renderOrder={11} />
       <CrystalPlexus reduced={reduced} radius={assets.geometry.boundingSphere!.radius*.9} />

@@ -94,6 +94,24 @@ function PostProcessing({ assets, journey, reduced }: { assets: PolarAssets; jou
     return { composer, render, grade, bloom, distortion, output }
   }, [gl, scene, camera, assets.grade])
   useEffect(() => { pipeline.composer.setSize(size.width, size.height) }, [pipeline, size])
+  useEffect(() => {
+    // This pass starts disabled. Prepare it now instead of compiling at the
+    // first wheel event, when the frame budget is needed for the transition.
+    const warmScene = new THREE.Scene()
+    const geometry = new THREE.PlaneGeometry(2, 2)
+    const target = new THREE.WebGLRenderTarget(16,16)
+    const camera = new THREE.OrthographicCamera(-1,1,1,-1,0,1)
+    let cancelled = false
+    warmScene.add(new THREE.Mesh(geometry, pipeline.distortion.material))
+    void gl.compileAsync(warmScene, camera).then(() => {
+      if (cancelled) return
+      const previous = gl.getRenderTarget()
+      try { gl.setRenderTarget(target); gl.render(warmScene, camera) }
+      finally { gl.setRenderTarget(previous); target.dispose() }
+    })
+      .catch(error => console.error('Transition shader preparation:', error))
+    return () => { cancelled = true; geometry.dispose(); target.dispose() }
+  }, [gl, pipeline])
   useEffect(() => () => { pipeline.render.dispose(); pipeline.grade.dispose(); pipeline.bloom.dispose(); pipeline.distortion.dispose(); pipeline.output.dispose(); pipeline.composer.dispose() }, [pipeline])
   useFrame((_, delta) => {
     const p = journey.current.value
