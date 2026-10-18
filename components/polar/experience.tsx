@@ -3,6 +3,8 @@
 import dynamic from 'next/dynamic'
 import { Component, useEffect, useRef, useState, type ReactNode } from 'react'
 import { Wordmark } from './wordmark'
+import type { Journey } from './journey'
+import { CrystalReadout } from './crystal-readout'
 
 const App3D = dynamic(() => import('./scene'), { ssr: false })
 
@@ -24,6 +26,15 @@ export function PolarExperience() {
   const [audioReady, setAudioReady] = useState(false)
   const [reducedMotion, setReducedMotion] = useState(false)
   const audio = useRef<HTMLAudioElement>(null)
+  const journey = useRef<Journey>({ target: 0, value: 0 })
+
+  useEffect(() => {
+    const update = () => { journey.current.target = Math.min(1, Math.max(0, window.scrollY / (window.innerHeight * 2.2))) }
+    update()
+    window.addEventListener('scroll', update, { passive: true })
+    window.addEventListener('resize', update)
+    return () => { window.removeEventListener('scroll', update); window.removeEventListener('resize', update) }
+  }, [])
 
   useEffect(() => {
     const canvas = document.createElement('canvas')
@@ -53,12 +64,13 @@ export function PolarExperience() {
     }
   }
 
-  return <main id="app">
+  return <div className="journey-track"><main id="app">
     <div id="webgl" aria-hidden="true">
-      {supported === false ? <Fallback /> : supported && <SceneBoundary onFailure={() => setReady(true)}><App3D onReady={() => setReady(true)} reducedMotion={reducedMotion} /></SceneBoundary>}
+      {supported === false ? <Fallback /> : supported && <SceneBoundary onFailure={() => setReady(true)}><App3D onReady={() => setReady(true)} reducedMotion={reducedMotion} journey={journey} /></SceneBoundary>}
     </div>
     <div className="vignette" />
     <div id="ice-measurements" aria-hidden="true" />
+    <CrystalReadout />
     <header className="identity">
       <h1><Wordmark reducedMotion={reducedMotion} /></h1>
       <p className="role">// Software Engineer</p>
@@ -79,6 +91,6 @@ export function PolarExperience() {
     <div id="loader" data-ready={ready} role="status" aria-live="polite" aria-label={ready ? 'Scene ready' : 'Preparing the landscape'}>
       <span className="loader-name">TUAHA SHAIKH</span><span className="ascii" aria-hidden="true">---===+++===---</span><span className="loader-caption">ASSEMBLING A SMALL WORLD</span>
     </div>
-    <p className="sr-only">Interactive snowy landscape with an igloo. Move over its ice blocks to gently separate them. This visual scene contains no essential navigation. All links and sound controls are accessible by keyboard.</p>
-  </main>
+    <p className="sr-only">Interactive snowy landscape with an igloo. Move over its ice blocks to gently separate them. Scroll down to the first portfolio crystal and explore skills. All links and sound controls are accessible by keyboard.</p>
+  </main></div>
 }

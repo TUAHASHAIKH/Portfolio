@@ -14,6 +14,8 @@ import { makeIceMaterial, makeTerrainMaterial, surfaceVertex } from './materials
 import { Measurements } from './measurements'
 import { Wind, ForegroundWind } from './wind'
 import { Assembly, progress, smooth } from './assembly'
+import { Crystal } from './crystal'
+import { ease, range, type Journey } from './journey'
 
 type Motion = { fast: number; slow: number }
 const radians = (degrees: number) => degrees * Math.PI / 180
@@ -36,7 +38,7 @@ const terrain = [
 ]
 const tuple = (values: number[]) => values as [number, number, number]
 
-function PostProcessing({ assets }: { assets: PolarAssets }) {
+function PostProcessing({ assets, journey, reduced }: { assets: PolarAssets; journey: React.RefObject<Journey>; reduced: boolean }) {
   const { gl, scene, camera, size } = useThree()
   const pipeline = useMemo(() => {
     const composer = new EffectComposer(gl)
@@ -70,17 +72,38 @@ function PostProcessing({ assets }: { assets: PolarAssets }) {
     })
     // Grade in display space, bloom in linear light, then convert once for the screen.
     const bloom = new UnrealBloomPass(new THREE.Vector2(size.width, size.height), .14, .55, .9)
+    const distortion = new ShaderPass({
+      uniforms: { tDiffuse: { value: null }, amount: { value: 0 }, resolution: { value: new THREE.Vector2() } },
+      vertexShader: 'varying vec2 vUv;void main(){vUv=uv;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.);}',
+      fragmentShader: `uniform sampler2D tDiffuse;uniform float amount;uniform vec2 resolution;varying vec2 vUv;
+        float hash(vec2 p){return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453);}
+        void main(){vec2 uv=vUv, direction=uv-vec2(.5,.49);
+          float tile=hash(floor(uv*vec2(140.,85.)));
+          uv+=direction*tile*amount*.018;
+          vec3 color=vec3(0.);
+          for(int i=0;i<8;i++){vec2 sampleUv=uv-direction*float(i)*amount*.008;
+            vec2 split=direction*amount*.008;
+            color+=vec3(texture2D(tDiffuse,sampleUv+split).r,texture2D(tDiffuse,sampleUv).g,texture2D(tDiffuse,sampleUv-split).b)/8.;}
+          color=mix(color,vec3(.36,.39,.46),amount*.14);
+          gl_FragColor=vec4(color,1.);}`,
+    })
     const output = new OutputPass()
-    composer.addPass(render); composer.addPass(grade); composer.addPass(bloom); composer.addPass(output)
-    return { composer, render, grade, bloom, output }
+    composer.addPass(render); composer.addPass(grade); composer.addPass(bloom); composer.addPass(distortion); composer.addPass(output)
+    return { composer, render, grade, bloom, distortion, output }
   }, [gl, scene, camera, assets.grade])
   useEffect(() => { pipeline.composer.setSize(size.width, size.height) }, [pipeline, size])
-  useEffect(() => () => { pipeline.render.dispose(); pipeline.grade.dispose(); pipeline.bloom.dispose(); pipeline.output.dispose(); pipeline.composer.dispose() }, [pipeline])
-  useFrame((_, delta) => pipeline.composer.render(delta), 1)
+  useEffect(() => () => { pipeline.render.dispose(); pipeline.grade.dispose(); pipeline.bloom.dispose(); pipeline.distortion.dispose(); pipeline.output.dispose(); pipeline.composer.dispose() }, [pipeline])
+  useFrame((_, delta) => {
+    const p = journey.current.value
+    const strength = Math.sin(range(p, .01, .92) * Math.PI)
+    pipeline.distortion.uniforms.amount.value = reduced ? 0 : strength
+    pipeline.distortion.enabled = !reduced && strength > .001
+    pipeline.composer.render(delta)
+  }, 1)
   return null
 }
 
-function Ice({ assets, cursor, engaged, reduced, intro }: { assets: PolarAssets; cursor: THREE.Vector3; engaged: React.RefObject<boolean>; reduced: boolean; intro: React.RefObject<number> }) {
+function Ice({ assets, cursor, engaged, reduced, intro, journey }: { assets: PolarAssets; cursor: THREE.Vector3; engaged: React.RefObject<boolean>; reduced: boolean; intro: React.RefObject<number>; journey: React.RefObject<Journey> }) {
   const meshes = useRef<(THREE.Mesh | null)[]>([])
   const resources = useMemo(() => assets.pieces.map(piece => {
     const material = makeIceMaterial(assets)
@@ -96,7 +119,7 @@ function Ice({ assets, cursor, engaged, reduced, intro }: { assets: PolarAssets;
       const distance = piece.center.distanceTo(cursor)
       const influence = 1 - THREE.MathUtils.smoothstep(distance, 1, 3)
       const anchored = THREE.MathUtils.smoothstep(piece.center.y, .45, .7)
-      const target = !reduced && intro.current > 4.5 && engaged.current ? influence * .54 * anchored : 0
+      const target = !reduced && intro.current > 4.5 && journey.current.value < .08 && engaged.current ? influence * .54 * anchored : 0
       // Preserve the reference's two-stage easing without the previous extra slowdown.
       piece.motion.fast = THREE.MathUtils.damp(piece.motion.fast, target, blockResponse, delta)
       piece.motion.slow = THREE.MathUtils.damp(piece.motion.slow, piece.motion.fast, blockResponse, delta)
@@ -114,13 +137,15 @@ function Ice({ assets, cursor, engaged, reduced, intro }: { assets: PolarAssets;
   })
   return <>
     {resources.map((piece, index) => <mesh key={index} ref={mesh => { meshes.current[index] = mesh }} geometry={piece.geometry} material={piece.material} position={piece.center} />)}
-    <Measurements pieces={resources} cursor={cursor} reduced={reduced} />
+    <Measurements pieces={resources} cursor={cursor} reduced={reduced || journey.current.value > .08} />
   </>
 }
 
-function World({ assets, onReady, reduced }: { assets: PolarAssets; onReady: () => void; reduced: boolean }) {
+function World({ assets, onReady, reduced, journey }: { assets: PolarAssets; onReady: () => void; reduced: boolean; journey: React.RefObject<Journey> }) {
   const { gl, camera, size } = useThree()
   const pointer = useMemo(() => new THREE.Vector2(), [])
+  const landscape = useRef<THREE.Group>(null)
+  const retreat = useMemo(() => new THREE.Vector3(), [])
   const orbit = useRef({ yaw: 0, pitch: 0 })
   const cameraTarget = useMemo(() => new THREE.Vector3(0, 1.6, 0), [])
   const cameraOffset = useMemo(() => new THREE.Vector3(), [])
@@ -192,6 +217,8 @@ function World({ assets, onReady, reduced }: { assets: PolarAssets; onReady: () 
   useEffect(() => () => Object.values(surfaces).forEach(material => material.dispose()), [surfaces])
   useFrame((_, frameDelta) => {
     const delta = Math.min(frameDelta, .25), mobile = size.width < 700
+    const p = journey.current.value
+    if (landscape.current) landscape.current.visible = p < .94
     const distance = mobile ? 1.65 : 1
     // Reference: ±pi/2 pointer mapping, .07/.025 angular gain and .035/frame easing.
     const orbitResponse = -60 * Math.log(1 - .035)
@@ -208,6 +235,8 @@ function World({ assets, onReady, reduced }: { assets: PolarAssets; onReady: () 
     introCamera.set(-14 * distance, 21 * distance, 14 * distance)
     camera.position.copy(cameraTarget).add(cameraOffset).lerp(introCamera, 1 - arrival)
     introTarget.set(0, .5, 0).lerp(cameraTarget, arrival)
+    retreat.set(-22 * distance, 7 * distance, 37 * distance)
+    camera.position.lerp(retreat, ease(range(p, 0, .7)))
     camera.lookAt(introTarget)
     for (const material of [surfaces.ground, surfaces.terrain, surfaces.patch, surfaces.mountain]) {
       material.uniforms.reveal.value = reduced ? 1 : smooth(progress(introTime.current, .7, 7.5))
@@ -230,6 +259,7 @@ function World({ assets, onReady, reduced }: { assets: PolarAssets; onReady: () 
     surfaces.ground.uniforms.groundLight.value = THREE.MathUtils.damp(surfaces.ground.uniforms.groundLight.value, engaged.current && !reduced ? .8 : .1, 1.4, delta)
   })
   return <>
+    <group ref={landscape} name="polar-landscape">
     <mesh material={surfaces.sky} renderOrder={-10}><sphereGeometry args={[700, 12, 12]} /></mesh>
     {mountains.map((item, index) => <mesh key={`mountain-${index}`} geometry={assets.mountain} material={surfaces.mountain} position={tuple(item.position)} scale={tuple(item.scale)} rotation={tuple(item.rotation.map(radians))} renderOrder={0} />)}
     {terrain.map((item, index) => <mesh key={`terrain-${index}`} geometry={assets.ground} material={surfaces.terrain} position={tuple(item.position)} scale={tuple(item.scale)} rotation={tuple(item.rotation.map(radians))} renderOrder={1} />)}
@@ -238,15 +268,17 @@ function World({ assets, onReady, reduced }: { assets: PolarAssets; onReady: () 
     <mesh geometry={assets.ground} material={surfaces.ground} renderOrder={2} />
     <mesh material={surfaces.haze} position={[-5,1.25,-10]} renderOrder={3}><planeGeometry args={[20,5]} /></mesh>
     <mesh material={surfaces.haze} position={[13.45,3,-4]} rotation={[0,radians(-10),0]} renderOrder={3}><planeGeometry args={[20,5]} /></mesh>
-    <Ice assets={assets} cursor={cursor} engaged={engaged} reduced={reduced} intro={introTime} />
+    <Ice assets={assets} cursor={cursor} engaged={engaged} reduced={reduced} intro={introTime} journey={journey} />
     {!reduced && assembling && <Assembly assets={assets} time={introTime} />}
     {!reduced && <Wind />}
     {!reduced && <ForegroundWind noise={assets.wind} intro={introTime} />}
-    <PostProcessing assets={assets} />
+    </group>
+    <Crystal noise={assets.wind} journey={journey} reduced={reduced} />
+    <PostProcessing assets={assets} journey={journey} reduced={reduced} />
   </>
 }
 
-function SceneController({ onReady, reduced }: { onReady: () => void; reduced: boolean }) {
+function SceneController({ onReady, reduced, journey }: { onReady: () => void; reduced: boolean; journey: React.RefObject<Journey> }) {
   const { gl } = useThree()
   const [assets, setAssets] = useState<PolarAssets | null>(null)
   const [failed, setFailed] = useState(false)
@@ -261,10 +293,10 @@ function SceneController({ onReady, reduced }: { onReady: () => void; reduced: b
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [gl])
   if (failed) return <Html center><p className="scene-error">The landscape could not load. Please refresh.</p></Html>
-  return assets && <World assets={assets} onReady={onReady} reduced={reduced} />
+  return assets && <World assets={assets} onReady={onReady} reduced={reduced} journey={journey} />
 }
 
-export default function App3D({ onReady, reducedMotion }: { onReady: () => void; reducedMotion: boolean }) {
+export default function App3D({ onReady, reducedMotion, journey }: { onReady: () => void; reducedMotion: boolean; journey: React.RefObject<Journey> }) {
   const [visible, setVisible] = useState(true)
   useEffect(() => {
     const update = () => setVisible(!document.hidden)
@@ -272,6 +304,22 @@ export default function App3D({ onReady, reducedMotion }: { onReady: () => void;
     return () => document.removeEventListener('visibilitychange', update)
   }, [])
   return <Canvas dpr={[1,1.5]} camera={{ position: [-14,4,14], fov: 30, near: .1, far: 1000 }} gl={{ antialias: true, alpha: false, outputColorSpace: THREE.SRGBColorSpace, toneMapping: THREE.NoToneMapping, powerPreference: 'high-performance' }} frameloop={visible ? 'always' : 'never'}>
-    <SceneController onReady={onReady} reduced={reducedMotion} />
+    <JourneyMotion journey={journey} reduced={reducedMotion} />
+    <SceneController onReady={onReady} reduced={reducedMotion} journey={journey} />
   </Canvas>
+}
+
+function JourneyMotion({ journey, reduced }: { journey: React.RefObject<Journey>; reduced: boolean }) {
+  const { gl } = useThree()
+  useFrame((_, delta) => {
+    const state = journey.current
+    state.value = reduced ? state.target : THREE.MathUtils.damp(state.value, state.target, 5, Math.min(delta, .1))
+    const app = gl.domElement.closest('#app') as HTMLElement | null
+    if (!app) return
+    app.style.setProperty('--hero-opacity', String(1 - ease(range(state.value, .02, .25))))
+    app.style.setProperty('--crystal-opacity', String(ease(range(state.value, .83, 1))))
+    const stage = state.value > .82 ? 'crystal' : state.value > .02 ? 'transition' : 'igloo'
+    if (app.dataset.stage !== stage) app.dataset.stage = stage
+  }, -2)
+  return null
 }

@@ -42,3 +42,25 @@ html{--bgColor:#a0a5b1;--default-font:'IBM Plex Mono','Courier New',monospace;ba
 /* The interface arrives after the assembly scan, with the reference's delayed reveal. */
 .identity,.intro,.bottom-bar{transition:opacity 1.1s ease,transform 1.1s cubic-bezier(.2,.7,.2,1)}
 #app[data-introduced=false] .identity,#app[data-introduced=false] .intro,#app[data-introduced=false] .bottom-bar{opacity:0;transform:translateY(8px);pointer-events:none;visibility:hidden}
+
+/* Native scrolling drives a pinned, reversible journey through the first crystal. */
+html{scrollbar-width:none}html::-webkit-scrollbar{display:none}
+.journey-track{height:320svh;position:relative}
+#app{position:sticky;top:0;--hero-opacity:1;--crystal-opacity:0}
+.identity .role,.identity .specialties,.intro{opacity:var(--hero-opacity)}
+#app[data-stage=crystal] .intro{visibility:hidden;pointer-events:none}
+.crystal-readout{position:absolute;inset:0;z-index:3;pointer-events:none;opacity:var(--crystal-opacity);color:#f5f7fb;text-shadow:0 0 2px #ffffff65}
+.crystal-leaders{position:absolute;inset:0;width:100%;height:100%;fill:none;stroke:#f5f7fb;stroke-width:1;vector-effect:non-scaling-stroke}
+.crystal-leaders .crystal-plexus{opacity:.3;stroke-width:.65}
+.crystal-title{position:absolute;left:31%;top:16.4%;margin:0;font-size:clamp(13px,1.1vw,23px);font-weight:500;line-height:1.05;letter-spacing:-.035em}
+.crystal-temperature{position:absolute;left:56.5%;top:27%;font-size:clamp(10px,.85vw,18px);line-height:1.35}
+.crystal-explore{position:absolute;left:54%;top:65%;border:0;background:none;padding:9px 0;font-size:clamp(11px,.95vw,20px);line-height:1.15;text-align:right;cursor:pointer;pointer-events:none;visibility:hidden;text-shadow:inherit}
+#app[data-stage=crystal] .crystal-explore{pointer-events:auto;visibility:visible}
+.crystal-explore:hover{text-shadow:0 0 8px white}
+.crystal-unavailable{display:none;position:absolute;inset:45% 20%;text-align:center;font-size:12px}
+#app[data-crystal-error=true] .crystal-unavailable{display:block}
+.skills-dialog{pointer-events:auto;border:1px solid #d9dfe980;border-radius:0;padding:36px;max-width:560px;width:calc(100% - 40px);color:#f5f7fb;background:#626a79ed;font:13px/1.7 var(--default-font);box-shadow:0 20px 100px #20273350}
+.skills-dialog::backdrop{background:#31384788;backdrop-filter:blur(12px)}
+.skills-dialog form{text-align:right}.skills-dialog button{border:0;background:none;cursor:pointer;font-size:11px;padding:8px}
+.skills-dialog h2{font-size:30px;font-weight:500}.skills-dialog dt{color:#d4dbe9;margin-top:18px}.skills-dialog dd{margin:4px 0 0}
+@media(max-width:640px){.crystal-title{left:12%;top:24%;font-size:13px}.crystal-temperature{left:67%;top:35%;font-size:10px}.crystal-explore{left:auto;right:10%;top:66%;font-size:12px}.crystal-leaders .title-leader{d:path('M120 306H270L420 380')}.crystal-leaders .explore-leader{d:path('M540 714H880')}.skills-dialog{padding:22px}}
