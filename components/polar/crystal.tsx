@@ -21,6 +21,8 @@ function CrystalView({ assets, noise, journey, reduced }: { assets: CrystalAsset
   const time = useRef(0)
   const direction = useMemo(() => new THREE.Vector3(), [])
   const savedResolution = useMemo(() => new THREE.Vector2(), [])
+  const capture = useMemo(() => ({ frustum: new THREE.Frustum(), projection: new THREE.Matrix4(), sphere: new THREE.Sphere(), visible: [false,false] }), [])
+  const landscape = useMemo(() => scene.getObjectByName('polar-landscape'), [scene])
   const interaction = useRef<CrystalInteraction>({ active: false, uv: new THREE.Vector2(.5,.5) })
   const projectsInteraction = useRef<CrystalInteraction>({ active: false, uv: new THREE.Vector2(.5,.5) })
   const frost = useCrystalFrost(assets,interaction,reduced)
@@ -128,11 +130,23 @@ function CrystalView({ assets, noise, journey, reduced }: { assets: CrystalAsset
     return ()=>{cancelled=true;target.dispose();plane.dispose()}
   },[gl,assets,buffer,backBuffer,materials])
   useFrame(({ gl, scene, camera }) => {
-    const visibleShards=shards.map(shard=>Boolean(shard.current?.visible))
+    camera.updateMatrixWorld()
+    capture.frustum.setFromProjectionMatrix(capture.projection.multiplyMatrices(camera.projectionMatrix,camera.matrixWorldInverse))
+    const visibleShards=capture.visible
+    shards.forEach((shard,index)=>{
+      const mesh=iceMeshes[index].current
+      visibleShards[index]=false
+      if(!shard.current?.visible || !mesh)return
+      mesh.updateWorldMatrix(true,false)
+      capture.sphere.copy(mesh.geometry.boundingSphere!).applyMatrix4(mesh.matrixWorld)
+      visibleShards[index]=capture.frustum.intersectsSphere(capture.sphere)
+    })
+    // Keep the sky and drifting lines alive across the gap without paying for
+    // two HDR captures when neither ice surface can contribute a screen pixel.
     if (!visibleShards.some(Boolean)) return
     const previous=gl.getRenderTarget(), alpha=materials.background.uniforms.alpha.value
     savedResolution.copy(materials.background.uniforms.resolution.value)
-    const landscape=scene.getObjectByName('polar-landscape'), visible=landscape?.visible
+    const visible=landscape?.visible
     iceMeshes.forEach(mesh=>{if(mesh.current)mesh.current.visible=false})
     if(landscape) landscape.visible=false
     materials.background.uniforms.alpha.value=1
@@ -195,7 +209,7 @@ function CrystalView({ assets, noise, journey, reduced }: { assets: CrystalAsset
       </mesh>
       <mesh geometry={assets.core} material={materials.core} renderOrder={11} />
       <CrystalPlexus reduced={reduced} active={shards[index]} radius={surface.geometry.boundingSphere!.radius*.9} />
-      <CrystalAnnotations crystal={shards[index]} bounds={surface.geometry.boundingBox!} kind={index===0?'skills':'projects'} />
+      <CrystalAnnotations crystal={shards[index]} bounds={surface.geometry.boundingBox!} kind={index===0?'skills':'projects'} journey={journey} />
     </group>)}
     </group>
   </group>

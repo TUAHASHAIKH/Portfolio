@@ -3,9 +3,10 @@
 import { useFrame } from '@react-three/fiber'
 import { useEffect, useMemo, useRef, type RefObject } from 'react'
 import * as THREE from 'three'
+import { crystalJourney, type Journey } from './journey'
 
 /** Keep the label leaders attached to the rotating ice rather than fixed screen coordinates. */
-export function CrystalAnnotations({ crystal, bounds, kind = 'skills' }: { crystal: RefObject<THREE.Group|null>; bounds: THREE.Box3; kind?: 'skills' | 'projects' }) {
+export function CrystalAnnotations({ crystal, bounds, kind = 'skills', journey }: { crystal: RefObject<THREE.Group|null>; bounds: THREE.Box3; kind?: 'skills' | 'projects'; journey: RefObject<Journey> }) {
   const elements=useRef<{svg:SVGSVGElement;title:HTMLElement;temperature:HTMLElement;explore:HTMLElement;titleLine:SVGPathElement;exploreLine:SVGPathElement}|null>(null)
   const metrics=useRef(new Map<HTMLElement,{width:number;height:number}>())
   const point=useMemo(()=>new THREE.Vector3(),[])
@@ -31,6 +32,8 @@ export function CrystalAnnotations({ crystal, bounds, kind = 'skills' }: { cryst
   },[kind])
   useFrame(({camera,size})=>{
     if(!crystal.current?.visible || !elements.current)return
+    const visibility=crystalJourney(journey.current.value)
+    if((kind==='skills'?visibility.skillsOpacity:visibility.projectsOpacity)===0)return
     const el=elements.current, scale=Math.min(size.width/1440,size.height/806), margin=14
     const dimensions=metrics.current
     const place=(label:HTMLElement,x:number,y:number)=>{
