@@ -1,11 +1,12 @@
 'use client'
 
 import { MeshTransmissionMaterial, useFBO } from '@react-three/drei'
-import { useFrame, useThree } from '@react-three/fiber'
+import { useFrame, useThree, type ThreeEvent } from '@react-three/fiber'
 import { useCallback, useEffect, useMemo, useRef, useState, type RefObject } from 'react'
 import * as THREE from 'three'
 import { loadCrystalAssets, type CrystalAssets } from './crystal-assets'
 import { ease, range, type Journey } from './journey'
+import { CrystalFrost, type CrystalInteraction } from './crystal-frost'
 
 function CrystalView({ assets, noise, journey, reduced }: { assets: CrystalAssets; noise: THREE.Texture; journey: RefObject<Journey>; reduced: boolean }) {
   const rig = useRef<THREE.Group>(null), crystal = useRef<THREE.Group>(null)
@@ -14,6 +15,22 @@ function CrystalView({ assets, noise, journey, reduced }: { assets: CrystalAsset
   const buffer = useFBO(Math.round(size.width * .75), Math.round(size.height * .75), { type: THREE.HalfFloatType })
   const time = useRef(0)
   const direction = useMemo(() => new THREE.Vector3(), [])
+  const interaction = useRef<CrystalInteraction>({ active: false, point: new THREE.Vector3(0,0,.5) })
+  const move = (event: ThreeEvent<PointerEvent>) => {
+    if (journey.current.value < .9) return
+    event.stopPropagation()
+    crystal.current?.worldToLocal(interaction.current.point.copy(event.point))
+    interaction.current.active = true
+    gl.domElement.style.cursor = 'pointer'
+  }
+  const leave = () => { interaction.current.active = false; gl.domElement.style.cursor = '' }
+  const explore = (event: ThreeEvent<MouseEvent>) => {
+    if (journey.current.value < .9 || event.delta > 6) return
+    event.stopPropagation()
+    leave()
+    window.dispatchEvent(new Event('portfolio:open-skills'))
+  }
+  useEffect(() => () => { gl.domElement.style.cursor = '' }, [gl])
   const prepareIce = useCallback((material: THREE.MeshPhysicalMaterial | null) => {
     if (!material || material.userData.atmosphericIce) return
     material.userData.atmosphericIce = true
@@ -51,16 +68,19 @@ function CrystalView({ assets, noise, journey, reduced }: { assets: CrystalAsset
     if (journey.current.value < .6 || !iceMesh.current) return
     const previous = gl.getRenderTarget(), alpha = materials.background.uniforms.alpha.value
     const resolution = materials.background.uniforms.resolution.value.clone()
+    const frost = scene.getObjectByName('crystal-hover-frost'), frostVisible = frost?.visible
+    if (frost) frost.visible = false
     const landscape = scene.getObjectByName('polar-landscape'), visible = landscape?.visible
     iceMesh.current.visible = false
     if (landscape) landscape.visible = false
     materials.background.uniforms.alpha.value = 1
     materials.background.uniforms.resolution.value.set(buffer.width, buffer.height)
     try { gl.setRenderTarget(buffer); gl.clear(); gl.render(scene, camera) }
-    finally { gl.setRenderTarget(previous); materials.background.uniforms.alpha.value = alpha; materials.background.uniforms.resolution.value.copy(resolution); iceMesh.current.visible = true; if (landscape) landscape.visible = Boolean(visible) }
+    finally { gl.setRenderTarget(previous); materials.background.uniforms.alpha.value = alpha; materials.background.uniforms.resolution.value.copy(resolution); iceMesh.current.visible = true; if (landscape) landscape.visible = Boolean(visible); if (frost) frost.visible = Boolean(frostVisible) }
   }, .2)
   useEffect(() => () => Object.values(materials).forEach(material => material.dispose()), [materials])
   useFrame(({ camera, size, gl }, delta) => {
+    if (journey.current.value < .9 && interaction.current.active) leave()
     const p = journey.current.value, reveal = ease(range(p, .3, .9))
     if (!reduced) time.current += Math.min(delta, .1)
     if (rig.current) {
@@ -84,11 +104,12 @@ function CrystalView({ assets, noise, journey, reduced }: { assets: CrystalAsset
   }, .1)
   return <group ref={rig} name="first-portfolio-crystal">
     <mesh position={[0,0,-4]} material={materials.background} renderOrder={7}><planeGeometry args={[40,30]} /></mesh>
-    <group ref={crystal}>
+    <group ref={crystal} onPointerMove={move} onPointerOut={leave} onClick={explore}>
       <mesh ref={iceMesh} geometry={assets.geometry} renderOrder={12}>
-        <MeshTransmissionMaterial ref={prepareIce} buffer={buffer.texture} samples={8} color="#e0e8ef" roughness={.45} roughnessMap={assets.roughness} normalMap={assets.normal} normalScale={new THREE.Vector2(1,1)} envMap={assets.environment} envMapIntensity={.91} envMapRotation={new THREE.Euler(0,Math.PI,0)} ior={1.18} reflectivity={.3} thickness={2} transmission={1} chromaticAberration={.06} anisotropicBlur={0} temporalDistortion={0} />
+        <MeshTransmissionMaterial ref={material => prepareIce(material as unknown as THREE.MeshPhysicalMaterial)} buffer={buffer.texture} samples={8} color="#e0e8ef" roughness={.45} roughnessMap={assets.roughness} normalMap={assets.normal} normalScale={new THREE.Vector2(1,1)} envMap={assets.environment} envMapIntensity={.91} envMapRotation={new THREE.Euler(0,Math.PI,0)} ior={1.18} reflectivity={.3} thickness={2} transmission={1} chromaticAberration={.06} anisotropicBlur={0} temporalDistortion={0} />
       </mesh>
       <mesh geometry={assets.core} material={materials.core} renderOrder={11} />
+      <CrystalFrost assets={assets} interaction={interaction} reduced={reduced} />
       <CrystalPlexus reduced={reduced} />
     </group>
   </group>
@@ -129,7 +150,7 @@ function CrystalPlexus({ reduced }: { reduced: boolean }) {
     geometry.setDrawRange(0,vertex)
     attribute.needsUpdate=true
   })
-  return <lineSegments geometry={resources.geometry} material={resources.material} frustumCulled={false} renderOrder={16} />
+  return <lineSegments geometry={resources.geometry} material={resources.material} frustumCulled={false} raycast={() => {}} renderOrder={16} />
 }
 
 export function Crystal({ noise, journey, reduced }: { noise: THREE.Texture; journey: RefObject<Journey>; reduced: boolean }) {
