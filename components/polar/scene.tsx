@@ -218,7 +218,7 @@ function World({ assets, onReady, reduced, journey }: { assets: PolarAssets; onR
   useFrame((_, frameDelta) => {
     const delta = Math.min(frameDelta, .25), mobile = size.width < 700
     const p = journey.current.value
-    if (landscape.current) landscape.current.visible = p < .94
+    if (landscape.current) landscape.current.visible = p < .94 || gl.domElement.closest('#app')?.getAttribute('data-crystal-ready') !== 'true'
     const distance = mobile ? 1.65 : 1
     // Reference: ±pi/2 pointer mapping, .07/.025 angular gain and .035/frame easing.
     const orbitResponse = -60 * Math.log(1 - .035)

@@ -120,7 +120,7 @@ export function Crystal({ noise, journey, reduced }: { noise: THREE.Texture; jou
     let cancelled = false, loaded: CrystalAssets | null = null
     loadCrystalAssets(gl).then(result => {
       if (cancelled) result.dispose()
-      else { loaded = result; setAssets(result) }
+      else { loaded = result; setAssets(result); document.querySelector('#app')?.setAttribute('data-crystal-ready', 'true') }
     }).catch(error => { if (!cancelled) { console.error('Crystal:', error); document.querySelector('#app')?.setAttribute('data-crystal-error', 'true') } })
     return () => { cancelled = true; loaded?.dispose() }
   }, [gl])
