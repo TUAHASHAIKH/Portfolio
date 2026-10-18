@@ -45,3 +45,11 @@ The measurement overlay selects up to five displaced pieces within two world uni
 Ice emission is bounded and bloom is reduced to preserve the textured faces during opening. Wind combines directional snow, faster drifting valley wisps, and an animated ground-snow layer. Wind does not require audio or cursor movement. Reduced-motion mode removes the particles, freezes haze and ground flow, and clears the measurements as the blocks close.
 
 The opening sequence assembles numeric particles, cage geometry and ice outlines before revealing the ice and terrain, with a descending camera over roughly eight seconds. The interface appears at 4.5 seconds. Temporary assembly draw calls are removed after the reveal. Reduced-motion mode skips this sequence. Foreground wind adds depth-tested wisps between the camera and igloo, alongside the world-space snow particles.
+
+## First crystal journey
+
+Scroll down through the pinned 3.2-viewport section. Native page scrolling (wheel, touch, Page Down and keyboard scrolling) drives damped progress, camera retreat, radial blur/chromatic displacement, mist and the first skills crystal. Scrolling up restores the hero. The identity mark and sound control persist, while the introductory copy fades away.
+
+`components/polar/crystal.tsx` renders the detailed ice shard with an HDR reflection environment, surface normal and roughness maps, a textured inner form and an animated 18-point 3D plexus. Its assets load independently of the hero through `crystal-assets.ts`. `crystal-readout.tsx` supplies sharp HTML annotations and a native modal dialog populated from the existing portfolio skills. The temperature readout is decorative reference-style telemetry, not a live sensor.
+
+Reduced motion removes the radial distortion, camera interpolation and idle crystal/plexus movement. The skills dialog supports Escape, keyboard focus containment and a close control. The present journey stops at this first crystal; further crystals are not implemented.
