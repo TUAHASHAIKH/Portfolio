@@ -38,7 +38,7 @@ function CrystalView({ assets, noise, journey, reduced }: { assets: CrystalAsset
     material.onBeforeCompile = (shader, renderer) => {
       compile.call(material, shader, renderer)
       shader.fragmentShader = shader.fragmentShader.replace('#include <dithering_fragment>',
-        '#include <dithering_fragment>\ngl_FragColor.rgb=mix(clamp(gl_FragColor.rgb,0.,1.),vec3(.30,.35,.44),.38);')
+        '#include <dithering_fragment>\ngl_FragColor.rgb=mix(clamp(gl_FragColor.rgb,0.,1.),vec3(.42,.49,.60),.38);')
     }
     material.needsUpdate = true
   }, [])
@@ -54,6 +54,7 @@ function CrystalView({ assets, noise, journey, reduced }: { assets: CrystalAsset
           float mist=texture2D(noise,uv+vec2(-time*.075,-scroll*.65+time*.01875)).r;
           mist+=texture2D(noise,uv*.5+vec2(time*.075,-time*.0375)).r;
           vec3 color=mix(vec3(.584,.631,.738),vec3(.089,.105,.147),clamp(mist*.5,0.,1.));
+          color+=vec3(.085,.09,.1);
           vec2 grid=uv*140.;float id=hash(floor(grid));
           float dotMask=1.-smoothstep(.006,.025,length(fract(grid)-.5));
           color+=dotMask*(.1+.2*id)*(.65+.35*sin(time*.4+id*25.));
