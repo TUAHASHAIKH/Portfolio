@@ -5,6 +5,7 @@ import { useRef } from 'react'
 export function CrystalReadout() {
   const dialog = useRef<HTMLDialogElement>(null)
   return <section className="crystal-readout" aria-label="Portfolio crystal: skills">
+    <div className="crystal-atmosphere" aria-hidden="true"><span>DESIGN / ENGINEERING</span><span>01 / SYSTEMS</span></div>
     <svg className="crystal-leaders" viewBox="0 0 1000 1000" preserveAspectRatio="none" aria-hidden="true">
       <path className="title-leader" d="M310 224H390L433 308" />
       <path className="explore-leader" d="M535 714H645" />

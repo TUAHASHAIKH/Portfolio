@@ -38,7 +38,8 @@ function CrystalView({ assets, noise, journey, reduced }: { assets: CrystalAsset
           float dotMask=1.-smoothstep(.006,.025,length(fract(grid)-.5));
           color+=dotMask*(.1+.2*id)*(.65+.35*sin(time*.4+id*25.));
           color+=(hash(gl_FragCoord.xy)-.5)*.008;
-          gl_FragColor=vec4(color,alpha);}`,
+          float curtain=smoothstep(0.,.6,alpha*1.6-(gl_FragCoord.y/resolution.y)*.7);
+          gl_FragColor=vec4(color,curtain);}`,
     })
     return { ice, core, background }
   }, [assets, noise])

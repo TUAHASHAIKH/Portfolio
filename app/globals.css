@@ -64,3 +64,6 @@ html{scrollbar-width:none}html::-webkit-scrollbar{display:none}
 .skills-dialog form{text-align:right}.skills-dialog button{border:0;background:none;cursor:pointer;font-size:11px;padding:8px}
 .skills-dialog h2{font-size:30px;font-weight:500}.skills-dialog dt{color:#d4dbe9;margin-top:18px}.skills-dialog dd{margin:4px 0 0}
 @media(max-width:640px){.crystal-title{left:12%;top:24%;font-size:13px}.crystal-temperature{left:67%;top:35%;font-size:10px}.crystal-explore{left:auto;right:10%;top:66%;font-size:12px}.crystal-leaders .title-leader{d:path('M120 306H270L420 380')}.crystal-leaders .explore-leader{d:path('M540 714H880')}.skills-dialog{padding:22px}}
+.crystal-atmosphere{position:absolute;inset:0;overflow:hidden;pointer-events:none}
+.crystal-atmosphere span{position:absolute;left:-5%;top:55%;font-size:clamp(20px,3vw,60px);white-space:nowrap;filter:blur(7px);opacity:.18;letter-spacing:.1em}
+.crystal-atmosphere span+span{left:auto;right:-6%;top:32%;filter:blur(11px);opacity:.1}
