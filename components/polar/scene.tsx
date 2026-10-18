@@ -99,7 +99,7 @@ function PostProcessing({ assets, journey, reduced }: { assets: PolarAssets; jou
     const p = journey.current.value
     pipeline.grade.uniforms.crystalGrade.value = scene.userData.crystalGrade || assets.grade
     pipeline.grade.uniforms.crystalMix.value = ease(range(p, .4, .9))
-    const strength = Math.sin(range(p, .01, .92) * Math.PI)
+    const strength = Math.sin(range(p, .22, .9) * Math.PI)
     pipeline.distortion.uniforms.amount.value = reduced ? 0 : strength
     pipeline.distortion.enabled = !reduced && strength > .001
     pipeline.composer.render(delta)
@@ -224,7 +224,7 @@ function World({ assets, onReady, reduced, journey }: { assets: PolarAssets; onR
     const p = journey.current.value
     if (landscape.current) {
       landscape.current.visible = p < .94 || gl.domElement.closest('#app')?.getAttribute('data-crystal-ready') !== 'true'
-      landscape.current.position.y = reduced ? 0 : ease(range(p, .3, .85)) * 8
+      landscape.current.position.y = reduced ? 0 : ease(range(p, .4, .88)) * 8
     }
     const distance = mobile ? 1.65 : 1
     // Reference: ±pi/2 pointer mapping, .07/.025 angular gain and .035/frame easing.
@@ -243,7 +243,7 @@ function World({ assets, onReady, reduced, journey }: { assets: PolarAssets; onR
     camera.position.copy(cameraTarget).add(cameraOffset).lerp(introCamera, 1 - arrival)
     introTarget.set(0, .5, 0).lerp(cameraTarget, arrival)
     retreat.set(-22 * distance, 7 * distance, 37 * distance)
-    camera.position.lerp(retreat, ease(range(p, 0, .7)))
+    camera.position.lerp(retreat, ease(range(p, 0, .28)))
     camera.lookAt(introTarget)
     for (const material of [surfaces.ground, surfaces.terrain, surfaces.patch, surfaces.mountain]) {
       material.uniforms.reveal.value = reduced ? 1 : smooth(progress(introTime.current, .7, 7.5))

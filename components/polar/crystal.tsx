@@ -61,10 +61,10 @@ function CrystalView({ assets, noise, journey, reduced }: { assets: CrystalAsset
   }, .2)
   useEffect(() => () => Object.values(materials).forEach(material => material.dispose()), [materials])
   useFrame(({ camera, size, gl }, delta) => {
-    const p = journey.current.value, reveal = ease(range(p, .48, .92))
+    const p = journey.current.value, reveal = ease(range(p, .3, .9))
     if (!reduced) time.current += Math.min(delta, .1)
     if (rig.current) {
-      rig.current.visible = p > .4
+      rig.current.visible = p > .25
       camera.getWorldDirection(direction)
       rig.current.position.copy(camera.position).addScaledVector(direction, 6.6)
       rig.current.quaternion.copy(camera.quaternion)
