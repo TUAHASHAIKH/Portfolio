@@ -72,7 +72,8 @@ function RingPassage({ assets, journey, noise, reduced }: { assets: RingAssets; 
     virtual.lookAt(view.target.set(0,travel.targetY,travel.targetZ))
     virtual.updateMatrixWorld()
     const actual=camera as THREE.PerspectiveCamera
-    const lens=Math.tan(actual.fov*Math.PI/360)/Math.tan(travel.fov*Math.PI/360)
+    const zoom=Math.min(1,state.size.width/state.size.height*1.5)
+    const lens=Math.tan(actual.fov*Math.PI/360)/Math.tan(travel.fov*Math.PI/360)*zoom
     // A virtual camera preserves the established hero/crystal camera while
     // projecting the ring passage with its own lens and continuous barrel roll.
     camera.updateMatrixWorld()
