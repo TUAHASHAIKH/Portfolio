@@ -5,12 +5,12 @@ import { useEffect, useMemo, useRef, type RefObject } from 'react'
 import * as THREE from 'three'
 
 /** Keep the label leaders attached to the rotating ice rather than fixed screen coordinates. */
-export function CrystalAnnotations({ crystal, bounds }: { crystal: RefObject<THREE.Group|null>; bounds: THREE.Box3 }) {
+export function CrystalAnnotations({ crystal, bounds, kind = 'skills' }: { crystal: RefObject<THREE.Group|null>; bounds: THREE.Box3; kind?: 'skills' | 'projects' }) {
   const elements=useRef<{svg:SVGSVGElement;title:HTMLElement;temperature:HTMLElement;explore:HTMLElement;titleLine:SVGPathElement;exploreLine:SVGPathElement}|null>(null)
   const metrics=useRef(new Map<HTMLElement,{width:number;height:number}>())
   const point=useMemo(()=>new THREE.Vector3(),[])
   useEffect(()=>{
-    const root=document.querySelector('.crystal-readout')
+    const root=document.querySelector(`.crystal-readout[data-crystal="${kind}"]`)
     if(!root)return
     const el={svg:root.querySelector('svg')!,title:root.querySelector<HTMLElement>('.crystal-title')!,temperature:root.querySelector<HTMLElement>('.crystal-temperature')!,explore:root.querySelector<HTMLElement>('.crystal-explore')!,titleLine:root.querySelector<SVGPathElement>('.title-leader')!,exploreLine:root.querySelector<SVGPathElement>('.explore-leader')!}
     elements.current=el
@@ -28,7 +28,7 @@ export function CrystalAnnotations({ crystal, bounds }: { crystal: RefObject<THR
       label.style.left='0';label.style.top='0';label.style.right='auto'
     }
     return ()=>{observer.disconnect();elements.current=null}
-  },[])
+  },[kind])
   useFrame(({camera,size})=>{
     if(!crystal.current?.visible || !elements.current)return
     const el=elements.current, scale=Math.min(size.width/1440,size.height/806), margin=14

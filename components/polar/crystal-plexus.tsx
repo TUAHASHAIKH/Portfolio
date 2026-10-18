@@ -1,13 +1,13 @@
 'use client'
 
 import { useFrame } from '@react-three/fiber'
-import { useEffect, useMemo, useRef } from 'react'
+import { useEffect, useMemo, useRef, type RefObject } from 'react'
 import * as THREE from 'three'
 
 type Link = { from: number; to: number; progress: number; leaving: boolean }
 const random = (index: number) => THREE.MathUtils.euclideanModulo(Math.sin(index*127.1+19.7)*43758.5453,1)
 
-export function CrystalPlexus({ reduced, radius }: { reduced: boolean; radius: number }) {
+export function CrystalPlexus({ reduced, radius, active }: { reduced: boolean; radius: number; active?: RefObject<THREE.Group|null> }) {
   const time=useRef(0), links=useRef<Link[]>([]), epoch=useRef(-1)
   const resources=useMemo(()=>{
     const geometry=new THREE.BufferGeometry()
@@ -26,6 +26,7 @@ export function CrystalPlexus({ reduced, radius }: { reduced: boolean; radius: n
   },[radius])
   useEffect(()=>()=>{resources.geometry.dispose();resources.material.dispose()},[resources])
   useFrame((_,frameDelta)=>{
+    if(active?.current && !active.current.visible)return
     const delta=Math.min(frameDelta,.1)
     if(!reduced)time.current+=delta
     const {points,geometry}=resources

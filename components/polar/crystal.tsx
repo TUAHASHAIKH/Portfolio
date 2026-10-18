@@ -2,18 +2,19 @@
 
 import { MeshTransmissionMaterial, useFBO } from '@react-three/drei'
 import { useFrame, useThree, type ThreeEvent } from '@react-three/fiber'
-import { useCallback, useEffect, useMemo, useRef, useState, type RefObject } from 'react'
+import { createRef, useCallback, useEffect, useMemo, useRef, useState, type RefObject } from 'react'
 import * as THREE from 'three'
 import { loadCrystalAssets, type CrystalAssets } from './crystal-assets'
-import { journeyView, type Journey } from './journey'
+import { crystalJourney, journeyView, type Journey } from './journey'
 import { useCrystalFrost, type CrystalInteraction } from './crystal-frost'
 import { CrystalPlexus } from './crystal-plexus'
 import { CrystalAnnotations } from './crystal-annotations'
 
 function CrystalView({ assets, noise, journey, reduced }: { assets: CrystalAssets; noise: THREE.Texture; journey: RefObject<Journey>; reduced: boolean }) {
-  const rig = useRef<THREE.Group>(null), crystal = useRef<THREE.Group>(null)
-  const iceMesh = useRef<THREE.Mesh>(null)
-  const rearMesh = useRef<THREE.Mesh>(null)
+  const rig = useRef<THREE.Group>(null), crystals = useRef<THREE.Group>(null)
+  const shards = useMemo(() => [createRef<THREE.Group>(),createRef<THREE.Group>()], [])
+  const iceMeshes = useMemo(() => [createRef<THREE.Mesh>(),createRef<THREE.Mesh>()], [])
+  const rearMeshes = useMemo(() => [createRef<THREE.Mesh>(),createRef<THREE.Mesh>()], [])
   const { size, gl, scene } = useThree()
   const buffer = useFBO(Math.round(size.width * .75), Math.round(size.height * .75), { type: THREE.HalfFloatType })
   const backBuffer = useFBO(Math.round(size.width*.75),Math.round(size.height*.75),{type:THREE.HalfFloatType})
@@ -21,29 +22,39 @@ function CrystalView({ assets, noise, journey, reduced }: { assets: CrystalAsset
   const direction = useMemo(() => new THREE.Vector3(), [])
   const savedResolution = useMemo(() => new THREE.Vector2(), [])
   const interaction = useRef<CrystalInteraction>({ active: false, uv: new THREE.Vector2(.5,.5) })
+  const projectsInteraction = useRef<CrystalInteraction>({ active: false, uv: new THREE.Vector2(.5,.5) })
   const frost = useCrystalFrost(assets,interaction,reduced)
-  const move = (event: ThreeEvent<PointerEvent>) => {
-    if (journey.current.value < .9) return
+  const projectsFrost = useCrystalFrost(assets,projectsInteraction,reduced)
+  const fields = useMemo(() => [frost,projectsFrost], [frost,projectsFrost])
+  const interactions = useMemo(() => [interaction,projectsInteraction], [])
+  const surfaces = useMemo(() => [assets,assets.projects], [assets])
+  const interactive = (index: number) => {
+    const state=crystalJourney(journey.current.value)
+    return index===0 ? state.skillsInteractive : state.projectsInteractive
+  }
+  const move = (index: number, event: ThreeEvent<PointerEvent>) => {
+    if (!interactive(index)) return
     event.stopPropagation()
-    if (event.uv1 && event.object === iceMesh.current) interaction.current.uv.copy(event.uv1)
-    interaction.current.active = true
+    const state=interactions[index].current
+    if (event.uv1 && event.object === iceMeshes[index].current) state.uv.copy(event.uv1)
+    state.active = true
     gl.domElement.style.cursor = 'pointer'
   }
-  const leave = () => { interaction.current.active = false; gl.domElement.style.cursor = '' }
-  const explore = (event: ThreeEvent<MouseEvent>) => {
-    if (journey.current.value < .9 || event.delta > 6) return
+  const leave = (index: number) => { interactions[index].current.active = false; gl.domElement.style.cursor = '' }
+  const explore = (index: number, event: ThreeEvent<MouseEvent>) => {
+    if (!interactive(index) || event.delta > 6) return
     event.stopPropagation()
-    leave()
-    window.dispatchEvent(new Event('portfolio:open-skills'))
+    leave(index)
+    window.dispatchEvent(new Event(index===0 ? 'portfolio:open-skills' : 'portfolio:open-projects'))
   }
   useEffect(() => () => { gl.domElement.style.cursor = '' }, [gl])
-  const prepareIce = useCallback((material: THREE.MeshPhysicalMaterial | null) => {
+  const prepareIce = useCallback((material: THREE.MeshPhysicalMaterial | null, index: number) => {
     if (!material || material.userData.atmosphericIce) return
     material.userData.atmosphericIce = true
     const compile = material.onBeforeCompile
     material.onBeforeCompile = (shader, renderer) => {
       compile.call(material, shader, renderer)
-      shader.uniforms.surfaceFrost = frost
+      shader.uniforms.surfaceFrost = fields[index]
       shader.uniforms.clearTransmission = {value:backBuffer.texture}
       shader.uniforms.frostTriangles = { value: assets.triangles }
       shader.vertexShader = 'attribute vec2 frostUv;varying vec2 vFrostUv;\n'+shader.vertexShader
@@ -66,7 +77,7 @@ function CrystalView({ assets, noise, journey, reduced }: { assets: CrystalAsset
         '#include <dithering_fragment>\ngl_FragColor.rgb=mix(clamp(gl_FragColor.rgb,0.,1.),vec3(.42,.49,.60),.22);')
     }
     material.needsUpdate = true
-  }, [assets,frost,backBuffer])
+  }, [assets,fields,backBuffer])
   const materials = useMemo(() => {
     const core = new THREE.MeshBasicMaterial({ map: assets.coreMap })
     const background = new THREE.ShaderMaterial({
@@ -91,11 +102,12 @@ function CrystalView({ assets, noise, journey, reduced }: { assets: CrystalAsset
   }, [assets, noise])
   useEffect(() => { scene.userData.crystalGrade = assets.grade; return () => { delete scene.userData.crystalGrade } }, [scene, assets])
   useEffect(() => {
-    if(!crystal.current)return
+    if(!crystals.current)return
     let cancelled=false
     const warmScene=new THREE.Scene(), warmCamera=new THREE.PerspectiveCamera(30,1,.1,100)
-    const copy=crystal.current.clone(true)
+    const copy=crystals.current.clone(true)
     copy.visible=true;copy.position.set(0,0,-6.6);copy.rotation.set(0,0,0)
+    copy.children.forEach(shard=>{shard.position.set(0,0,0);shard.rotation.set(0,0,0)})
     copy.traverse(object=>{object.visible=true})
     warmScene.add(copy)
     const plane=new THREE.PlaneGeometry(40,30)
@@ -116,29 +128,30 @@ function CrystalView({ assets, noise, journey, reduced }: { assets: CrystalAsset
     return ()=>{cancelled=true;target.dispose();plane.dispose()}
   },[gl,assets,buffer,backBuffer,materials])
   useFrame(({ gl, scene, camera }) => {
-    if (journeyView(journey.current.value).crystal <= 0 || !iceMesh.current || !rearMesh.current) return
-    const mesh=iceMesh.current, rear=rearMesh.current
+    const visibleShards=shards.map(shard=>Boolean(shard.current?.visible))
+    if (!visibleShards.some(Boolean)) return
     const previous=gl.getRenderTarget(), alpha=materials.background.uniforms.alpha.value
     savedResolution.copy(materials.background.uniforms.resolution.value)
     const landscape=scene.getObjectByName('polar-landscape'), visible=landscape?.visible
-    mesh.visible=false
+    iceMeshes.forEach(mesh=>{if(mesh.current)mesh.current.visible=false})
     if(landscape) landscape.visible=false
     materials.background.uniforms.alpha.value=1
     materials.background.uniforms.resolution.value.set(buffer.width,buffer.height)
     try {
       gl.setRenderTarget(backBuffer);gl.clear();gl.render(scene,camera)
-      rear.visible=true
+      rearMeshes.forEach((mesh,index)=>{if(mesh.current)mesh.current.visible=visibleShards[index]})
       gl.setRenderTarget(buffer);gl.clear();gl.render(scene,camera)
     } finally {
-      rear.visible=false
+      rearMeshes.forEach(mesh=>{if(mesh.current)mesh.current.visible=false})
       gl.setRenderTarget(previous);materials.background.uniforms.alpha.value=alpha
-      materials.background.uniforms.resolution.value.copy(savedResolution);mesh.visible=true
+      materials.background.uniforms.resolution.value.copy(savedResolution)
+      iceMeshes.forEach(mesh=>{if(mesh.current)mesh.current.visible=true})
       if(landscape) landscape.visible=Boolean(visible)
     }
   }, .2)
   useEffect(() => () => Object.values(materials).forEach(material => material.dispose()), [materials])
   useFrame(({ camera, size, gl }, delta) => {
-    if (journey.current.value < .9 && interaction.current.active) leave()
+    interactions.forEach((state,index)=>{if(!interactive(index)&&state.current.active)leave(index)})
     const p = journey.current.value, travel = journeyView(p)
     if (!reduced) time.current += Math.min(delta, .1)
     if (rig.current) {
@@ -147,31 +160,43 @@ function CrystalView({ assets, noise, journey, reduced }: { assets: CrystalAsset
       rig.current.position.copy(camera.position).addScaledVector(direction, 6.6)
       rig.current.quaternion.copy(camera.quaternion)
     }
-    if (crystal.current) {
-      crystal.current.visible = travel.crystal > 0
-      crystal.current.position.y = -3.2 * (1 - travel.crystal)
-      const turn = 1 - travel.crystal
-      crystal.current.rotation.set(turn * 1.6 + Math.sin(time.current*.3)*.055, turn*-2.2 + Math.sin(time.current*.24)*.09, turn*.7 + Math.sin(time.current*.28)*.04)
-      crystal.current.scale.setScalar(size.width < 700 ? .68 : 1)
-    }
+    const {exchange}=crystalJourney(p)
+    shards.forEach((reference,index)=>{
+      const shard=reference.current
+      if(!shard)return
+      shard.visible=index===0 ? travel.crystal>0&&exchange<1 : exchange>0
+      const turn=index===0 ? 1-travel.crystal : 0
+      const rolling=index===0 ? -exchange*.25 : (1-exchange)*.25
+      shard.position.y=index===0 ? -3.2*turn+5.75*exchange : -5.75*(1-exchange)
+      // The reference rotates all three axes with distance from the resting
+      // position. Scroll reversal follows this exact pose back, without tweens.
+      shard.rotation.set(
+        reduced ? 0 : turn*1.6+rolling*11.2+Math.sin(time.current*.3+index*.7)*.055,
+        reduced ? 0 : turn*-2.2-rolling*9.8+Math.sin(time.current*.24+index*.9)*.09,
+        reduced ? 0 : turn*.7-rolling*4.8+Math.sin(time.current*.28+index*.5)*.04,
+      )
+      shard.scale.setScalar(size.width < 700 ? .68 : index===0 ? 1 : .88)
+    })
     materials.background.uniforms.alpha.value = travel.mist
     materials.background.uniforms.time.value = time.current
     materials.background.uniforms.aspect.value = size.width/size.height
     materials.background.uniforms.resolution.value.set(size.width*gl.getPixelRatio(),size.height*gl.getPixelRatio())
     materials.background.uniforms.scroll.value = p
   }, .1)
-  return <group ref={rig} name="first-portfolio-crystal">
+  return <group ref={rig} name="portfolio-crystals">
     <mesh position={[0,0,-4]} material={materials.background} renderOrder={7}><planeGeometry args={[40,30]} /></mesh>
-    <group ref={crystal} onPointerMove={move} onPointerOut={leave} onClick={explore}>
-      <mesh ref={iceMesh} geometry={assets.geometry} renderOrder={12}>
-        <MeshTransmissionMaterial ref={material => prepareIce(material as unknown as THREE.MeshPhysicalMaterial)} resolution={1} buffer={buffer.texture} samples={8} color="#e0e8ef" roughness={.65} roughnessMap={assets.roughness} normalMap={assets.normal} normalScale={new THREE.Vector2(1,1)} envMap={assets.environment} envMapIntensity={.91} envMapRotation={new THREE.Euler(0,Math.PI,0)} ior={1.18} reflectivity={.3} thickness={2} transmission={1} chromaticAberration={.1} anisotropicBlur={0} temporalDistortion={0} />
+    <group ref={crystals}>
+    {surfaces.map((surface,index)=><group key={index} ref={shards[index]} name={index===0?'skills-crystal':'projects-crystal'} onPointerMove={event=>move(index,event)} onPointerOut={()=>leave(index)} onClick={event=>explore(index,event)}>
+      <mesh ref={iceMeshes[index]} geometry={surface.geometry} renderOrder={12}>
+        <MeshTransmissionMaterial ref={material => prepareIce(material as unknown as THREE.MeshPhysicalMaterial,index)} resolution={1} buffer={buffer.texture} samples={8} color="#e0e8ef" roughness={.65} roughnessMap={surface.roughness} normalMap={surface.normal} normalScale={new THREE.Vector2(1,1)} envMap={assets.environment} envMapIntensity={.91} envMapRotation={new THREE.Euler(0,Math.PI,0)} ior={1.18} reflectivity={.3} thickness={2} transmission={1} chromaticAberration={.1} anisotropicBlur={0} temporalDistortion={0} />
       </mesh>
-      <mesh ref={rearMesh} visible={false} geometry={assets.geometry} renderOrder={12} raycast={()=>{}}>
-        <MeshTransmissionMaterial ref={material => prepareIce(material as unknown as THREE.MeshPhysicalMaterial)} side={THREE.BackSide} resolution={1} buffer={backBuffer.texture} samples={8} color="#e0e8ef" roughness={.65} roughnessMap={assets.roughness} normalMap={assets.normal} normalScale={new THREE.Vector2(1,1)} envMap={assets.environment} envMapIntensity={.91} envMapRotation={new THREE.Euler(0,Math.PI,0)} ior={1.18} reflectivity={.3} thickness={2} transmission={1} chromaticAberration={.1} anisotropicBlur={0} temporalDistortion={0} />
+      <mesh ref={rearMeshes[index]} visible={false} geometry={surface.geometry} renderOrder={12} raycast={()=>{}}>
+        <MeshTransmissionMaterial ref={material => prepareIce(material as unknown as THREE.MeshPhysicalMaterial,index)} side={THREE.BackSide} resolution={1} buffer={backBuffer.texture} samples={8} color="#e0e8ef" roughness={.65} roughnessMap={surface.roughness} normalMap={surface.normal} normalScale={new THREE.Vector2(1,1)} envMap={assets.environment} envMapIntensity={.91} envMapRotation={new THREE.Euler(0,Math.PI,0)} ior={1.18} reflectivity={.3} thickness={2} transmission={1} chromaticAberration={.1} anisotropicBlur={0} temporalDistortion={0} />
       </mesh>
       <mesh geometry={assets.core} material={materials.core} renderOrder={11} />
-      <CrystalPlexus reduced={reduced} radius={assets.geometry.boundingSphere!.radius*.9} />
-      <CrystalAnnotations crystal={crystal} bounds={assets.geometry.boundingBox!} />
+      <CrystalPlexus reduced={reduced} active={shards[index]} radius={surface.geometry.boundingSphere!.radius*.9} />
+      <CrystalAnnotations crystal={shards[index]} bounds={surface.geometry.boundingBox!} kind={index===0?'skills':'projects'} />
+    </group>)}
     </group>
   </group>
 }

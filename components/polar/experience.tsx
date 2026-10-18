@@ -3,7 +3,7 @@
 import dynamic from 'next/dynamic'
 import { Component, useEffect, useRef, useState, type ReactNode } from 'react'
 import { Wordmark } from './wordmark'
-import type { Journey } from './journey'
+import { JOURNEY_END, type Journey } from './journey'
 import { CrystalReadout } from './crystal-readout'
 
 const App3D = dynamic(() => import('./scene'), { ssr: false })
@@ -32,9 +32,9 @@ export function PolarExperience() {
     const track = document.querySelector<HTMLElement>('.journey-track')
     let distance = 1
     // Scroll events only sample position; layout is measured when the track resizes.
-    const update = () => { journey.current.target = Math.min(1, Math.max(0, window.scrollY / distance)) }
+    const update = () => { journey.current.target = JOURNEY_END * Math.min(1, Math.max(0, window.scrollY / distance)) }
     const measure = () => {
-      distance = Math.max(1, (track?.offsetHeight || window.innerHeight * 3.2) - window.innerHeight)
+      distance = Math.max(1, (track?.offsetHeight || window.innerHeight * 5.4) - window.innerHeight)
       update()
     }
     const observer = new ResizeObserver(measure)
@@ -80,6 +80,8 @@ export function PolarExperience() {
     <div className="vignette" />
     <div id="ice-measurements" aria-hidden="true" />
     <CrystalReadout />
+    <CrystalReadout kind="projects" />
+    <div className="crystal-atmosphere" aria-hidden="true"><span>DESIGN / ENGINEERING</span><span>01 / SYSTEMS</span></div>
     <header className="identity">
       <h1><Wordmark reducedMotion={reducedMotion} /></h1>
       <p className="role">// Software Engineer</p>
@@ -100,6 +102,6 @@ export function PolarExperience() {
     <div id="loader" data-ready={ready} role="status" aria-live="polite" aria-label={ready ? 'Scene ready' : 'Preparing the landscape'}>
       <span className="loader-name">TUAHA SHAIKH</span><span className="ascii" aria-hidden="true">---===+++===---</span><span className="loader-caption">ASSEMBLING A SMALL WORLD</span>
     </div>
-    <p className="sr-only">Interactive snowy landscape with an igloo. Move over its ice blocks to gently separate them. Scroll down to the first portfolio crystal and explore skills. All links and sound controls are accessible by keyboard.</p>
+    <p className="sr-only">Interactive snowy landscape with an igloo. Move over its ice blocks to gently separate them. Scroll down to the skills crystal, then continue to the projects crystal. All links and sound controls are accessible by keyboard.</p>
   </main></div>
 }
