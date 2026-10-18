@@ -177,7 +177,7 @@ function CrystalView({ assets, noise, journey, reduced }: { assets: CrystalAsset
     const p = journey.current.value, travel = journeyView(p)
     if (!reduced) time.current += Math.min(delta, .1)
     if (rig.current) {
-      rig.current.visible = p > .05
+      rig.current.visible = p > .05 && p < 4.1
       camera.getWorldDirection(direction)
       rig.current.position.copy(camera.position).addScaledVector(direction, 6.6)
       rig.current.quaternion.copy(camera.quaternion)

@@ -78,7 +78,7 @@ export function makeRingMaterials(assets: RingAssets, wind: THREE.Texture) {
       vec3 p=rotateAxis(position,axis,.03*animationmask*motion);
       p.y-=(sin(iteration-time*.5)*.01+.04)*animationmask*motion;vPos=p;vDepth=0.;gl_Position=projectionMatrix*modelViewMatrix*vec4(p,1.);
     }`,`${common}${surface}
-    uniform sampler2D map;uniform float reveal;uniform float glowFactor;varying vec3 vOriginal;
+    uniform sampler2D map;uniform float reveal;uniform float glowFactor;uniform float chamber;varying vec3 vOriginal;
     void main(){float len=length(vPos.xz);vec3 color=texture2D(map,vUv).rgb;
       color*=mix(.65,1.,vPos.x*.5+.5);color+=(vPos.x+1.)*.02;
       float shadow=pow(min(1.,length(vPos*1.5+vec3(1.15,0.,-.55))),2.);
@@ -86,10 +86,11 @@ export function makeRingMaterials(assets: RingAssets, wind: THREE.Texture) {
       color*=mix(vec3(.05,.07,.1),vec3(1.),mix(.5,1.,shadow));
       vec3 blue=vec3(.5,.7,1.)*(1.-ss(1.4,1.6,len));
       color+=blue*glowFactor*(ss(.087,-.1,vOriginal.y)+ss(.087,.05,vOriginal.y)*(sin(vPos.z*5.+len*10.-time*.75)*.5+.5));
+      color*=1.+chamber*.3;
       float alpha=falloff(len*3.,0.,6.,3.,reveal)*ss(1.99,1.3,len);
       gl_FragColor=vec4(color,alpha*opacity);
-    }`,{map:{value:assets.floorMap},reveal:{value:0},glowFactor:{value:1},motion:{value:1}})
-  floor.depthWrite=false
+    }`,{map:{value:assets.floorMap},reveal:{value:0},glowFactor:{value:1},chamber:{value:0},motion:{value:1}})
+  floor.depthWrite=true;floor.side=THREE.FrontSide
   const core = make(`${common}
     uniform float forming;uniform float pixelRatio;varying float light;varying float seed;
     void main(){seed=fract(sin(dot(position,vec3(127.1,311.7,74.7)))*43758.5453);
@@ -107,6 +108,15 @@ export function makeRingMaterials(assets: RingAssets, wind: THREE.Texture) {
   const background = make(`varying vec2 vUv;void main(){vUv=uv;gl_Position=vec4(position.xy,1.,1.);}`,`${common}
     varying vec2 vUv;void main(){gl_FragColor=vec4(sky(vUv),opacity);}`)
   background.depthWrite=false;background.depthTest=false
-  const materials = [...rings,...fields,plasma,tunnel,floor,core,background]
-  return { shared,rings,fields,plasma,tunnel,floor,core,background,materials,dispose:()=>materials.forEach(material=>material.dispose()) }
+  const halo=make(vertex,`${common}${surface}uniform float reveal;
+    void main(){float r=length(vUv-.5);float alpha=ss(.5,.3,r)*ss(.3,.4,r)*ss(.03,.1,abs(vUv.x-.5));
+      alpha*=mix(1.,.8,sin(time*2.+r+vUv.x*2.+vUv.y)*.5+.5);
+      gl_FragColor=vec4(vec3(2.),alpha*reveal*opacity*.45);}`,{reveal:{value:0}},true)
+  const chamberField=make(vertex,`${common}${surface}uniform sampler2D triangles;uniform sampler2D clouds;uniform float reveal;
+    void main(){vec2 uv=vUv*vec2(10.,7.5);float n=texture2D(clouds,uv*.18+vec2(time*.015,-time*.03)).r;
+      float grid=texture2D(triangles,uv*.7+vec2(0.,time*.008)).r;
+      float alpha=grid*ss(.18,.55,n)*ss(0.,.15,vUv.y)*ss(1.,.7,vUv.y)*.065;
+      gl_FragColor=vec4(.65,.8,1.,alpha*reveal*opacity);}`,{triangles:{value:assets.triangles},clouds:{value:assets.clouds},reveal:{value:0}},true)
+  const materials = [...rings,...fields,plasma,tunnel,floor,core,background,halo,chamberField]
+  return { shared,rings,fields,plasma,tunnel,floor,core,background,halo,chamberField,materials,dispose:()=>materials.forEach(material=>material.dispose()) }
 }

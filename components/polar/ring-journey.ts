@@ -23,16 +23,18 @@ const powerInOut = (t: number, power: number) => t < .5 ? Math.pow(t*2,power)*.5
 const pulse = (time: number, start: number, peak: number, end: number) => time<peak ? Math.pow(range(time,start,peak),2) : Math.pow(1-range(time,peak,end),2)
 
 export function ringJourney(value: number) {
-  const progress = range(value,3.25,6)
-  const time = progress*4.95
+  // Keep the existing passage's timing, then continue the same camera path
+  // down to eye level in the contact chamber.
+  const time = Math.min(9.2,Math.max(0,(value-3.25)*1.8))
+  const progress = time/9.2
   const approach = 1-Math.pow(1-range(time,0,2.5),3)
   const settle = bezier(range(time,3.5,7.2),returnUp)
   return {
     progress, time,
-    opacity: ease(range(value,3.3,3.9)),
+    opacity: ease(range(value,3.3,3.9))*(1-ease(range(value,8.8,9.8))),
     y: 1.5-11.33*bezier(range(time,.2,7.2),descent),
-    z: -2*(1-approach)-1.5*settle,
-    targetY: -2.5-7.5*powerInOut(range(time,.2,3.2),2)+.19*powerInOut(range(time,3.2,5.7),2),
+    z: -2*(1-approach)-1.5*settle-1.5*bezier(range(time,7.2,9.2),[0,0,.388,.082,.924,.862,1,1]),
+    targetY: -2.5-7.5*powerInOut(range(time,.2,3.2),2)+.19*powerInOut(range(time,3.2,5.7),2)-.54*Math.pow(range(time,7.2,9.2),3),
     targetZ: -1*(1-approach),
     roll: Math.PI*powerInOut(range(time,1,6.25),4),
     upright: settle,
@@ -42,5 +44,8 @@ export function ringJourney(value: number) {
     core: powerInOut(range(time,1.5,4),3),
     coreGlow: 1-powerInOut(range(time,3.9,4.9),2),
     forming: 1-powerInOut(range(time,3.5,5),2),
+    contact: ease(range(value,6.35,7.15))*(1-ease(range(value,8.3,8.8))),
+    chamber: ease(range(time,4.5,6.5)),
+    returning: ease(range(value,8.6,9.8)),
   }
 }

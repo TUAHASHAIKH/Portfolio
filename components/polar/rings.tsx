@@ -60,7 +60,7 @@ function RingPassage({ assets, journey, noise, reduced }: { assets: RingAssets; 
   useFrame((state,delta)=>{
     const travel=ringJourney(journey.current.value)
     if(!root.current)return
-    root.current.visible=journey.current.value>3.25
+    root.current.visible=journey.current.value>3.25&&journey.current.value<9.8
     scene.userData.ringOpacity=travel.opacity
     scene.userData.ringProximity=reduced?0:travel.proximity
     if(!root.current.visible)return
@@ -99,6 +99,9 @@ function RingPassage({ assets, journey, noise, reduced }: { assets: RingAssets; 
     if(floor.current)floor.current.visible=travel.floor>0
     materials.floor.uniforms.reveal.value=travel.floor
     materials.floor.uniforms.glowFactor.value=.06+travel.coreGlow*.75
+    materials.floor.uniforms.chamber.value=travel.chamber
+    materials.halo.uniforms.reveal.value=travel.chamber
+    materials.chamberField.uniforms.reveal.value=travel.chamber
     if(core.current){core.current.visible=travel.core>0;core.current.rotation.y=reduced?0:clock.current*.045}
     materials.core.uniforms.reveal.value=travel.core
     materials.core.uniforms.glow.value=travel.coreGlow
@@ -115,5 +118,7 @@ function RingPassage({ assets, journey, noise, reduced }: { assets: RingAssets; 
     <mesh ref={tunnel} material={materials.tunnel} position={[0,-3.5,0]} renderOrder={10} raycast={()=>{}}><cylinderGeometry args={[1.3,1.3,9,48,1,true]} /></mesh>
     <mesh ref={floor} name="ring-disc" geometry={assets.floor} material={materials.floor} position={[0,-10.19,0]} scale={.73} rotation={[0,Math.PI,0]} renderOrder={9} frustumCulled={false} raycast={()=>{}} />
     <points ref={core} name="ring-particle-core" geometry={assets.core} material={materials.core} position={[0,-9.785,0]} renderOrder={10} frustumCulled={false} raycast={()=>{}} />
+    <mesh material={materials.halo} position={[0,-9.405,0]} rotation={[-Math.PI/2,0,0]} scale={.57} renderOrder={11} raycast={()=>{}}><planeGeometry args={[1,1]} /></mesh>
+    <mesh material={materials.chamberField} position={[0,-9.9,0]} renderOrder={11} raycast={()=>{}}><cylinderGeometry args={[.38,.38,1.5,48,1,true]} /></mesh>
   </group>
 }

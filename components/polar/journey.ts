@@ -1,7 +1,7 @@
 export type Journey = { target: number; value: number }
 export const CRYSTAL_KINDS = ['skills','projects','about'] as const
 export type CrystalKind = typeof CRYSTAL_KINDS[number]
-export const JOURNEY_END = 6
+export const JOURNEY_END = 10
 export const isCrystalKind = (value: unknown): value is CrystalKind => CRYSTAL_KINDS.some(kind=>kind===value)
 export const crystalCenter = (kind: CrystalKind) => CRYSTAL_KINDS.indexOf(kind)+1
 
@@ -32,7 +32,7 @@ export function crystalJourney(value: number) {
 
 // One trajectory: the retreat keeps moving while the curtain and shard rise.
 export function journeyView(value: number) {
-  const travel = ease(clamp(value))
+  const travel = value > 8.6 ? 1-ease(range(value,8.6,9.8)) : ease(clamp(value))
   return {
     zoom: 1 - (1-travel)*(1-travel),
     lift: travel*travel,

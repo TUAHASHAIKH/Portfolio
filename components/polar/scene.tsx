@@ -272,8 +272,8 @@ function World({ assets, onReady, reduced, journey }: { assets: PolarAssets; onR
     const delta = Math.min(frameDelta, .25), mobile = size.width < 700
     const p = journey.current.value
     if (landscape.current) {
-      landscape.current.visible = p < .94 || gl.domElement.closest('#app')?.getAttribute('data-crystal-ready') !== 'true'
-      landscape.current.position.y = reduced ? 0 : journeyView(p).lift * 8
+      landscape.current.visible = p < .94 || p > 8.6 || gl.domElement.closest('#app')?.getAttribute('data-crystal-ready') !== 'true'
+      landscape.current.position.y = reduced ? 0 : journeyView(p).lift * (p>8.6?-8:8)
     }
     const distance = mobile ? 1.65 : 1
     // Reference: ±pi/2 pointer mapping, .07/.025 angular gain and .035/frame easing.
@@ -385,7 +385,7 @@ function JourneyMotion({ journey, reduced }: { journey: React.RefObject<Journey>
     }
     const app = overlay.current ||= gl.domElement.closest('#app') as HTMLElement | null
     if (!app) return
-    const hero = (1 - ease(range(state.value, .02, .25))).toFixed(4)
+    const hero = Math.max(1-ease(range(state.value,.02,.25)),ease(range(state.value,9.1,9.8))).toFixed(4)
     const crystal = ease(range(state.value, .83, 1)).toFixed(4)
     const shards = crystalJourney(state.value)
     if (app.style.getPropertyValue('--hero-opacity') !== hero) app.style.setProperty('--hero-opacity', hero)
