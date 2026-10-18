@@ -5,6 +5,7 @@ import { Component, useEffect, useRef, useState, type ReactNode } from 'react'
 import { Wordmark } from './wordmark'
 import { crystalCenter, ease, isCrystalKind, JOURNEY_END, type Journey } from './journey'
 import { CrystalReadout } from './crystal-readout'
+import { SocialControls } from './social-controls'
 
 const App3D = dynamic(() => import('./scene'), { ssr: false })
 
@@ -44,9 +45,22 @@ export function PolarExperience() {
       centering=null
       intentUntil=performance.now()+200
     }
+    const reverseLoop=()=>{
+      if(window.scrollY>.5||document.querySelector('dialog[open]'))return
+      cancelCenter()
+      journey.current.value=journey.current.target=JOURNEY_END-.001
+      window.dispatchEvent(new Event('portfolio:reset-motion'))
+      window.scrollTo({top:distance-1,behavior:'instant'})
+    }
+    const wheel=(event:WheelEvent)=>{cancelCenter();if(event.deltaY<0)reverseLoop()}
+    let touchStart=0
+    const touch=(event:TouchEvent)=>{cancelCenter();touchStart=event.touches[0]?.clientY||0}
+    const drag=(event:TouchEvent)=>{if((event.touches[0]?.clientY||0)>touchStart+8)reverseLoop()}
+    const wrapped=()=>{cancelCenter();window.scrollTo({top:0,behavior:'instant'})}
     const navigationKey = (event: KeyboardEvent) => {
       if(event.defaultPrevented)return
       if (['ArrowUp','ArrowDown','PageUp','PageDown','Home','End',' '].includes(event.key)) cancelCenter()
+      if(['ArrowUp','PageUp'].includes(event.key)||(event.key===' '&&event.shiftKey))reverseLoop()
     }
     const centerCrystal = (event: Event) => {
       const kind=(event as CustomEvent<unknown>).detail
@@ -85,14 +99,17 @@ export function PolarExperience() {
     window.addEventListener('scroll', update, { passive: true })
     window.addEventListener('resize', measure)
     window.addEventListener('portfolio:center-crystal',centerCrystal)
-    window.addEventListener('wheel',cancelCenter,{passive:true})
-    window.addEventListener('touchstart',cancelCenter,{passive:true})
+    window.addEventListener('wheel',wheel,{passive:true})
+    window.addEventListener('touchstart',touch,{passive:true})
+    window.addEventListener('touchmove',drag,{passive:true})
+    window.addEventListener('portfolio:journey-wrapped',wrapped)
     window.addEventListener('keydown',navigationKey)
     return () => {
       cancelCenter();observer.disconnect()
       window.removeEventListener('scroll',update);window.removeEventListener('resize',measure)
       window.removeEventListener('portfolio:center-crystal',centerCrystal)
-      window.removeEventListener('wheel',cancelCenter);window.removeEventListener('touchstart',cancelCenter)
+      window.removeEventListener('wheel',wheel);window.removeEventListener('touchstart',touch)
+      window.removeEventListener('touchmove',drag);window.removeEventListener('portfolio:journey-wrapped',wrapped)
       window.removeEventListener('keydown',navigationKey)
     }
   }, [])
@@ -134,6 +151,7 @@ export function PolarExperience() {
     <CrystalReadout />
     <CrystalReadout kind="projects" />
     <CrystalReadout kind="about" />
+    <SocialControls />
     <div className="crystal-atmosphere" aria-hidden="true"><span>DESIGN / ENGINEERING</span><span>01 / SYSTEMS</span></div>
     <header className="identity">
       <h1><Wordmark reducedMotion={reducedMotion} /></h1>
@@ -155,6 +173,6 @@ export function PolarExperience() {
     <div id="loader" data-ready={ready} role="status" aria-live="polite" aria-label={ready ? 'Scene ready' : 'Preparing the landscape'}>
       <span className="loader-name">TUAHA SHAIKH</span><span className="ascii" aria-hidden="true">---===+++===---</span><span className="loader-caption">ASSEMBLING A SMALL WORLD</span>
     </div>
-    <p className="sr-only">Interactive snowy landscape with an igloo. Move over its ice blocks to gently separate them. Scroll through the skills, projects, and about me crystals. All links and sound controls are accessible by keyboard.</p>
+    <p className="sr-only">Interactive snowy landscape with an igloo. Move over its ice blocks to gently separate them. Scroll through the skills, projects, and about me crystals into the particle contact chamber. Use the left and right arrow keys or the on-screen arrows to choose GitHub, LinkedIn, or WhatsApp, then activate the selected link. Continue scrolling to return to the igloo. All links and sound controls are accessible by keyboard.</p>
   </main></div>
 }

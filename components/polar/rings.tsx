@@ -7,6 +7,7 @@ import type { Journey } from './journey'
 import { loadRingAssets, type RingAssets } from './ring-assets'
 import { ringJourney } from './ring-journey'
 import { makeRingMaterials } from './ring-materials'
+import { SocialParticles } from './social-particles'
 
 export function Rings(props: { journey: React.RefObject<Journey>; noise: THREE.Texture; reduced: boolean }) {
   const { gl } = useThree()
@@ -118,6 +119,7 @@ function RingPassage({ assets, journey, noise, reduced }: { assets: RingAssets; 
     <mesh ref={tunnel} material={materials.tunnel} position={[0,-3.5,0]} renderOrder={10} raycast={()=>{}}><cylinderGeometry args={[1.3,1.3,9,48,1,true]} /></mesh>
     <mesh ref={floor} name="ring-disc" geometry={assets.floor} material={materials.floor} position={[0,-10.19,0]} scale={.73} rotation={[0,Math.PI,0]} renderOrder={9} frustumCulled={false} raycast={()=>{}} />
     <points ref={core} name="ring-particle-core" geometry={assets.core} material={materials.core} position={[0,-9.785,0]} renderOrder={10} frustumCulled={false} raycast={()=>{}} />
+    <SocialParticles core={core} material={materials.core} journey={journey} reduced={reduced} virtual={view.camera} />
     <mesh material={materials.halo} position={[0,-9.405,0]} rotation={[-Math.PI/2,0,0]} scale={.57} renderOrder={11} raycast={()=>{}}><planeGeometry args={[1,1]} /></mesh>
     <mesh material={materials.chamberField} position={[0,-9.9,0]} renderOrder={11} raycast={()=>{}}><cylinderGeometry args={[.38,.38,1.5,48,1,true]} /></mesh>
   </group>

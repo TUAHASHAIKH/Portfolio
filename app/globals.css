@@ -69,3 +69,18 @@ html{scrollbar-width:none}html::-webkit-scrollbar{display:none}
 .crystal-atmosphere{position:absolute;inset:0;z-index:2;overflow:hidden;pointer-events:none;opacity:var(--crystal-opacity)}
 .crystal-atmosphere span{position:absolute;left:-5%;top:55%;font-size:clamp(20px,3vw,60px);white-space:nowrap;filter:blur(7px);opacity:.18;letter-spacing:.1em}
 .crystal-atmosphere span+span{left:auto;right:-6%;top:32%;filter:blur(11px);opacity:.1}
+.social-chamber{position:absolute;inset:0;z-index:5;opacity:var(--contact-opacity,0);visibility:hidden;pointer-events:none;text-shadow:0 0 8px #ffffff50}
+#app[data-contact-interactive=true] .social-chamber{visibility:visible}
+.social-chamber button,.social-chamber a{pointer-events:none}
+#app[data-contact-interactive=true] .social-chamber button,#app[data-contact-interactive=true] .social-chamber a{pointer-events:auto}
+.social-arrow{position:absolute;top:46%;width:80px;min-height:44px;padding:10px 0;border:0;background:none;color:white;cursor:pointer}
+.social-arrow svg{width:100%;fill:none;stroke:currentColor;stroke-width:1}
+.social-previous{left:24%}.social-next{right:24%}
+.social-selector{position:absolute;bottom:5.2%;left:50%;transform:translateX(-50%);display:flex;align-items:center;justify-content:center;gap:24px;font-size:clamp(11px,1vw,17px)}
+.social-selector button{border:0;background:none;padding:14px 8px;color:inherit;font:inherit;cursor:pointer;opacity:.4}
+.social-selector button:hover,.social-selector button:focus-visible{opacity:1}
+.social-current{position:relative;text-align:center;min-width:150px;padding:14px 24px;text-decoration:none}
+.social-current::before,.social-current::after,.social-current i::before,.social-current i::after{content:'';position:absolute;width:8px;height:8px;border-color:white;border-style:solid;border-width:0}
+.social-current::before{left:0;top:0;border-left-width:1px;border-top-width:1px}.social-current::after{right:0;top:0;border-right-width:1px;border-top-width:1px}
+.social-current i::before{left:0;bottom:0;border-left-width:1px;border-bottom-width:1px}.social-current i::after{right:0;bottom:0;border-right-width:1px;border-bottom-width:1px}
+@media(max-width:700px){.social-previous{left:5%}.social-next{right:5%}.social-arrow{width:46px}.social-selector{bottom:12%;gap:6px;width:94%;font-size:11px}.social-current{min-width:110px;padding:14px}.social-selector button{padding:14px 6px}}

@@ -1,6 +1,6 @@
 // Extract the zero isosurface of the reference's signed-distance volume away
 // from the render thread. Positions and normals stay on the GPU afterwards.
-self.onmessage = ({ data: { data, size } }) => {
+self.onmessage = ({ data: { data, size, masks = [] } }) => {
   const positions = [], normals = []
   const offset = (x, y, z) => ((z * size + y) * size + x) * 4
   for (let z = 1; z < size - 1; z++) for (let y = 1; y < size - 1; y++) for (let x = 1; x < size - 1; x++) {
@@ -31,5 +31,30 @@ self.onmessage = ({ data: { data, size } }) => {
     }
   }
   const p = new Float32Array(positions), n = new Float32Array(normals)
-  self.postMessage({ positions: p, normals: n }, [p.buffer, n.buffer])
+  const social = masks.map(mask => {
+    const inside=[],border=[],width=256
+    for(let y=1;y<width-1;y++)for(let x=1;x<width-1;x++){
+      const i=y*width+x
+      if(mask[i]<128)continue
+      inside.push(i)
+      if(mask[i-1]<128||mask[i+1]<128||mask[i-width]<128||mask[i+width]<128)border.push(i)
+    }
+    const positions=new Float32Array(p.length),normals=new Float32Array(n.length)
+    let seed=789123
+    const random=()=>{seed=(Math.imul(seed,1664525)+1013904223)>>>0;return seed/4294967296}
+    for(let i=0;i<positions.length;i+=3){
+      const side=random()<.28,list=side?border:inside
+      const pixel=list[Math.floor(random()*list.length)],x=pixel%width,y=Math.floor(pixel/width)
+      const sign=random()<.5?-1:1
+      positions[i]=(.5-(x+random())/width)*.43
+      positions[i+1]=(.5-(y+random())/width)*.43
+      positions[i+2]=side?(random()-.5)*.065:sign*(.0325+(random()-.5)*.001)
+      if(side){
+        const dx=mask[pixel-1]-mask[pixel+1],dy=mask[pixel-width]-mask[pixel+width],len=Math.hypot(dx,dy)||1
+        normals[i]=-dx/len;normals[i+1]=-dy/len
+      }else normals[i+2]=sign
+    }
+    return {positions,normals}
+  })
+  self.postMessage({ positions: p, normals: n, social }, [p.buffer, n.buffer,...social.flatMap(item=>[item.positions.buffer,item.normals.buffer])])
 }

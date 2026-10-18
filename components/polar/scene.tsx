@@ -16,6 +16,7 @@ import { Wind, ForegroundWind } from './wind'
 import { Assembly, progress, smooth } from './assembly'
 import { Crystal } from './crystal'
 import { Rings } from './rings'
+import { ringJourney } from './ring-journey'
 import { ease, range, journeyView, crystalJourney, CRYSTAL_KINDS, JOURNEY_END, type Journey } from './journey'
 
 type Motion = { fast: number; slow: number }
@@ -135,7 +136,7 @@ function PostProcessing({ assets, journey, reduced }: { assets: PolarAssets; jou
   useFrame((_, delta) => {
     const p = journey.current.value
     pipeline.grade.uniforms.crystalGrade.value = scene.userData.crystalGrade || assets.grade
-    pipeline.grade.uniforms.crystalMix.value = ease(range(p, .4, .9))
+    pipeline.grade.uniforms.crystalMix.value = ease(range(p, .4, .9))*(1-ease(range(p,8.6,9.8)))
     const rings = Number(scene.userData.ringOpacity || 0)
     pipeline.grade.uniforms.ringMix.value = rings
     pipeline.bloom.strength = THREE.MathUtils.lerp(.14,.7,rings)
@@ -370,6 +371,12 @@ function JourneyMotion({ journey, reduced }: { journey: React.RefObject<Journey>
   const { gl } = useThree()
   const velocity = useRef(0)
   const overlay = useRef<HTMLElement | null>(null)
+  const laps=useRef(0)
+  useEffect(()=>{
+    const reset=()=>{velocity.current=0}
+    window.addEventListener('portfolio:reset-motion',reset)
+    return()=>window.removeEventListener('portfolio:reset-motion',reset)
+  },[])
   useFrame((_, delta) => {
     const state = journey.current
     // Analytic critically damped spring: continuous velocity even when scrolling reverses.
@@ -383,11 +390,21 @@ function JourneyMotion({ journey, reduced }: { journey: React.RefObject<Journey>
       state.value = state.target
       velocity.current = 0
     }
+    // Both ends render the same assembled hero. Rebase only at the matching
+    // pose, retaining free native scrolling in either direction.
+    if(state.target===JOURNEY_END&&state.value>JOURNEY_END-.15){
+      state.value=state.target=0;velocity.current=0;laps.current++
+      window.dispatchEvent(new Event('portfolio:journey-wrapped'))
+    }
     const app = overlay.current ||= gl.domElement.closest('#app') as HTMLElement | null
     if (!app) return
     const hero = Math.max(1-ease(range(state.value,.02,.25)),ease(range(state.value,9.1,9.8))).toFixed(4)
-    const crystal = ease(range(state.value, .83, 1)).toFixed(4)
+    const crystal = (ease(range(state.value,.83,1))*(1-ease(range(state.value,8.8,9.8)))).toFixed(4)
+    app.dataset.journeyLoops=String(laps.current)
     const shards = crystalJourney(state.value)
+    const contact=ringJourney(state.value).contact
+    app.style.setProperty('--contact-opacity',contact.toFixed(4))
+    app.dataset.contactInteractive=String(contact>.05)
     if (app.style.getPropertyValue('--hero-opacity') !== hero) app.style.setProperty('--hero-opacity', hero)
     if (app.style.getPropertyValue('--crystal-opacity') !== crystal) app.style.setProperty('--crystal-opacity', crystal)
     for (const kind of CRYSTAL_KINDS) {
@@ -399,7 +416,7 @@ function JourneyMotion({ journey, reduced }: { journey: React.RefObject<Journey>
     }
     const active = shards.aboutInteractive ? 'about' : shards.projectsInteractive ? 'projects' : shards.skillsInteractive ? 'skills' : 'none'
     if (app.dataset.activeCrystal !== active) app.dataset.activeCrystal = active
-    const stage = state.value > 3.3 ? 'rings' : state.value > .82 ? 'crystal' : state.value > .02 ? 'transition' : 'igloo'
+    const stage = state.value>=9.8 ? 'igloo' : contact>.05 ? 'contact' : state.value > 3.3 ? 'rings' : state.value > .82 ? 'crystal' : state.value > .02 ? 'transition' : 'igloo'
     if (app.dataset.stage !== stage) app.dataset.stage = stage
   }, -2)
   return null

@@ -1,6 +1,7 @@
 import * as THREE from 'three'
 import { DRACOLoader } from 'three/addons/loaders/DRACOLoader.js'
 import { KTX2Loader } from 'three/addons/loaders/KTX2Loader.js'
+import { socialMasks } from './social-links'
 
 export type RingAssets = Awaited<ReturnType<typeof loadRingAssets>>
 
@@ -43,6 +44,7 @@ export async function loadRingAssets(renderer: THREE.WebGLRenderer) {
     ])
     const image = volume.image as { data: Uint8Array; width: number; height: number; depth: number }
     const data = image.data.slice()
+    const masks = socialMasks()
     worker = new Worker('/workers/ring-core.js')
     const core = await new Promise<THREE.BufferGeometry>((resolve, reject) => {
       worker!.onerror = event => reject(new Error(event.message))
@@ -50,10 +52,14 @@ export async function loadRingAssets(renderer: THREE.WebGLRenderer) {
         const result = new THREE.BufferGeometry()
         result.setAttribute('position', new THREE.BufferAttribute(event.data.positions, 3))
         result.setAttribute('normal', new THREE.BufferAttribute(event.data.normals, 3))
+        for(let index=0;index<2;index++){
+          result.setAttribute(`socialPosition${index+1}`,new THREE.BufferAttribute(event.data.social[index].positions,3))
+          result.setAttribute(`socialNormal${index+1}`,new THREE.BufferAttribute(event.data.social[index].normals,3))
+        }
         result.computeBoundingSphere(); resources.push(result)
         resolve(result)
       }
-      worker!.postMessage({ data, size: image.width }, [data.buffer])
+      worker!.postMessage({ data, size: image.width, masks }, [data.buffer,...masks.map(mask=>mask.buffer)])
     })
     worker.terminate(); worker = undefined
     draco.dispose(); ktx.dispose()
