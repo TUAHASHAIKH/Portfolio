@@ -318,13 +318,27 @@ export default function App3D({ onReady, reducedMotion, journey }: { onReady: ()
 
 function JourneyMotion({ journey, reduced }: { journey: React.RefObject<Journey>; reduced: boolean }) {
   const { gl } = useThree()
+  const velocity = useRef(0)
+  const overlay = useRef<HTMLElement | null>(null)
   useFrame((_, delta) => {
     const state = journey.current
-    state.value = reduced ? state.target : THREE.MathUtils.damp(state.value, state.target, 5, Math.min(delta, .1))
-    const app = gl.domElement.closest('#app') as HTMLElement | null
+    // Analytic critically damped spring: continuous velocity even when scrolling reverses.
+    // The same trajectory drives retreat, curtain and crystal, without a stage switch.
+    const dt = Math.min(delta, .25), rate = 14
+    const offset = state.value - state.target
+    const decay = Math.exp(-rate * dt), impulse = velocity.current + rate * offset
+    state.value = reduced ? state.target : THREE.MathUtils.clamp(state.target + (offset + impulse * dt) * decay, 0, 1)
+    velocity.current = reduced ? 0 : (velocity.current - rate * impulse * dt) * decay
+    if (Math.abs(state.target - state.value) < .00001 && Math.abs(velocity.current) < .0001) {
+      state.value = state.target
+      velocity.current = 0
+    }
+    const app = overlay.current ||= gl.domElement.closest('#app') as HTMLElement | null
     if (!app) return
-    app.style.setProperty('--hero-opacity', String(1 - ease(range(state.value, .02, .25))))
-    app.style.setProperty('--crystal-opacity', String(ease(range(state.value, .83, 1))))
+    const hero = (1 - ease(range(state.value, .02, .25))).toFixed(4)
+    const crystal = ease(range(state.value, .83, 1)).toFixed(4)
+    if (app.style.getPropertyValue('--hero-opacity') !== hero) app.style.setProperty('--hero-opacity', hero)
+    if (app.style.getPropertyValue('--crystal-opacity') !== crystal) app.style.setProperty('--crystal-opacity', crystal)
     const stage = state.value > .82 ? 'crystal' : state.value > .02 ? 'transition' : 'igloo'
     if (app.dataset.stage !== stage) app.dataset.stage = stage
   }, -2)
