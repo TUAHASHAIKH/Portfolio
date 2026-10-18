@@ -1,7 +1,7 @@
 export type Journey = { target: number; value: number }
 export const CRYSTAL_KINDS = ['skills','projects','about'] as const
 export type CrystalKind = typeof CRYSTAL_KINDS[number]
-export const JOURNEY_END = CRYSTAL_KINDS.length
+export const JOURNEY_END = 6
 export const isCrystalKind = (value: unknown): value is CrystalKind => CRYSTAL_KINDS.some(kind=>kind===value)
 export const crystalCenter = (kind: CrystalKind) => CRYSTAL_KINDS.indexOf(kind)+1
 
@@ -23,10 +23,10 @@ export function crystalJourney(value: number) {
     aboutY: (value-3)*5.75,
     skillsOpacity: ease(range(value,.83,1)) * (1-ease(range(exchange,0,.3))),
     projectsOpacity: ease(range(exchange,.25,.75)) * (1-ease(range(aboutExchange,0,.3))),
-    aboutOpacity: ease(range(aboutExchange,.25,.75)),
+    aboutOpacity: ease(range(aboutExchange,.25,.75)) * (1-ease(range(value,3,3.3))),
     skillsInteractive: value > .6 && value < 1.6,
     projectsInteractive: value > 1.35 && value < 2.6,
-    aboutInteractive: value > 2.35,
+    aboutInteractive: value > 2.35 && value < 3.6,
   }
 }
 

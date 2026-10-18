@@ -15,6 +15,7 @@ import { Measurements } from './measurements'
 import { Wind, ForegroundWind } from './wind'
 import { Assembly, progress, smooth } from './assembly'
 import { Crystal } from './crystal'
+import { Rings } from './rings'
 import { ease, range, journeyView, crystalJourney, CRYSTAL_KINDS, JOURNEY_END, type Journey } from './journey'
 
 type Motion = { fast: number; slow: number }
@@ -44,13 +45,14 @@ function PostProcessing({ assets, journey, reduced }: { assets: PolarAssets; jou
     const composer = new EffectComposer(gl)
     const render = new RenderPass(scene, camera)
     const grade = new ShaderPass({
-      uniforms: { tDiffuse: { value: null }, grade: { value: assets.grade }, crystalGrade: { value: assets.grade }, crystalMix: { value: 0 } },
+      uniforms: { tDiffuse: { value: null }, grade: { value: assets.grade }, crystalGrade: { value: assets.grade }, crystalMix: { value: 0 }, ringMix: { value: 0 } },
       vertexShader: 'varying vec2 vUv;void main(){vUv=uv;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.);}',
       fragmentShader: `
         uniform sampler2D tDiffuse;
         uniform highp sampler3D grade;
         uniform highp sampler3D crystalGrade;
         uniform float crystalMix;
+        uniform float ringMix;
         varying vec2 vUv;
         vec3 lookup(vec3 point){return mix(texture(grade,(point+.5)/32.).rgb,texture(crystalGrade,(point+.5)/32.).rgb,crystalMix);}
         vec3 interpolateGrade(vec3 color){
@@ -64,11 +66,12 @@ function PostProcessing({ assets, journey, reduced }: { assets: PolarAssets; jou
           return lookup(base)*(1.-weights.x)+lookup(base+axes[0])*(weights.x-weights.y)+lookup(base+axes[0]+axes[1])*(weights.y-weights.z)+lookup(base+1.)*weights.z;
         }
         void main(){
-          vec3 color = clamp(texture2D(tDiffuse,vUv).rgb,0.,1.);
+          vec3 original = texture2D(tDiffuse,vUv).rgb;
+          vec3 color = clamp(original,0.,1.);
           color = mix(color*12.92,1.055*pow(color,vec3(1./2.4))-.055,step(vec3(.0031308),color));
           color = interpolateGrade(color);
           color = mix(color/12.92,pow((color+.055)/1.055,vec3(2.4)),step(vec3(.04045),color));
-          gl_FragColor=vec4(color,1.);
+          gl_FragColor=vec4(mix(color,original,ringMix),1.);
         }
       `,
     })
@@ -89,9 +92,24 @@ function PostProcessing({ assets, journey, reduced }: { assets: PolarAssets; jou
           color=mix(color,vec3(.36,.39,.46),amount*.14);
           gl_FragColor=vec4(color,1.);}`,
     })
+    const frost = new ShaderPass({
+      uniforms:{tDiffuse:{value:null},blue:{value:assets.wind},squares:{value:assets.wind},amount:{value:0},time:{value:0},opacity:{value:0},resolution:{value:new THREE.Vector2()}},
+      vertexShader:'varying vec2 vUv;void main(){vUv=uv;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.);}',
+      fragmentShader:`uniform sampler2D tDiffuse;uniform sampler2D blue;uniform sampler2D squares;uniform float amount;uniform float time;uniform float opacity;uniform vec2 resolution;varying vec2 vUv;
+        void main(){vec2 p=vUv-.5;p.x*=resolution.x/resolution.y;
+          float grain=texture2D(blue,gl_FragCoord.xy/128.+fract(time*.13)).r;float angle=(grain-.5)*.3*amount;
+          p=mat2(cos(angle),sin(angle),-sin(angle),cos(angle))*p;
+          p.x/=resolution.x/resolution.y;vec2 uv=p+.5;
+          float tile=texture2D(squares,vUv*2.+floor(time*.7)*.13).g;uv+=(tile-.5)*amount*.014;
+          vec2 split=(uv-.5)*amount*.006;
+          vec3 color=vec3(texture2D(tDiffuse,uv+split).r,texture2D(tDiffuse,uv).g,texture2D(tDiffuse,uv-split).b);
+          float glare=pow(vUv.x*vUv.y,2.)*(sin(vUv.x*3.+vUv.y*2.+time*.2)*.4+.4);
+          color+=vec3(.8,.9,1.)*glare*grain*.35*opacity;
+          color+=(grain-.5)*.006*opacity;gl_FragColor=vec4(color,1.);}`,
+    })
     const output = new OutputPass()
-    composer.addPass(render); composer.addPass(grade); composer.addPass(bloom); composer.addPass(distortion); composer.addPass(output)
-    return { composer, render, grade, bloom, distortion, output }
+    composer.addPass(render); composer.addPass(grade); composer.addPass(bloom); composer.addPass(distortion); composer.addPass(frost); composer.addPass(output)
+    return { composer, render, grade, bloom, distortion, frost, output }
   }, [gl, scene, camera, assets.grade])
   useEffect(() => { pipeline.composer.setSize(size.width, size.height) }, [pipeline, size])
   useEffect(() => {
@@ -103,6 +121,7 @@ function PostProcessing({ assets, journey, reduced }: { assets: PolarAssets; jou
     const camera = new THREE.OrthographicCamera(-1,1,1,-1,0,1)
     let cancelled = false
     warmScene.add(new THREE.Mesh(geometry, pipeline.distortion.material))
+    warmScene.add(new THREE.Mesh(geometry, pipeline.frost.material))
     void gl.compileAsync(warmScene, camera).then(() => {
       if (cancelled) return
       const previous = gl.getRenderTarget()
@@ -112,11 +131,23 @@ function PostProcessing({ assets, journey, reduced }: { assets: PolarAssets; jou
       .catch(error => console.error('Transition shader preparation:', error))
     return () => { cancelled = true; geometry.dispose(); target.dispose() }
   }, [gl, pipeline])
-  useEffect(() => () => { pipeline.render.dispose(); pipeline.grade.dispose(); pipeline.bloom.dispose(); pipeline.distortion.dispose(); pipeline.output.dispose(); pipeline.composer.dispose() }, [pipeline])
+  useEffect(() => () => { pipeline.render.dispose(); pipeline.grade.dispose(); pipeline.bloom.dispose(); pipeline.distortion.dispose(); pipeline.frost.dispose(); pipeline.output.dispose(); pipeline.composer.dispose() }, [pipeline])
   useFrame((_, delta) => {
     const p = journey.current.value
     pipeline.grade.uniforms.crystalGrade.value = scene.userData.crystalGrade || assets.grade
     pipeline.grade.uniforms.crystalMix.value = ease(range(p, .4, .9))
+    const rings = Number(scene.userData.ringOpacity || 0)
+    pipeline.grade.uniforms.ringMix.value = rings
+    pipeline.bloom.strength = THREE.MathUtils.lerp(.14,.7,rings)
+    pipeline.bloom.threshold = THREE.MathUtils.lerp(.9,.65,rings)
+    pipeline.bloom.radius = THREE.MathUtils.lerp(.55,.85,rings)
+    pipeline.frost.enabled = rings > .001
+    pipeline.frost.uniforms.amount.value = reduced ? 0 : Number(scene.userData.ringProximity || 0)
+    pipeline.frost.uniforms.opacity.value = rings
+    pipeline.frost.uniforms.blue.value = scene.userData.ringBlue || assets.wind
+    pipeline.frost.uniforms.squares.value = scene.userData.ringScroll || assets.wind
+    if(!reduced)pipeline.frost.uniforms.time.value += Math.min(delta,.1)
+    pipeline.frost.uniforms.resolution.value.set(size.width,size.height)
     const strength = journeyView(p).distortion
     pipeline.distortion.uniforms.amount.value = reduced ? 0 : strength
     pipeline.distortion.enabled = !reduced && strength > .001
@@ -299,6 +330,7 @@ function World({ assets, onReady, reduced, journey }: { assets: PolarAssets; onR
     {!reduced && <ForegroundWind noise={assets.wind} intro={introTime} />}
     </group>
     <Crystal noise={assets.wind} journey={journey} reduced={reduced} />
+    <Rings noise={assets.wind} journey={journey} reduced={reduced} />
     <PostProcessing assets={assets} journey={journey} reduced={reduced} />
   </>
 }
@@ -367,7 +399,7 @@ function JourneyMotion({ journey, reduced }: { journey: React.RefObject<Journey>
     }
     const active = shards.aboutInteractive ? 'about' : shards.projectsInteractive ? 'projects' : shards.skillsInteractive ? 'skills' : 'none'
     if (app.dataset.activeCrystal !== active) app.dataset.activeCrystal = active
-    const stage = state.value > .82 ? 'crystal' : state.value > .02 ? 'transition' : 'igloo'
+    const stage = state.value > 3.3 ? 'rings' : state.value > .82 ? 'crystal' : state.value > .02 ? 'transition' : 'igloo'
     if (app.dataset.stage !== stage) app.dataset.stage = stage
   }, -2)
   return null

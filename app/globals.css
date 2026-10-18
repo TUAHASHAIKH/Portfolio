@@ -45,7 +45,7 @@ html{--bgColor:#a0a5b1;--default-font:'IBM Plex Mono','Courier New',monospace;ba
 
 /* Native scrolling drives the pinned journey through skills and projects. */
 html{scrollbar-width:none}html::-webkit-scrollbar{display:none}
-.journey-track{height:760svh;position:relative}
+.journey-track{height:1420svh;position:relative}
 #app{position:sticky;top:0;--hero-opacity:1;--crystal-opacity:0;--skills-opacity:0;--projects-opacity:0;--about-opacity:0}
 .identity .role,.identity .specialties,.intro{opacity:var(--hero-opacity)}
 #app[data-stage=crystal] .intro{visibility:hidden;pointer-events:none}

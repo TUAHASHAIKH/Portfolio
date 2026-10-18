@@ -24,22 +24,22 @@ export async function loadRingAssets(renderer: THREE.WebGLRenderer) {
     result.computeBoundingSphere(); resources.push(result)
     return result
   }
-  async function texture(name: string, repeat = false) {
+  async function texture(name: string, repeat = false, data = false) {
     const result = await ktx.loadAsync(`/scene/textures/${name}.ktx2`)
-    // The reference's baked maps were sampled directly by its custom shaders.
-    result.colorSpace = THREE.NoColorSpace
+    result.colorSpace = data || name === 'ring_core_volume' ? THREE.NoColorSpace : THREE.SRGBColorSpace
     if (repeat) result.wrapS = result.wrapT = THREE.RepeatWrapping
     result.needsUpdate = true; resources.push(result)
     return result
   }
   try {
-    const [outer, inner, plasma, floor, outerMap, outerGlow, innerMap, innerGlow, floorMap, clouds, triangles, volume] = await Promise.all([
+    const [outer, inner, plasma, floor, outerMap, outerGlow, innerMap, innerGlow, floorMap, clouds, triangles, volume, blue, scroll] = await Promise.all([
       geometry('ring-shattered-outer', ['position','normal','uv','centr','rand']),
       geometry('ring-shattered-inner', ['position','normal','uv','centr','rand']),
       geometry('ring-plasma', ['position','normal','uv']),
       geometry('ring-floor', ['position','normal','uv','animationmask','iteration','glow']),
       texture('ring_outer_color'), texture('ring_outer_glow'), texture('ring_inner_color'), texture('ring_inner_glow'),
       texture('ring_floor_color'), texture('ring_clouds', true), texture('crystal_triangles', true), texture('ring_core_volume'),
+      texture('ring_blue_noise',true,true),texture('ring_scroll_noise',true,true),
     ])
     const image = volume.image as { data: Uint8Array; width: number; height: number; depth: number }
     const data = image.data.slice()
@@ -57,6 +57,6 @@ export async function loadRingAssets(renderer: THREE.WebGLRenderer) {
     })
     worker.terminate(); worker = undefined
     draco.dispose(); ktx.dispose()
-    return { outer, inner, plasma, floor, outerMap, outerGlow, innerMap, innerGlow, floorMap, clouds, triangles, core, dispose }
+    return { outer, inner, plasma, floor, outerMap, outerGlow, innerMap, innerGlow, floorMap, clouds, triangles, core, blue, scroll, dispose }
   } catch (error) { dispose(); throw error }
 }

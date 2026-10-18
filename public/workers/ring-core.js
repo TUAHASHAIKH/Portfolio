@@ -10,8 +10,9 @@ self.onmessage = ({ data: { data, size } }) => {
       const b = offset(x + step[0], y + step[1], z + step[2]), end = data[b + 3] - 127.5
       if (start * end > 0 || start === end) continue
       const blend = start / (start - end)
-      // Four deterministic samples per crossing give a dense, granular surface.
-      for (let sample = 0; sample < 4; sample++) {
+      // Dense subpixel grains retain the sculpture's smooth silhouette instead
+      // of enlarging sparse particles into visible squares.
+      for (let sample = 0; sample < 16; sample++) {
         const jitter = k => (Math.sin((a + sample * 73 + k * 317) * 12.9898) * 43758.5453 % 1) * .35
         for (let k = 0; k < 3; k++) {
           positions.push((([x, y, z][k] + step[k] * blend + jitter(k)) / (size - 1) - .5) * .65 / 1.2)
