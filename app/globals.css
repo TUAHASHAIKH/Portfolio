@@ -38,3 +38,7 @@ html{--bgColor:#a0a5b1;--default-font:'IBM Plex Mono','Courier New',monospace;ba
 .measurement-plexus{display:block;width:100%;height:100%;overflow:visible}
 .measurement-number{font-family:'IBM Plex Mono',monospace;font-size:11px;font-weight:500;letter-spacing:0;text-shadow:0 0 2px #ffffff50}
 .identity,.intro,.bottom-bar{z-index:2}
+
+/* The interface arrives after the assembly scan, with the reference's delayed reveal. */
+.identity,.intro,.bottom-bar{transition:opacity 1.1s ease,transform 1.1s cubic-bezier(.2,.7,.2,1)}
+#app[data-introduced=false] .identity,#app[data-introduced=false] .intro,#app[data-introduced=false] .bottom-bar{opacity:0;transform:translateY(8px);pointer-events:none;visibility:hidden}

@@ -13,6 +13,7 @@ import { loadPolarAssets, type PolarAssets } from './assets'
 import { makeIceMaterial, makeTerrainMaterial, surfaceVertex } from './materials'
 import { Measurements } from './measurements'
 import { Wind } from './wind'
+import { Assembly, progress, smooth } from './assembly'
 
 type Motion = { fast: number; slow: number }
 const radians = (degrees: number) => degrees * Math.PI / 180
@@ -79,7 +80,7 @@ function PostProcessing({ assets }: { assets: PolarAssets }) {
   return null
 }
 
-function Ice({ assets, cursor, engaged, reduced }: { assets: PolarAssets; cursor: THREE.Vector3; engaged: React.RefObject<boolean>; reduced: boolean }) {
+function Ice({ assets, cursor, engaged, reduced, intro }: { assets: PolarAssets; cursor: THREE.Vector3; engaged: React.RefObject<boolean>; reduced: boolean; intro: React.RefObject<number> }) {
   const meshes = useRef<(THREE.Mesh | null)[]>([])
   const resources = useMemo(() => assets.pieces.map(piece => {
     const material = makeIceMaterial(assets)
@@ -95,7 +96,7 @@ function Ice({ assets, cursor, engaged, reduced }: { assets: PolarAssets; cursor
       const distance = piece.center.distanceTo(cursor)
       const influence = 1 - THREE.MathUtils.smoothstep(distance, 1, 3)
       const anchored = THREE.MathUtils.smoothstep(piece.center.y, .45, .7)
-      const target = !reduced && engaged.current ? influence * .54 * anchored : 0
+      const target = !reduced && intro.current > 4.5 && engaged.current ? influence * .54 * anchored : 0
       // Preserve the reference's two-stage easing without the previous extra slowdown.
       piece.motion.fast = THREE.MathUtils.damp(piece.motion.fast, target, blockResponse, delta)
       piece.motion.slow = THREE.MathUtils.damp(piece.motion.slow, piece.motion.fast, blockResponse, delta)
@@ -106,6 +107,7 @@ function Ice({ assets, cursor, engaged, reduced }: { assets: PolarAssets; cursor
         Math.cos(piece.seed.z * 30 + amount * 2) * amount * .5,
         Math.cos(piece.seed.x * 30 + amount * 2) * amount * .5,
       )
+      piece.material.uniforms.materialize.value = reduced ? 1 : smooth(progress(intro.current, 1.1, 2.25))
       piece.material.uniforms.separation.value = amount
       piece.point.copy(mesh.position)
     })
@@ -127,6 +129,9 @@ function World({ assets, onReady, reduced }: { assets: PolarAssets; onReady: () 
   const worldUp = useMemo(() => new THREE.Vector3(0, 1, 0), [])
   const engaged = useRef(false)
   const windTime = useRef(0)
+  const introTime = useRef(-.7)
+  const introCamera = useMemo(() => new THREE.Vector3(), [])
+  const introTarget = useMemo(() => new THREE.Vector3(), [])
   const cursor = useMemo(() => new THREE.Vector3(0, 2, 0), [])
   const target = useMemo(() => new THREE.Vector3(), [])
   const plane = useMemo(() => new THREE.Plane(), [])
@@ -196,8 +201,16 @@ function World({ assets, onReady, reduced }: { assets: PolarAssets; onReady: () 
     cameraRight.crossVectors(worldUp, normal).normalize()
     cameraUp.crossVectors(normal, cameraRight).normalize()
     cameraOffset.applyAxisAngle(cameraRight, orbit.current.pitch).applyAxisAngle(cameraUp, orbit.current.yaw)
-    camera.position.copy(cameraTarget).add(cameraOffset)
-    camera.lookAt(cameraTarget)
+    introTime.current = reduced ? 9 : Math.min(9, introTime.current + frameDelta)
+    const arrival = smooth(progress(introTime.current, 2, 5.5))
+    introCamera.set(-14 * distance, 21 * distance, 14 * distance)
+    camera.position.copy(cameraTarget).add(cameraOffset).lerp(introCamera, 1 - arrival)
+    introTarget.set(0, .5, 0).lerp(cameraTarget, arrival)
+    camera.lookAt(introTarget)
+    for (const material of [surfaces.ground, surfaces.terrain, surfaces.patch, surfaces.mountain]) {
+      material.uniforms.reveal.value = reduced ? 1 : smooth(progress(introTime.current, .7, 7.5))
+    }
+    gl.domElement.closest('#app')?.setAttribute('data-introduced', String(introTime.current >= 4.5))
     camera.getWorldDirection(normal)
     target.copy(camera.position).addScaledVector(normal, mobile ? 31.8 : 19.25)
     plane.setFromNormalAndCoplanarPoint(normal, target)
@@ -222,7 +235,8 @@ function World({ assets, onReady, reduced }: { assets: PolarAssets; onReady: () 
     <mesh geometry={assets.ground} material={surfaces.ground} renderOrder={2} />
     <mesh material={surfaces.haze} position={[-5,1.25,-10]} renderOrder={3}><planeGeometry args={[20,5]} /></mesh>
     <mesh material={surfaces.haze} position={[13.45,3,-4]} rotation={[0,radians(-10),0]} renderOrder={3}><planeGeometry args={[20,5]} /></mesh>
-    <Ice assets={assets} cursor={cursor} engaged={engaged} reduced={reduced} />
+    <Ice assets={assets} cursor={cursor} engaged={engaged} reduced={reduced} intro={introTime} />
+    {!reduced && <Assembly assets={assets} time={introTime} />}
     {!reduced && <Wind />}
     <PostProcessing assets={assets} />
   </>

@@ -20,10 +20,11 @@ export function makeTerrainMaterial(map: THREE.Texture, options: { mountain?: bo
   return new THREE.ShaderMaterial({
     transparent: true,
     depthWrite: true,
-    uniforms: { surface: { value: map }, glow: { value: options.glow || map }, windTexture: { value: options.wind || map }, time: { value: 0 }, groundLight: { value: 0 }, cursor: { value: new THREE.Vector3(0, -10, 0) }, resolution: { value: new THREE.Vector2(1440, 900) } },
+    uniforms: { reveal: { value: 1 }, surface: { value: map }, glow: { value: options.glow || map }, windTexture: { value: options.wind || map }, time: { value: 0 }, groundLight: { value: 0 }, cursor: { value: new THREE.Vector3(0, -10, 0) }, resolution: { value: new THREE.Vector2(1440, 900) } },
     defines: { MOUNTAIN: options.mountain ? 1 : 0, PATCH: options.patch ? 1 : 0, GROUND_GLOW: options.glow ? 1 : 0, GROUND_WIND: options.wind ? 1 : 0 },
     vertexShader: surfaceVertex,
     fragmentShader: `
+      uniform float reveal;
       uniform sampler2D surface;
       uniform sampler2D glow;
       uniform sampler2D windTexture;
@@ -65,7 +66,7 @@ export function makeTerrainMaterial(map: THREE.Texture, options: { mountain?: bo
           float lowGround=1.-smoothstep(-1.3,.5,worldPoint.y);
           color=mix(color,vec3(.9,.93,.98),clamp(snow*lowGround*.42,0.,.2));
         #endif
-        gl_FragColor = vec4(color, alpha * painted);
+        gl_FragColor = vec4(color, alpha * painted * (1. - smoothstep(reveal * 180. - 8., reveal * 180., length(worldPoint.xz))));
       }
     `,
   })
@@ -73,7 +74,7 @@ export function makeTerrainMaterial(map: THREE.Texture, options: { mountain?: bo
 
 export function makeIceMaterial(assets: PolarAssets) {
   return new THREE.ShaderMaterial({
-    uniforms: { closed: { value: assets.closed }, opened: { value: assets.opened }, separation: { value: 0 }, center: { value: new THREE.Vector3() } },
+    uniforms: { materialize: { value: 1 }, closed: { value: assets.closed }, opened: { value: assets.opened }, separation: { value: 0 }, center: { value: new THREE.Vector3() } },
     vertexShader: `
       attribute float emission;
       varying vec2 surfaceUv;
@@ -87,6 +88,7 @@ export function makeIceMaterial(assets: PolarAssets) {
       }
     `,
     fragmentShader: `
+      uniform float materialize;
       uniform sampler2D closed;
       uniform sampler2D opened;
       uniform float separation;
@@ -99,6 +101,7 @@ export function makeIceMaterial(assets: PolarAssets) {
         vec3 b = min(texture2D(opened, surfaceUv).rgb + .035, vec3(.92));
         vec3 color = mix(a, b, clamp(separation * 5., 0., 1.));
         vec3 point = localPoint + center;
+        if (point.y < (1. - materialize) * 5. - .7) discard;
         float rim = clamp(iceLight, 0., 1.06);
         float frost = rim * rim;
         color += frost * separation * vec3(.5,.7,1.) * .75;
