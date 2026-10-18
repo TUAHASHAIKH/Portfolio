@@ -2,7 +2,7 @@ import * as THREE from 'three'
 import type { RingAssets } from './ring-assets'
 
 const common = `
-uniform float time;uniform float opacity;uniform vec3 eye;uniform vec2 resolution;
+uniform float time;uniform float opacity;uniform float screenLift;uniform vec3 eye;uniform vec2 resolution;
 float ss(float a,float b,float x){float t=clamp((x-a)/(b-a),0.,1.);return t*t*(3.-2.*t);}
 float falloff(float x,float a,float b,float width,float p){float w=width*sign(b-a);float edge=mix(a-w,b,p);return ss(edge+w,edge,x);}
 vec2 turn(vec2 p,float a){return mat2(cos(a),sin(a),-sin(a),cos(a))*p;}
@@ -15,9 +15,9 @@ const vertex = `${common}${surface}
 void main(){vUv=uv;vPos=position;vec4 mv=modelViewMatrix*vec4(position,1.);vDepth=-mv.z;gl_Position=projectionMatrix*mv;}`
 
 export function makeRingMaterials(assets: RingAssets, wind: THREE.Texture) {
-  const shared = { time:{value:0}, opacity:{value:0}, eye:{value:new THREE.Vector3()}, resolution:{value:new THREE.Vector2(1,1)} }
+  const shared = { time:{value:0}, opacity:{value:0}, screenLift:{value:0}, eye:{value:new THREE.Vector3()}, resolution:{value:new THREE.Vector2(1,1)} }
   const make = (vertexShader: string, fragmentShader: string, uniforms: Record<string,THREE.IUniform> = {}, additive = false) => new THREE.ShaderMaterial({
-    uniforms:{...shared,...uniforms}, vertexShader, fragmentShader,
+    uniforms:Object.fromEntries(Object.entries({...shared,...uniforms}).map(([key,uniform])=>[key,{value:uniform.value}])), vertexShader:vertexShader.replace(/gl_Position=([^;]+);/g,'gl_Position=$1;gl_Position.y+=screenLift*gl_Position.w;'), fragmentShader,
     transparent:true,depthWrite:!additive,side:THREE.DoubleSide,
     blending:additive?THREE.AdditiveBlending:THREE.NormalBlending,
   })
@@ -114,8 +114,8 @@ export function makeRingMaterials(assets: RingAssets, wind: THREE.Texture) {
       color+=vec3(.45,.7,1.)*energy*energy*(.5+seed);
       gl_FragColor=vec4(color,circle*reveal*opacity);
     }`,{glow:{value:1},reveal:{value:0},forming:{value:1},pixelRatio:{value:1},socialWeights:{value:new THREE.Vector3(1,0,0)},scatterField:{value:null},socialView:{value:0}})
-  const background = make(`varying vec2 vUv;void main(){vUv=uv;gl_Position=vec4(position.xy,1.,1.);}`,`${common}
-    varying vec2 vUv;void main(){gl_FragColor=vec4(sky(vUv),opacity);}`)
+  const background = make(`uniform float screenLift;varying vec2 vUv;void main(){vUv=uv;gl_Position=vec4(position.xy,1.,1.);}`,`${common}
+    varying vec2 vUv;void main(){float edge=screenLift>0.?smoothstep(0.,.14,vUv.y):1.;gl_FragColor=vec4(sky(vUv),opacity*edge);}`)
   background.depthWrite=false;background.depthTest=false
   const halo=make(vertex,`${common}${surface}uniform float reveal;
     void main(){float r=length(vUv-.5);float alpha=ss(.5,.3,r)*ss(.3,.4,r)*ss(.03,.1,abs(vUv.x-.5));

@@ -17,7 +17,7 @@ import { Assembly, progress, smooth } from './assembly'
 import { Crystal } from './crystal'
 import { Rings } from './rings'
 import { ringJourney } from './ring-journey'
-import { ease, range, journeyView, crystalJourney, CRYSTAL_KINDS, JOURNEY_END, type Journey } from './journey'
+import { ease, range, returnProgress, journeyView, crystalJourney, CRYSTAL_KINDS, JOURNEY_END, type Journey } from './journey'
 
 type Motion = { fast: number; slow: number }
 const radians = (degrees: number) => degrees * Math.PI / 180
@@ -79,18 +79,19 @@ function PostProcessing({ assets, journey, reduced }: { assets: PolarAssets; jou
     // Grade in display space, bloom in linear light, then convert once for the screen.
     const bloom = new UnrealBloomPass(new THREE.Vector2(size.width, size.height), .14, .55, .9)
     const distortion = new ShaderPass({
-      uniforms: { tDiffuse: { value: null }, amount: { value: 0 }, resolution: { value: new THREE.Vector2() } },
+      uniforms: { tDiffuse: { value: null }, amount: { value: 0 }, curtain: { value: 0 }, resolution: { value: new THREE.Vector2() } },
       vertexShader: 'varying vec2 vUv;void main(){vUv=uv;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.);}',
-      fragmentShader: `uniform sampler2D tDiffuse;uniform float amount;uniform vec2 resolution;varying vec2 vUv;
+      fragmentShader: `uniform sampler2D tDiffuse;uniform float amount;uniform float curtain;uniform vec2 resolution;varying vec2 vUv;
         float hash(vec2 p){return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453);}
         void main(){vec2 uv=vUv, direction=uv-vec2(.5,.49);
+          float intensity=amount*(curtain>0.?1.-smoothstep(.03,.45,abs(uv.y-curtain)):1.);
           float tile=hash(floor(uv*vec2(140.,85.)));
-          uv+=direction*tile*amount*.018;
+          uv+=direction*tile*intensity*.018;
           vec3 color=vec3(0.);
-          for(int i=0;i<8;i++){vec2 sampleUv=uv-direction*float(i)*amount*.008;
-            vec2 split=direction*amount*.008;
+          for(int i=0;i<8;i++){vec2 sampleUv=uv-direction*float(i)*intensity*.008;
+            vec2 split=direction*intensity*.008;
             color+=vec3(texture2D(tDiffuse,sampleUv+split).r,texture2D(tDiffuse,sampleUv).g,texture2D(tDiffuse,sampleUv-split).b)/8.;}
-          color=mix(color,vec3(.36,.39,.46),amount*.14);
+          color=mix(color,vec3(.36,.39,.46),intensity*.14);
           gl_FragColor=vec4(color,1.);}`,
     })
     const frost = new ShaderPass({
@@ -138,10 +139,11 @@ function PostProcessing({ assets, journey, reduced }: { assets: PolarAssets; jou
     pipeline.grade.uniforms.crystalGrade.value = scene.userData.crystalGrade || assets.grade
     pipeline.grade.uniforms.crystalMix.value = ease(range(p, .4, .9))*(1-ease(range(p,8.6,9.8)))
     const rings = Number(scene.userData.ringOpacity || 0)
-    pipeline.grade.uniforms.ringMix.value = rings
-    pipeline.bloom.strength = THREE.MathUtils.lerp(.14,.7,rings)
-    pipeline.bloom.threshold = THREE.MathUtils.lerp(.9,.65,rings)
-    pipeline.bloom.radius = THREE.MathUtils.lerp(.55,.85,rings)
+    const ringTone=rings*(1-ease(range(p,8.6,9.6)))
+    pipeline.grade.uniforms.ringMix.value = ringTone
+    pipeline.bloom.strength = THREE.MathUtils.lerp(.14,.7,ringTone)
+    pipeline.bloom.threshold = THREE.MathUtils.lerp(.9,.65,ringTone)
+    pipeline.bloom.radius = THREE.MathUtils.lerp(.55,.85,ringTone)
     pipeline.frost.enabled = rings > .001
     pipeline.frost.uniforms.amount.value = reduced ? 0 : Number(scene.userData.ringProximity || 0)
     pipeline.frost.uniforms.opacity.value = rings
@@ -151,6 +153,7 @@ function PostProcessing({ assets, journey, reduced }: { assets: PolarAssets; jou
     pipeline.frost.uniforms.resolution.value.set(size.width,size.height)
     const strength = journeyView(p).distortion
     pipeline.distortion.uniforms.amount.value = reduced ? 0 : strength
+    pipeline.distortion.uniforms.curtain.value = returnProgress(p)
     pipeline.distortion.enabled = !reduced && strength > .001
     pipeline.composer.render(delta)
   }, 1)
@@ -158,6 +161,11 @@ function PostProcessing({ assets, journey, reduced }: { assets: PolarAssets; jou
 }
 
 function Ice({ assets, cursor, engaged, reduced, intro, journey }: { assets: PolarAssets; cursor: THREE.Vector3; engaged: React.RefObject<boolean>; reduced: boolean; intro: React.RefObject<number>; journey: React.RefObject<Journey> }) {
+  const {camera}=useThree()
+  const group=useRef<THREE.Group>(null)
+  const idle=useRef(0)
+  const cleared=useRef(-1)
+  const rise=useMemo(()=>new THREE.Vector3(),[])
   const meshes = useRef<(THREE.Mesh | null)[]>([])
   const resources = useMemo(() => assets.pieces.map(piece => {
     const material = makeIceMaterial(assets)
@@ -167,13 +175,25 @@ function Ice({ assets, cursor, engaged, reduced, intro, journey }: { assets: Pol
   useEffect(() => () => { resources.forEach(piece => piece.material.dispose()) }, [resources])
   useFrame((_, frameDelta) => {
     const delta = Math.min(frameDelta, .25)
+    if(!reduced)idle.current+=delta
+    const p=journey.current.value
+    const hero=p>8.6?returnProgress(p):1-ease(range(p,.03,.65))
+    const arrival=ease(range(intro.current,1.7,3.3))
+    const height=2*Math.tan((camera as THREE.PerspectiveCamera).fov*Math.PI/360)*camera.position.length()
+    rise.set(0,1,0).applyQuaternion(camera.quaternion).multiplyScalar(p>8.6&&!reduced?-(1-returnProgress(p))*height*.72:0)
+    if(group.current)group.current.position.copy(rise)
     resources.forEach((piece, index) => {
       const mesh = meshes.current[index]
       if (!mesh) return
       const distance = piece.center.distanceTo(cursor)
       const influence = 1 - THREE.MathUtils.smoothstep(distance, 1, 3)
       const anchored = THREE.MathUtils.smoothstep(piece.center.y, .45, .7)
-      const target = !reduced && intro.current > 4.5 && journey.current.value < .08 && engaged.current ? influence * .54 * anchored : 0
+      // The visible hero always breathes open, including a fresh load with no
+      // wheel or pointer input. Hover adds a local response to that idle motion.
+      const front=THREE.MathUtils.smoothstep(piece.center.z-piece.center.x,-2,2)
+      const breathing=.16*(.7+.3*Math.sin(idle.current*.85+piece.seed.y*2.))*(.35+.65*front)
+      const hover=engaged.current?influence*.54:0
+      const target = reduced?0:Math.max(breathing,hover)*anchored*hero*arrival
       // Preserve the reference's two-stage easing without the previous extra slowdown.
       piece.motion.fast = THREE.MathUtils.damp(piece.motion.fast, target, blockResponse, delta)
       piece.motion.slow = THREE.MathUtils.damp(piece.motion.slow, piece.motion.fast, blockResponse, delta)
@@ -186,13 +206,15 @@ function Ice({ assets, cursor, engaged, reduced, intro, journey }: { assets: Pol
       )
       piece.material.uniforms.materialize.value = reduced ? 1 : smooth(progress(intro.current, 1.1, 2.25))
       piece.material.uniforms.separation.value = amount
-      piece.point.copy(mesh.position)
+      piece.point.copy(mesh.position).add(rise)
     })
   })
-  return <>
-    {resources.map((piece, index) => <mesh key={index} ref={mesh => { meshes.current[index] = mesh }} geometry={piece.geometry} material={piece.material} position={piece.center} />)}
+  return <group ref={group} name="living-igloo">
+    {resources.map((piece, index) => <mesh key={index} ref={mesh => { meshes.current[index] = mesh }} geometry={piece.geometry} material={piece.material} position={piece.center} renderOrder={4} onBeforeRender={renderer=>{
+      if(journey.current.value>8.6&&journey.current.value<9.8&&cleared.current!==renderer.info.render.frame){renderer.state.buffers.depth.setMask(true);renderer.clearDepth();cleared.current=renderer.info.render.frame}
+    }} />)}
     <Measurements pieces={resources} cursor={cursor} reduced={reduced} />
-  </>
+  </group>
 }
 
 function World({ assets, onReady, reduced, journey }: { assets: PolarAssets; onReady: () => void; reduced: boolean; journey: React.RefObject<Journey> }) {
@@ -274,7 +296,7 @@ function World({ assets, onReady, reduced, journey }: { assets: PolarAssets; onR
     const p = journey.current.value
     if (landscape.current) {
       landscape.current.visible = p < .94 || p > 8.6 || gl.domElement.closest('#app')?.getAttribute('data-crystal-ready') !== 'true'
-      landscape.current.position.y = reduced ? 0 : journeyView(p).lift * (p>8.6?-8:8)
+      landscape.current.position.y = reduced || p>8.6 ? 0 : journeyView(p).lift * 8
     }
     const distance = mobile ? 1.65 : 1
     // Reference: ±pi/2 pointer mapping, .07/.025 angular gain and .035/frame easing.
@@ -313,6 +335,7 @@ function World({ assets, onReady, reduced, journey }: { assets: PolarAssets; onR
       if (material.uniforms.time) material.uniforms.time.value = windTime.current
     }
     surfaces.ground.uniforms.cursor.value.copy(cursor)
+    surfaces.ground.uniforms.returnCover.value=p>8.6?1-ease(range(returnProgress(p),.8,1)):0
     surfaces.ground.uniforms.groundLight.value = THREE.MathUtils.damp(surfaces.ground.uniforms.groundLight.value, engaged.current && !reduced ? .8 : .1, 1.4, delta)
   })
   return <>

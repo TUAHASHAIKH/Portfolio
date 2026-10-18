@@ -25,13 +25,13 @@ const pulse = (time: number, start: number, peak: number, end: number) => time<p
 export function ringJourney(value: number) {
   // Keep the existing passage's timing, then continue the same camera path
   // down to eye level in the contact chamber.
-  const time = Math.min(9.2,Math.max(0,(value-3.25)*1.8))
+  const time = Math.min(7.2,Math.max(0,(value-3.25)*1.8))
   const progress = time/9.2
   const approach = 1-Math.pow(1-range(time,0,2.5),3)
   const settle = bezier(range(time,3.5,7.2),returnUp)
   return {
     progress, time,
-    opacity: ease(range(value,3.3,3.9))*(1-ease(range(value,8.8,9.8))),
+    opacity: ease(range(value,3.3,3.9))*(1-ease(range(value,9.5,9.8))),
     y: 1.5-11.33*bezier(range(time,.2,7.2),descent),
     z: -2*(1-approach)-1.5*settle-1.5*bezier(range(time,7.2,9.2),[0,0,.388,.082,.924,.862,1,1]),
     targetY: -2.5-7.5*powerInOut(range(time,.2,3.2),2)+.19*powerInOut(range(time,3.2,5.7),2)-.54*Math.pow(range(time,7.2,9.2),3),

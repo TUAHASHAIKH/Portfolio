@@ -20,7 +20,7 @@ export function makeTerrainMaterial(map: THREE.Texture, options: { mountain?: bo
   return new THREE.ShaderMaterial({
     transparent: true,
     depthWrite: true,
-    uniforms: { reveal: { value: 1 }, surface: { value: map }, glow: { value: options.glow || map }, windTexture: { value: options.wind || map }, time: { value: 0 }, groundLight: { value: 0 }, cursor: { value: new THREE.Vector3(0, -10, 0) }, resolution: { value: new THREE.Vector2(1440, 900) } },
+    uniforms: { reveal: { value: 1 }, returnCover: { value: 0 }, surface: { value: map }, glow: { value: options.glow || map }, windTexture: { value: options.wind || map }, time: { value: 0 }, groundLight: { value: 0 }, cursor: { value: new THREE.Vector3(0, -10, 0) }, resolution: { value: new THREE.Vector2(1440, 900) } },
     defines: { MOUNTAIN: options.mountain ? 1 : 0, PATCH: options.patch ? 1 : 0, GROUND_GLOW: options.glow ? 1 : 0, GROUND_WIND: options.wind ? 1 : 0 },
     vertexShader: surfaceVertex,
     fragmentShader: `
@@ -30,6 +30,7 @@ export function makeTerrainMaterial(map: THREE.Texture, options: { mountain?: bo
       uniform sampler2D windTexture;
       uniform float time;
       uniform float groundLight;
+      uniform float returnCover;
       uniform vec3 cursor;
       uniform vec2 resolution;
       varying vec2 surfaceUv;
@@ -58,6 +59,11 @@ export function makeTerrainMaterial(map: THREE.Texture, options: { mountain?: bo
           float nearCursor = 1. - smoothstep(0., 5., distance(cursor.xz, worldPoint.xz));
           color += texture2D(glow, surfaceUv).rgb * color.r * (.25 + groundLight * .7);
           color += nearCursor * groundLight * vec3(.12,.17,.22) * color.r;
+          // The igloo rises in front of this baked surface during the return.
+          // Cover its stationary baked shadow until the blocks reach it again.
+          float cover=returnCover*(1.-smoothstep(2.,4.,length(worldPoint.xz)));
+          float snowGrain=texture2D(windTexture,worldPoint.xz*.8).r;
+          color=mix(color,vec3(.34,.37,.43)+snowGrain*.06,cover);
         #endif
         #if GROUND_WIND == 1
           vec2 drift=vec2(-time*.15);
@@ -75,6 +81,7 @@ export function makeTerrainMaterial(map: THREE.Texture, options: { mountain?: bo
 
 export function makeIceMaterial(assets: PolarAssets) {
   return new THREE.ShaderMaterial({
+    transparent: true,
     uniforms: { materialize: { value: 1 }, closed: { value: assets.closed }, opened: { value: assets.opened }, separation: { value: 0 }, center: { value: new THREE.Vector3() } },
     vertexShader: `
       attribute float emission;

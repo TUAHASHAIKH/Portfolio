@@ -8,6 +8,7 @@ export const crystalCenter = (kind: CrystalKind) => CRYSTAL_KINDS.indexOf(kind)+
 export const clamp = (value: number) => Math.min(1, Math.max(0, value))
 export const range = (value: number, start: number, end: number) => clamp((value - start) / (end - start))
 export const ease = (value: number) => value * value * (3 - 2 * value)
+export const returnProgress = (value: number) => ease(range(value,8.6,9.8))
 
 // Preserve every center as the journey grows; each following crystal occupies
 // one interval with the reference scene's 5.75-unit vertical spacing.
@@ -32,12 +33,13 @@ export function crystalJourney(value: number) {
 
 // One trajectory: the retreat keeps moving while the curtain and shard rise.
 export function journeyView(value: number) {
-  const travel = value > 8.6 ? 1-ease(range(value,8.6,9.8)) : ease(clamp(value))
+  const returning=value>8.6
+  const travel = returning ? 0 : ease(clamp(value))
   return {
     zoom: 1 - (1-travel)*(1-travel),
     lift: travel*travel,
     mist: ease(range(travel,.08,.96)),
     crystal: ease(range(travel,.42,1)),
-    distortion: Math.sin(travel*Math.PI),
+    distortion: returning&&returnProgress(value)===1?0:Math.sin((returning?returnProgress(value):travel)*Math.PI)*(returning?.7:1),
   }
 }

@@ -85,6 +85,7 @@ function RingPassage({ assets, journey, noise, reduced }: { assets: RingAssets; 
     for(const material of materials.materials){
       material.uniforms.time.value=clock.current
       material.uniforms.opacity.value=travel.opacity
+      material.uniforms.screenLift.value=travel.returning*2
       material.uniforms.eye.value.copy(virtual.position)
       material.uniforms.resolution.value.set(width,height)
       if(material.uniforms.motion)material.uniforms.motion.value=reduced?0:1
@@ -97,8 +98,10 @@ function RingPassage({ assets, journey, noise, reduced }: { assets: RingAssets; 
       if(mist){mist.visible=travel.time>[.06,.25,.35][i]*9.2&&travel.time<end;mist.rotation.y=i*Math.PI*.5+roll*.5}
     }
     if(tunnel.current){tunnel.current.visible=travel.time<.52*9.2;tunnel.current.rotation.y=roll*.65}
-    if(floor.current)floor.current.visible=travel.floor>0
+    if(floor.current)floor.current.visible=travel.floor>0&&journey.current.value<8.95
     materials.floor.uniforms.reveal.value=travel.floor
+    materials.floor.uniforms.opacity.value=travel.opacity*(1-THREE.MathUtils.smoothstep(journey.current.value,8.6,8.95))
+    materials.background.uniforms.opacity.value=travel.opacity*(1-THREE.MathUtils.smoothstep(travel.returning,0,.7))
     materials.floor.uniforms.glowFactor.value=.06+travel.coreGlow*.75
     materials.floor.uniforms.chamber.value=travel.chamber
     materials.halo.uniforms.reveal.value=travel.chamber
