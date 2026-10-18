@@ -5,7 +5,7 @@ import { useFrame, useThree, type ThreeEvent } from '@react-three/fiber'
 import { useCallback, useEffect, useMemo, useRef, useState, type RefObject } from 'react'
 import * as THREE from 'three'
 import { loadCrystalAssets, type CrystalAssets } from './crystal-assets'
-import { ease, range, type Journey } from './journey'
+import { journeyView, type Journey } from './journey'
 import { CrystalFrost, type CrystalInteraction } from './crystal-frost'
 
 function CrystalView({ assets, noise, journey, reduced }: { assets: CrystalAssets; noise: THREE.Texture; journey: RefObject<Journey>; reduced: boolean }) {
@@ -82,22 +82,22 @@ function CrystalView({ assets, noise, journey, reduced }: { assets: CrystalAsset
   useEffect(() => () => Object.values(materials).forEach(material => material.dispose()), [materials])
   useFrame(({ camera, size, gl }, delta) => {
     if (journey.current.value < .9 && interaction.current.active) leave()
-    const p = journey.current.value, reveal = ease(range(p, .3, .9))
+    const p = journey.current.value, travel = journeyView(p)
     if (!reduced) time.current += Math.min(delta, .1)
     if (rig.current) {
-      rig.current.visible = p > .25
+      rig.current.visible = p > .05
       camera.getWorldDirection(direction)
       rig.current.position.copy(camera.position).addScaledVector(direction, 6.6)
       rig.current.quaternion.copy(camera.quaternion)
     }
     if (crystal.current) {
-      crystal.current.visible = p > .62
-      crystal.current.position.y = -2.8 * (1 - ease(range(p, .62, 1)))
-      const turn = 1 - ease(range(p, .62, 1))
+      crystal.current.visible = travel.crystal > 0
+      crystal.current.position.y = -3.2 * (1 - travel.crystal)
+      const turn = 1 - travel.crystal
       crystal.current.rotation.set(turn * 1.6 + Math.sin(time.current*.3)*.055, turn*-2.2 + Math.sin(time.current*.24)*.09, turn*.7 + Math.sin(time.current*.28)*.04)
       crystal.current.scale.setScalar(size.width < 700 ? .68 : 1)
     }
-    materials.background.uniforms.alpha.value = reveal
+    materials.background.uniforms.alpha.value = travel.mist
     materials.background.uniforms.time.value = time.current
     materials.background.uniforms.aspect.value = size.width/size.height
     materials.background.uniforms.resolution.value.set(size.width*gl.getPixelRatio(),size.height*gl.getPixelRatio())
