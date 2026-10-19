@@ -25,7 +25,11 @@ export function socialMasks() {
   const linkedin=mask()
   ctx.clearRect(0,0,24,24)
   ctx.lineWidth=1.55;ctx.lineJoin='round';ctx.lineCap='round';ctx.strokeStyle='white'
-  ctx.stroke(new Path2D('M5 19.2L2.8 21L3.7 16.4A9.3 9.3 0 1 1 5 19.2Z'))
+  ctx.beginPath();ctx.arc(12,11.5,9.3,2.55,2.19+Math.PI*2);ctx.lineTo(2.8,21);ctx.closePath();ctx.stroke()
+  // Center the handset in the circular bowl (rather than including its tail
+  // when positioning it). Keep a clear margin between phone and outer ring.
+  ctx.save();ctx.translate(12.1,11.6);ctx.scale(.86,.86);ctx.translate(-11.8,-11.8)
   ctx.fill(new Path2D('M8.1 6.4C7.6 6.2 7 6.4 6.7 7C5.4 9.5 7.6 13.2 10.5 15.3C12.4 16.8 15.6 18 17 15.9L17.7 14.5C17.9 14.1 17.7 13.8 17.3 13.6L14.8 12.4C14.4 12.2 14.1 12.3 13.8 12.7L13 13.8C11.2 13 9.8 11.7 9.1 10.1L10 9.1C10.3 8.8 10.3 8.5 10.1 8.1L9.2 6.6Z'))
+  ctx.restore()
   return [linkedin,mask()]
 }

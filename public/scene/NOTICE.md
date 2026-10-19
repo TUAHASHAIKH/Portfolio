@@ -1,6 +1,6 @@
 # Scene asset sources
 
-The LinkedIn and WhatsApp particle silhouettes are drawn locally with Canvas paths and sampled as extruded surfaces in a worker. They do not use the reference's Discord or Telegram volumes. The local GPU feedback field provides cursor scattering, illumination and reassembly; native links and controls point to Tuaha's own profiles.
+The LinkedIn and WhatsApp particle silhouettes are drawn locally with Canvas paths and sampled as extruded surfaces in a worker. They do not use the reference's Discord or Telegram volumes. A local GPU simulation stores independent particle positions and velocities for cursor momentum, illumination and surface reassembly; native links and controls point to Tuaha's own profiles.
 
 The ring passage uses the reference's public `shattered_ring2`, `shattered_ring`, `shattered_ring_smoke` and `floor` Draco meshes, their baked color/emission maps, `clouds_noise`, `noises/blue-8-128-rgb`, `scroll-datatexture` and the `peachesbody_64` signed-distance volume. These are third-party assets. The scroll camera, fragment animation, portal fields, particle surface extraction and post-processing integration are implemented locally; reference JavaScript bundles are not distributed.
 
