@@ -8,7 +8,7 @@ import vm from 'node:vm'
 const source = await readFile(new URL('../components/polar/journey.ts', import.meta.url), 'utf8')
 const { outputText } = ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.ESNext } })
 const journeyUrl = `data:text/javascript;base64,${Buffer.from(outputText).toString('base64')}`
-const { crystalJourney, CRYSTAL_KINDS, crystalCenter, JOURNEY_END, journeyView, returnProgress } = await import(journeyUrl)
+const { crystalJourney, CRYSTAL_KINDS, crystalCenter, JOURNEY_END, journeyView, returnProgress, returnChoreography } = await import(journeyUrl)
 const ringsSource = await readFile(new URL('../components/polar/ring-journey.ts', import.meta.url), 'utf8')
 const ringsCode = ts.transpileModule(ringsSource, { compilerOptions: { module: ts.ModuleKind.ESNext } }).outputText.replace("'./journey'",JSON.stringify(journeyUrl))
 const { ringJourney } = await import(`data:text/javascript;base64,${Buffer.from(ringsCode).toString('base64')}`)
@@ -83,6 +83,26 @@ test('the return advances upward continuously without a second camera zoom',()=>
     assert.equal(journeyView(value).zoom,0,'The hero keeps its final framing during the upward reveal')
     previous=next
   }
+})
+
+test('the contact retreats while loose igloo blocks arrive and assemble',()=>{
+  const before=ringJourney(8.3),retreated=ringJourney(9.5)
+  assert(retreated.z<before.z-1.4,'The contact camera must retreat into depth')
+  assert(returnChoreography(8.6).retreat>0,'Zoom-out starts before the igloo arrives')
+  const overlap=returnChoreography(9.05)
+  assert(overlap.arrival>0&&overlap.arrival<1)
+  assert(overlap.scatter>.5,'Visible blocks remain separated during the handoff')
+  let previous=returnChoreography(8.3)
+  for(let value=8.301;value<=9.8;value+=.001){
+    const next=returnChoreography(value)
+    for(const key of ['retreat','departure','arrival','scatter']){
+      assert(Math.abs(next[key]-previous[key])<.003,`${key} must remain continuous`)
+      assert(key==='scatter'?next[key]<=previous[key]:next[key]>=previous[key])
+    }
+    previous=next
+  }
+  assert.equal(returnChoreography(9.8).scatter,0,'Blocks settle before the loop rebases')
+  assert.equal(returnChoreography(9.8).arrival,1)
 })
 
 test('the worker creates complete, finite particle targets for both social silhouettes',async()=>{
