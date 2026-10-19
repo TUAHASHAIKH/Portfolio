@@ -5,7 +5,7 @@ import { useFrame, useThree, type ThreeEvent } from '@react-three/fiber'
 import { createRef, useCallback, useEffect, useMemo, useRef, useState, type RefObject } from 'react'
 import * as THREE from 'three'
 import { loadCrystalAssets, type CrystalAssets } from './crystal-assets'
-import { CRYSTAL_KINDS, crystalJourney, journeyView, type Journey } from './journey'
+import { CRYSTAL_KINDS, crystalJourney, crystalPose, journeyView, type Journey } from './journey'
 import { useCrystalFrost, type CrystalInteraction } from './crystal-frost'
 import { CrystalPlexus } from './crystal-plexus'
 import { CrystalAnnotations } from './crystal-annotations'
@@ -36,7 +36,7 @@ function CrystalView({ assets, noise, journey, reduced }: { assets: CrystalAsset
     const state=crystalJourney(journey.current.value)
     return state[`${CRYSTAL_KINDS[index]}Interactive`]
   }
-  const center = (index: number) => window.dispatchEvent(new CustomEvent('portfolio:center-crystal',{detail:CRYSTAL_KINDS[index]}))
+  const center = (index: number,explicit=false) => window.dispatchEvent(new CustomEvent('portfolio:center-crystal',{detail:explicit?{kind:CRYSTAL_KINDS[index],explicit:true}:CRYSTAL_KINDS[index]}))
   const move = (index: number, event: ThreeEvent<PointerEvent>) => {
     if (!interactive(index)) return
     event.stopPropagation()
@@ -51,7 +51,7 @@ function CrystalView({ assets, noise, journey, reduced }: { assets: CrystalAsset
   const explore = (index: number, event: ThreeEvent<MouseEvent>) => {
     if (!interactive(index) || event.delta > 6) return
     event.stopPropagation()
-    center(index)
+    center(index,true)
     leave(index)
     window.dispatchEvent(new Event(`portfolio:open-${CRYSTAL_KINDS[index]}`))
   }
@@ -183,13 +183,13 @@ function CrystalView({ assets, noise, journey, reduced }: { assets: CrystalAsset
       rig.current.position.copy(camera.position).addScaledVector(direction, 6.6)
       rig.current.quaternion.copy(camera.quaternion)
     }
-    const {exchange,skillsY,projectsY,aboutY}=crystalJourney(p)
     shards.forEach((reference,index)=>{
       const shard=reference.current
       if(!shard)return
-      shard.visible=index===0 ? travel.crystal>0&&exchange<1 : p>index && p<index+2
-      const rolling=(index+1-p)*.25*(index===2?-1:1)
-      shard.position.y=index===0 ? skillsY : index===1 ? projectsY : aboutY
+      const pose=crystalPose(p,CRYSTAL_KINDS[index])
+      shard.visible=pose.visible
+      const rolling=pose.roll
+      shard.position.y=pose.y
       // The reference rotates all three axes with distance from the resting
       // position. Scroll reversal follows this exact pose back, without tweens.
       shard.rotation.set(

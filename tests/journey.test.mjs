@@ -8,7 +8,7 @@ import vm from 'node:vm'
 const source = await readFile(new URL('../components/polar/journey.ts', import.meta.url), 'utf8')
 const { outputText } = ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.ESNext } })
 const journeyUrl = `data:text/javascript;base64,${Buffer.from(outputText).toString('base64')}`
-const { crystalJourney, CRYSTAL_KINDS, crystalCenter, JOURNEY_END, journeyView, returnProgress, returnChoreography } = await import(journeyUrl)
+const { crystalJourney, crystalPose, CRYSTAL_KINDS, crystalCenter, JOURNEY_END, journeyView, returnProgress, returnChoreography } = await import(journeyUrl)
 const ringsSource = await readFile(new URL('../components/polar/ring-journey.ts', import.meta.url), 'utf8')
 const ringsCode = ts.transpileModule(ringsSource, { compilerOptions: { module: ts.ModuleKind.ESNext } }).outputText.replace("'./journey'",JSON.stringify(journeyUrl))
 const ringsUrl=`data:text/javascript;base64,${Buffer.from(ringsCode).toString('base64')}`
@@ -19,7 +19,39 @@ const scrollCode=ts.transpileModule(scrollSource,{compilerOptions:{module:ts.Mod
 const {scrollToJourney,journeyToScroll}=await import(`data:text/javascript;base64,${Buffer.from(scrollCode).toString('base64')}`)
 const motionSource=await readFile(new URL('../components/polar/journey-motion.ts',import.meta.url),'utf8')
 const motionCode=ts.transpileModule(motionSource,{compilerOptions:{module:ts.ModuleKind.ESNext}}).outputText.replace("'./journey'",JSON.stringify(journeyUrl))
-const {advanceJourney,loopSettled,LoopGesture}=await import(`data:text/javascript;base64,${Buffer.from(motionCode).toString('base64')}`)
+const {advanceJourney,loopSettled,reverseAtBoundary,LoopGesture}=await import(`data:text/javascript;base64,${Buffer.from(motionCode).toString('base64')}`)
+
+test('reverse crossing waits for the matching pose and retains the requested backward distance',()=>{
+  for(const fps of [30,60,120]){
+    const state={value:.3,target:0,reverseTarget:9.82},motion={velocity:-.4}
+    assert(!reverseAtBoundary(state,motion),'Never jump while the opening scene is moving')
+    let crossed=false
+    for(let frame=0;frame<fps*3;frame++){
+      advanceJourney(state,motion,1/fps,false)
+      if(reverseAtBoundary(state,motion)){crossed=true;break}
+    }
+    assert(crossed)
+    assert.equal(state.value,10)
+    assert.equal(state.target,9.82)
+    assert.equal(state.reverseTarget,undefined)
+    assert.deepEqual(journeyView(state.value),journeyView(0))
+    const before=state.value
+    advanceJourney(state,motion,1/fps,false)
+    assert(state.value<before&&before-state.value<1.5/fps,'Reverse departure uses the same smooth controller')
+  }
+  const gesture=new LoopGesture()
+  gesture.input(0,1);gesture.wrap(20)
+  assert(!gesture.input(40,-1),'An immediate reversal must release the forward momentum guard')
+})
+
+test('the first crystal uses the same entry pose as the other crystals below the center',()=>{
+  for(let offset=-.45;offset<.15;offset+=.005){
+    const poses=CRYSTAL_KINDS.map(kind=>crystalPose(crystalCenter(kind)+offset,kind))
+    for(const pose of poses){assert(Math.abs(pose.y-poses[1].y)<1e-10);assert.equal(pose.visible,true)}
+    assert(Math.abs(poses[0].roll-poses[1].roll)<1e-10)
+    assert(Math.abs(poses[0].roll+poses[2].roll)<1e-10)
+  }
+})
 
 test('large input bursts traverse continuously at matching speeds across frame rates',()=>{
   const endings=[]
