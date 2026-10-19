@@ -11,7 +11,30 @@ const journeyUrl = `data:text/javascript;base64,${Buffer.from(outputText).toStri
 const { crystalJourney, CRYSTAL_KINDS, crystalCenter, JOURNEY_END, journeyView, returnProgress, returnChoreography } = await import(journeyUrl)
 const ringsSource = await readFile(new URL('../components/polar/ring-journey.ts', import.meta.url), 'utf8')
 const ringsCode = ts.transpileModule(ringsSource, { compilerOptions: { module: ts.ModuleKind.ESNext } }).outputText.replace("'./journey'",JSON.stringify(journeyUrl))
-const { ringJourney } = await import(`data:text/javascript;base64,${Buffer.from(ringsCode).toString('base64')}`)
+const ringsUrl=`data:text/javascript;base64,${Buffer.from(ringsCode).toString('base64')}`
+const { ringJourney } = await import(ringsUrl)
+const scrollSource=await readFile(new URL('../components/polar/scroll-path.ts',import.meta.url),'utf8')
+const scrollCode=ts.transpileModule(scrollSource,{compilerOptions:{module:ts.ModuleKind.ESNext}}).outputText
+  .replace("'./journey'",JSON.stringify(journeyUrl)).replace("'./ring-journey'",JSON.stringify(ringsUrl))
+const {scrollToJourney,journeyToScroll}=await import(`data:text/javascript;base64,${Buffer.from(scrollCode).toString('base64')}`)
+
+test('native scroll follows one continuous reversible path without changing crystal sensitivity',()=>{
+  let previous=0
+  for(let scroll=0;scroll<=JOURNEY_END;scroll+=.001){
+    const value=scrollToJourney(scroll)
+    assert(value>=previous&&value-previous<.01,'No reversal, dead input, or abrupt section jump')
+    assert(Math.abs(journeyToScroll(value)-scroll)<1e-9,'Hover and native navigation use the same inverse')
+    if(scroll<=3.25||scroll>=8.3)assert(Math.abs(value-scroll)<1e-12)
+    previous=value
+  }
+  assert.equal(scrollToJourney(0),0)
+  assert.equal(scrollToJourney(JOURNEY_END),JOURNEY_END)
+  assert(journeyToScroll(8.3)-journeyToScroll(7.25)<(8.3-7.25)*.8,'The stationary contact stretch must require less scrolling')
+  for(const boundary of [3.25,8.3]){
+    const step=.001
+    assert(Math.abs((scrollToJourney(boundary+step)-scrollToJourney(boundary-step))/(2*step)-1)<.01,'Sensitivity joins the neighboring section smoothly')
+  }
+})
 
 test('equal scroll gestures move every crystal equally through its center', () => {
   for (const direction of [-1, 1]) {
