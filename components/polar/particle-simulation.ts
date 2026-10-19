@@ -14,7 +14,7 @@ export class ParticleSimulation {
   constructor(geometry:THREE.BufferGeometry){
     const count=geometry.getAttribute('position').count,width=256,height=2**Math.ceil(Math.log2(Math.ceil(count/width)))
     this.targets=[0,1].map(()=>new THREE.WebGLRenderTarget(width,height,{count:2,type:THREE.HalfFloatType,depthBuffer:false,minFilter:THREE.NearestFilter,magFilter:THREE.NearestFilter}))
-    this.sources=['position','socialPosition1','socialPosition2'].map(name=>{
+    this.sources=['position','socialPosition1','socialPosition2','socialPosition3'].map(name=>{
       const attribute=geometry.getAttribute(name),data=new Float32Array(width*height*4)
       for(let i=0;i<count;i++){data[i*4]=attribute.getX(i);data[i*4+1]=attribute.getY(i);data[i*4+2]=attribute.getZ(i);data[i*4+3]=1}
       const texture=new THREE.DataTexture(data,width,height,THREE.RGBAFormat,THREE.FloatType)
@@ -25,16 +25,16 @@ export class ParticleSimulation {
     geometry.setAttribute('particleUv',new THREE.BufferAttribute(uv,2))
     this.material=new THREE.ShaderMaterial({
       glslVersion:THREE.GLSL3,depthTest:false,depthWrite:false,
-      uniforms:{previousPosition:{value:this.position},previousVelocity:{value:this.velocity},shape0:{value:this.sources[0]},shape1:{value:this.sources[1]},shape2:{value:this.sources[2]},weights:{value:new THREE.Vector3(1,0,0)},viewBasis:{value:new THREE.Matrix3()},viewDepth:{value:1},brush:{value:new THREE.Vector2(10,10)},lastBrush:{value:new THREE.Vector2(10,10)},brushVelocity:{value:new THREE.Vector2()},brushOn:{value:0},delta:{value:0},time:{value:0},resetState:{value:1}},
+      uniforms:{previousPosition:{value:this.position},previousVelocity:{value:this.velocity},shape0:{value:this.sources[0]},shape1:{value:this.sources[1]},shape2:{value:this.sources[2]},shape3:{value:this.sources[3]},weights:{value:new THREE.Vector4(1,0,0,0)},viewBasis:{value:new THREE.Matrix3()},viewDepth:{value:1},brush:{value:new THREE.Vector2(10,10)},lastBrush:{value:new THREE.Vector2(10,10)},brushVelocity:{value:new THREE.Vector2()},brushOn:{value:0},delta:{value:0},time:{value:0},resetState:{value:1}},
       vertexShader:'out vec2 vUv;void main(){vUv=uv;gl_Position=vec4(position.xy,0.,1.);}',
       fragmentShader:`precision highp float;
         uniform sampler2D previousPosition;uniform sampler2D previousVelocity;
-        uniform sampler2D shape0;uniform sampler2D shape1;uniform sampler2D shape2;
-        uniform mat3 viewBasis;uniform float viewDepth;uniform vec3 weights;uniform vec2 brush;uniform vec2 lastBrush;uniform vec2 brushVelocity;
+        uniform sampler2D shape0;uniform sampler2D shape1;uniform sampler2D shape2;uniform sampler2D shape3;
+        uniform mat3 viewBasis;uniform float viewDepth;uniform vec4 weights;uniform vec2 brush;uniform vec2 lastBrush;uniform vec2 brushVelocity;
         uniform float brushOn;uniform float delta;uniform float time;uniform float resetState;
         in vec2 vUv;layout(location=0)out vec4 nextPosition;layout(location=1)out vec4 nextVelocity;
         void main(){
-          vec3 rest=texture(shape0,vUv).xyz*weights.x+texture(shape1,vUv).xyz*weights.y+texture(shape2,vUv).xyz*weights.z;
+          vec3 rest=texture(shape0,vUv).xyz*weights.x+texture(shape1,vUv).xyz*weights.y+texture(shape2,vUv).xyz*weights.z+texture(shape3,vUv).xyz*weights.w;
           if(resetState>.5){nextPosition=vec4(rest,0.);nextVelocity=vec4(0.);return;}
           vec3 p=texture(previousPosition,vUv).xyz,v=texture(previousVelocity,vUv).xyz;
           float seed=fract(sin(dot(vUv,vec2(127.1,311.7)))*43758.5453);
@@ -64,7 +64,7 @@ export class ParticleSimulation {
   prepare(renderer:THREE.WebGLRenderer){return renderer.compileAsync(this.scene,this.camera)}
   clear(){this.initialized=false}
   orient(basis:THREE.Matrix3,depth:number){this.material.uniforms.viewBasis.value.copy(basis);this.material.uniforms.viewDepth.value=depth}
-  update(renderer:THREE.WebGLRenderer,dt:number,weights:THREE.Vector3,brush:THREE.Vector2,last:THREE.Vector2,velocity:THREE.Vector2,on:boolean){
+  update(renderer:THREE.WebGLRenderer,dt:number,weights:THREE.Vector4,brush:THREE.Vector2,last:THREE.Vector2,velocity:THREE.Vector2,on:boolean){
     const u=this.material.uniforms
     u.previousPosition.value=this.position;u.previousVelocity.value=this.velocity;u.weights.value.copy(weights)
     u.brush.value.copy(brush).subScalar(.5).multiplyScalar(.6);u.lastBrush.value.copy(last).subScalar(.5).multiplyScalar(.6)

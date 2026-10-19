@@ -326,7 +326,7 @@ test('the full landscape settles with no velocity or acceleration snap',()=>{
   assert(arrival(9.05)>.5,'The landscape overlaps the departing contact scene')
 })
 
-test('the worker creates complete, finite particle targets for both social silhouettes',async()=>{
+test('the worker creates complete, finite particle targets for all three social silhouettes',async()=>{
   const source=await readFile(new URL('../public/workers/ring-core.js',import.meta.url),'utf8')
   const size=8,data=new Uint8Array(size**3*4),mask=new Uint8Array(256**2)
   for(let z=0;z<size;z++)for(let y=0;y<size;y++)for(let x=0;x<size;x++){
@@ -338,9 +338,9 @@ test('the worker creates complete, finite particle targets for both social silho
   let result
   const context=vm.createContext({self:{postMessage:value=>{result=value}}})
   vm.runInContext(source,context)
-  context.self.onmessage({data:{data,size,masks:[mask,mask]}})
+  context.self.onmessage({data:{data,size,masks:[mask,mask,mask]}})
   assert(result.positions.length>0)
-  assert.equal(result.social.length,2)
+  assert.equal(result.social.length,3)
   for(const target of result.social){
     assert.equal(target.positions.length,result.positions.length)
     assert.equal(target.normals.length,result.normals.length)

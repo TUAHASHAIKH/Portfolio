@@ -52,7 +52,7 @@ export async function loadRingAssets(renderer: THREE.WebGLRenderer) {
         const result = new THREE.BufferGeometry()
         result.setAttribute('position', new THREE.BufferAttribute(event.data.positions, 3))
         result.setAttribute('normal', new THREE.BufferAttribute(event.data.normals, 3))
-        for(let index=0;index<2;index++){
+        for(let index=0;index<masks.length;index++){
           result.setAttribute(`socialPosition${index+1}`,new THREE.BufferAttribute(event.data.social[index].positions,3))
           result.setAttribute(`socialNormal${index+1}`,new THREE.BufferAttribute(event.data.social[index].normals,3))
         }

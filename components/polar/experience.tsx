@@ -185,7 +185,7 @@ export function PolarExperience() {
     <aside className="intro" aria-label="About Tuaha">
       <p className="index">////// Tuaha Shaikh</p>
       <p>Software engineer<br />exploring the space<br />between thoughtful<br />design and intelligent<br />systems. From an idea<br />to something real.</p>
-      <nav aria-label="Social links"><a href="https://github.com/TUAHASHAIKH" target="_blank" rel="noreferrer">GitHub ↗</a><a href="https://www.linkedin.com/in/muhammad-tuaha-shaikh" target="_blank" rel="noreferrer">LinkedIn ↗</a><a href="mailto:tuaha486@gmail.com">Email ↗</a></nav>
+      <nav aria-label="Social links"><a href="https://github.com/TUAHASHAIKH" target="_blank" rel="noreferrer">GitHub ↗</a><a href="https://www.linkedin.com/in/muhammad-tuaha-shaikh" target="_blank" rel="noreferrer">LinkedIn ↗</a></nav>
     </aside>
     <footer className="bottom-bar">
       <button className="sound-toggle" onClick={toggleSound} aria-pressed={sound} disabled={!audioReady} aria-label={sound ? 'Mute ambient wind' : 'Play ambient wind'}>
@@ -197,6 +197,6 @@ export function PolarExperience() {
     <div id="loader" data-ready={ready} role="status" aria-live="polite" aria-label={ready ? 'Scene ready' : 'Preparing the landscape'}>
       <span className="loader-name">TUAHA SHAIKH</span><span className="ascii" aria-hidden="true">---===+++===---</span><span className="loader-caption">ASSEMBLING A SMALL WORLD</span>
     </div>
-    <p className="sr-only">Interactive snowy landscape with an igloo. Move over its ice blocks to gently separate them. Scroll through the skills, projects, and about me crystals into the particle contact chamber. Use the left and right arrow keys or the on-screen arrows to choose GitHub, LinkedIn, or WhatsApp, then activate the selected link. Continue scrolling to return to the igloo. All links and sound controls are accessible by keyboard.</p>
+    <p className="sr-only">Interactive snowy landscape with an igloo. Move over its ice blocks to gently separate them. Scroll through the skills, projects, and about me crystals into the particle contact chamber. Use the left and right arrow keys or the on-screen arrows to choose GitHub, LinkedIn, WhatsApp, or Gmail, then activate the selected link. Continue scrolling to return to the igloo. All links and sound controls are accessible by keyboard.</p>
   </main></div>
 }

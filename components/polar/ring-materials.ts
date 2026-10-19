@@ -92,12 +92,12 @@ export function makeRingMaterials(assets: RingAssets, wind: THREE.Texture) {
     }`,{map:{value:assets.floorMap},reveal:{value:0},glowFactor:{value:1},chamber:{value:0},motion:{value:1}})
   floor.depthWrite=true;floor.side=THREE.FrontSide
   const core = make(`${common}
-    attribute vec3 socialPosition1;attribute vec3 socialPosition2;attribute vec3 socialNormal1;attribute vec3 socialNormal2;
-    attribute vec2 particleUv;uniform vec3 socialWeights;uniform sampler2D particlePositions;uniform float simulationMix;uniform float socialView;
+    attribute vec3 socialPosition1;attribute vec3 socialPosition2;attribute vec3 socialPosition3;attribute vec3 socialNormal1;attribute vec3 socialNormal2;attribute vec3 socialNormal3;
+    attribute vec2 particleUv;uniform vec4 socialWeights;uniform sampler2D particlePositions;uniform float simulationMix;uniform float socialView;
     uniform float forming;uniform float pixelRatio;varying float light;varying float seed;varying float energy;
     void main(){seed=fract(sin(dot(position,vec3(127.1,311.7,74.7)))*43758.5453);
-      vec3 shapeNormal=normalize(normal*socialWeights.x+socialNormal1*socialWeights.y+socialNormal2*socialWeights.z+vec3(.00001));
-      vec3 pos=position*socialWeights.x+socialPosition1*socialWeights.y+socialPosition2*socialWeights.z;
+      vec3 shapeNormal=normalize(normal*socialWeights.x+socialNormal1*socialWeights.y+socialNormal2*socialWeights.z+socialNormal3*socialWeights.w+vec3(.00001));
+      vec3 pos=position*socialWeights.x+socialPosition1*socialWeights.y+socialPosition2*socialWeights.z+socialPosition3*socialWeights.w;
       vec4 simulated=texture2D(particlePositions,particleUv);energy=simulated.a*simulationMix;
       pos=mix(pos,simulated.xyz,simulationMix);
       pos+=shapeNormal*sin(time+seed*30.)*.0015;
@@ -113,7 +113,7 @@ export function makeRingMaterials(assets: RingAssets, wind: THREE.Texture) {
       vec3 color=mix(vec3(.016,.024,.055),vec3(.43,.49,.59),light)*grainLight;color=mix(color,vec3(1.4,1.8,2.5),glow);
       color+=vec3(.45,.7,1.)*energy*energy*(.5+seed);
       gl_FragColor=vec4(color,circle*reveal*opacity);
-    }`,{glow:{value:1},reveal:{value:0},forming:{value:1},pixelRatio:{value:1},socialWeights:{value:new THREE.Vector3(1,0,0)},particlePositions:{value:null},simulationMix:{value:0},socialView:{value:0}})
+    }`,{glow:{value:1},reveal:{value:0},forming:{value:1},pixelRatio:{value:1},socialWeights:{value:new THREE.Vector4(1,0,0,0)},particlePositions:{value:null},simulationMix:{value:0},socialView:{value:0}})
   const background = make(`uniform float screenLift;varying vec2 vUv;void main(){vUv=uv;gl_Position=vec4(position.xy,1.,1.);}`,`${common}
     varying vec2 vUv;void main(){float edge=screenLift>0.?smoothstep(0.,.14,vUv.y):1.;gl_FragColor=vec4(sky(vUv),opacity*edge);}`)
   background.depthWrite=false;background.depthTest=false

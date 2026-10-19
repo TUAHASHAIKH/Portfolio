@@ -14,7 +14,7 @@ export function SocialParticles({core,geometry,material,journey,reduced,virtual}
   const selected=useRef(0),active=useRef(false),wasReduced=useRef(reduced)
   const field=useMemo(()=>new ParticleSimulation(geometry),[geometry])
   const pointer=useMemo(()=>({brush:new THREE.Vector2(10,10),last:new THREE.Vector2(10,10),velocity:new THREE.Vector2(),point:new THREE.Vector3(),initialized:false}),[])
-  const weights=useMemo(()=>new THREE.Vector3(1,0,0),[])
+  const weights=useMemo(()=>new THREE.Vector4(1,0,0,0),[])
   const view=useMemo(()=>({matrix:new THREE.Matrix4(),rotation:new THREE.Matrix4(),basis:new THREE.Matrix3(),center:new THREE.Vector3(0,-9.785,0)}),[])
   useEffect(()=>{
     field.clear();material.uniforms.particlePositions.value=field.position
@@ -48,7 +48,7 @@ export function SocialParticles({core,geometry,material,journey,reduced,virtual}
     const dt=Math.min(delta,.05)
     const shape=journey.current.value<6.35?0:selected.current
     if(core.current&&shape!==0)core.current.rotation.y=reduced?0:Math.sin(material.uniforms.time.value*.2)*.14
-    for(let index=0;index<3;index++)weights.setComponent(index,reduced?Number(index===shape):THREE.MathUtils.damp(weights.getComponent(index),Number(index===shape),9,dt))
+    for(let index=0;index<SOCIAL_LINKS.length;index++)weights.setComponent(index,reduced?Number(index===shape):THREE.MathUtils.damp(weights.getComponent(index),Number(index===shape),9,dt))
     material.uniforms.socialWeights.value.copy(weights)
     if(wasReduced.current!==reduced){field.clear();wasReduced.current=reduced;active.current=false}
     const simulating=!reduced&&journey.current.value>5.9&&journey.current.value<9.8
