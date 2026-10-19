@@ -17,7 +17,7 @@ import { Assembly, progress, smooth } from './assembly'
 import { Crystal } from './crystal'
 import { Rings } from './rings'
 import { ringJourney } from './ring-journey'
-import { advanceJourney, loopSettled } from './journey-motion'
+import { advanceJourney, loopSettled, reverseAtBoundary } from './journey-motion'
 import { ease, range, returnProgress, returnChoreography, journeyView, crystalJourney, CRYSTAL_KINDS, JOURNEY_END, type Journey } from './journey'
 
 type Motion = { fast: number; slow: number }
@@ -192,8 +192,8 @@ function Ice({ assets, cursor, engaged, reduced, intro, journey, lift }: { asset
       const hover=engaged.current?influence*.54:0
       const target = reduced?0:Math.max(breathing,hover)*anchored*hero*arrival
       // Preserve the reference's two-stage easing without the previous extra slowdown.
-      piece.motion.fast = THREE.MathUtils.damp(piece.motion.fast, target, blockResponse, delta)
-      piece.motion.slow = THREE.MathUtils.damp(piece.motion.slow, piece.motion.fast, blockResponse, delta)
+      piece.motion.fast = reduced?0:THREE.MathUtils.damp(piece.motion.fast, target, blockResponse, delta)
+      piece.motion.slow = reduced?0:THREE.MathUtils.damp(piece.motion.slow, piece.motion.fast, blockResponse, delta)
       // Assembly is scroll-driven, so reversal retraces the same loose pieces
       // without waiting for the hover spring or replaying an intro timer.
       const assembly=p>8.6&&!reduced?returning.scatter*anchored*(.5+piece.seed.y*.15):0
@@ -320,8 +320,8 @@ function World({ assets, onReady, reduced, journey }: { assets: PolarAssets; onR
     const distance = mobile ? 1.65 : 1
     // Reference: ±pi/2 pointer mapping, .07/.025 angular gain and .035/frame easing.
     const orbitResponse = -60 * Math.log(1 - .035)
-    orbit.current.yaw = THREE.MathUtils.damp(orbit.current.yaw, reduced ? 0 : pointer.x * Math.PI / 2 * .07, orbitResponse, delta)
-    orbit.current.pitch = THREE.MathUtils.damp(orbit.current.pitch, reduced ? 0 : -pointer.y * Math.PI / 2 * .025, orbitResponse, delta)
+    orbit.current.yaw = reduced?0:THREE.MathUtils.damp(orbit.current.yaw, pointer.x * Math.PI / 2 * .07, orbitResponse, delta)
+    orbit.current.pitch = reduced?0:THREE.MathUtils.damp(orbit.current.pitch, -pointer.y * Math.PI / 2 * .025, orbitResponse, delta)
     cameraOffset.set(-14 * distance, 4 * distance, 14 * distance).sub(cameraTarget)
     normal.copy(cameraOffset).normalize()
     cameraRight.crossVectors(worldUp, normal).normalize()
@@ -347,7 +347,8 @@ function World({ assets, onReady, reduced, journey }: { assets: PolarAssets; onR
     rayPointer.copy(pointer);rayPointer.y-=lift.value
     ray.setFromCamera(rayPointer, camera)
     ray.ray.intersectPlane(plane, target)
-    cursor.lerp(target, 1 - Math.exp(-pointerResponse * delta))
+    if(reduced)cursor.copy(target)
+    else cursor.lerp(target, 1 - Math.exp(-pointerResponse * delta))
     const dpr = gl.getPixelRatio()
     if (!reduced) windTime.current += delta
     for (const material of Object.values(surfaces)) {
@@ -355,7 +356,7 @@ function World({ assets, onReady, reduced, journey }: { assets: PolarAssets; onR
       if (material.uniforms.time) material.uniforms.time.value = windTime.current
     }
     surfaces.ground.uniforms.cursor.value.copy(cursor)
-    surfaces.ground.uniforms.groundLight.value = THREE.MathUtils.damp(surfaces.ground.uniforms.groundLight.value, engaged.current && !reduced ? .8 : .1, 1.4, delta)
+    surfaces.ground.uniforms.groundLight.value = reduced?.1:THREE.MathUtils.damp(surfaces.ground.uniforms.groundLight.value, engaged.current ? .8 : .1, 1.4, delta)
   },-1)
   return <>
     <group ref={landscape} name="polar-landscape">
@@ -424,6 +425,9 @@ function JourneyMotion({ journey, reduced }: { journey: React.RefObject<Journey>
     // Analytic critically damped spring: continuous velocity even when scrolling reverses.
     // The same trajectory drives retreat, curtain and crystal, without a stage switch.
     advanceJourney(state,motion.current,delta,reduced)
+    if(reverseAtBoundary(state,motion.current)){
+      window.dispatchEvent(new CustomEvent('portfolio:journey-reversed',{detail:state.target}))
+    }
     // Both ends render the same assembled hero. Rebase only at the matching
     // pose, retaining free native scrolling in either direction.
     if(loopSettled(state,motion.current)){

@@ -1,9 +1,13 @@
-export type Journey = { target: number; value: number }
+export type Journey = { target: number; value: number; reverseTarget?: number }
 export const CRYSTAL_KINDS = ['skills','projects','about'] as const
 export type CrystalKind = typeof CRYSTAL_KINDS[number]
 export const JOURNEY_END = 10
 export const isCrystalKind = (value: unknown): value is CrystalKind => CRYSTAL_KINDS.some(kind=>kind===value)
 export const crystalCenter = (kind: CrystalKind) => CRYSTAL_KINDS.indexOf(kind)+1
+export function crystalPose(value:number,kind:CrystalKind) {
+  const offset=value-crystalCenter(kind)
+  return { y:offset*5.75,roll:-offset*.25*(kind==='about'?-1:1),visible:Math.abs(offset)<1 }
+}
 
 export const clamp = (value: number) => Math.min(1, Math.max(0, value))
 export const range = (value: number, start: number, end: number) => clamp((value - start) / (end - start))

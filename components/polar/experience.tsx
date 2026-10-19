@@ -36,42 +36,55 @@ export function PolarExperience() {
     let distance = 1
     let centering: number | null = null
     let intentUntil = 0
+    const pointer={x:0,y:0},scrollPointer={x:0,y:0}
+    const point=(event:PointerEvent)=>{pointer.x=event.clientX;pointer.y=event.clientY}
     const loopGesture=new LoopGesture()
     const detachTail=()=>{
       window.removeEventListener('wheel',tail,true)
       window.removeEventListener('touchmove',tail,true)
     }
     const tail=(event:WheelEvent|TouchEvent)=>{
-      if(loopGesture.input(performance.now())){event.preventDefault();event.stopImmediatePropagation();return}
+      const direction='deltaY'in event?Math.sign(event.deltaY):0
+      if(loopGesture.input(performance.now(),direction)){event.preventDefault();event.stopImmediatePropagation();return}
       detachTail()
     }
     // Scroll events only sample position; layout is measured when the track resizes.
     const update = () => {
       journey.current.target = scrollToJourney(JOURNEY_END * Math.min(1, Math.max(0, window.scrollY / distance)))
+      if(window.scrollY>.5)delete journey.current.reverseTarget
       if (centering !== null && Math.abs(window.scrollY-centering)<1) centering=null
     }
     const cancelCenter = () => {
       centering=null
       intentUntil=performance.now()+350
+      scrollPointer.x=pointer.x;scrollPointer.y=pointer.y
     }
-    const reverseLoop=()=>{
+    const reverseLoop=(pixels:number)=>{
       if(window.scrollY>.5||document.querySelector('dialog[open]'))return
       cancelCenter()
-      journey.current.value=journey.current.target=JOURNEY_END-.001
-      window.dispatchEvent(new Event('portfolio:reset-motion'))
-      window.scrollTo({top:distance-1,behavior:'instant'})
+      const previous=journey.current.reverseTarget??JOURNEY_END
+      journey.current.reverseTarget=Math.max(8.3,previous-Math.max(1,pixels)/distance*JOURNEY_END)
+      journey.current.target=0
+    }
+    const reversed=(event:Event)=>{
+      const target=(event as CustomEvent<number>).detail
+      window.scrollTo({top:distance*journeyToScroll(target)/JOURNEY_END,behavior:'instant'})
     }
     const wheel=(event:WheelEvent)=>{
       if(event.ctrlKey||document.querySelector('dialog[open]'))return
       cancelCenter()
-      loopGesture.input(performance.now())
-      if(event.deltaY<0)reverseLoop()
+      loopGesture.input(performance.now(),Math.sign(event.deltaY))
+      if(event.deltaY<0)reverseLoop(-event.deltaY*(event.deltaMode===1?16:event.deltaMode===2?window.innerHeight:1))
+      else if(event.deltaY>0)delete journey.current.reverseTarget
     }
     let touchStart=0
     const touch=(event:TouchEvent)=>{detachTail();loopGesture.reset();cancelCenter();touchStart=event.touches[0]?.clientY||0}
     const drag=(event:TouchEvent)=>{
-      loopGesture.input(performance.now())
-      if((event.touches[0]?.clientY||0)>touchStart+8)reverseLoop()
+      const next=event.touches[0]?.clientY||0,delta=next-touchStart
+      loopGesture.input(performance.now(),-Math.sign(delta))
+      if(delta>0)reverseLoop(delta)
+      else if(delta<0)delete journey.current.reverseTarget
+      touchStart=next
     }
     const wrapped=()=>{
       detachTail()
@@ -87,11 +100,14 @@ export function PolarExperience() {
       if(event.defaultPrevented)return
       detachTail();loopGesture.reset()
       if (['ArrowUp','ArrowDown','PageUp','PageDown','Home','End',' '].includes(event.key)) cancelCenter()
-      if(['ArrowUp','PageUp'].includes(event.key)||(event.key===' '&&event.shiftKey))reverseLoop()
+      if(['ArrowUp','PageUp'].includes(event.key)||(event.key===' '&&event.shiftKey))reverseLoop(event.key==='ArrowUp'?40:window.innerHeight*.9)
     }
     const centerCrystal = (event: Event) => {
-      const kind=(event as CustomEvent<unknown>).detail
-      if (!isCrystalKind(kind) || performance.now()<intentUntil || Math.abs(journey.current.value-journey.current.target)>.015) return
+      const detail=(event as CustomEvent<unknown>).detail
+      const kind=detail&&typeof detail==='object'&&'kind'in detail?detail.kind:detail
+      const explicit=Boolean(detail&&typeof detail==='object'&&'explicit'in detail&&detail.explicit===true)
+      const moved=Math.hypot(pointer.x-scrollPointer.x,pointer.y-scrollPointer.y)>=16
+      if (!isCrystalKind(kind) || !explicit&&(!moved||performance.now()<intentUntil||Math.abs(journey.current.value-journey.current.target)>.015)) return
       const destination=distance*journeyToScroll(crystalCenter(kind))/JOURNEY_END
       if (centering===destination || Math.abs(window.scrollY-destination)<1) return
       centering=destination
@@ -115,6 +131,8 @@ export function PolarExperience() {
     window.addEventListener('touchstart',touch,{passive:true})
     window.addEventListener('touchmove',drag,{passive:true})
     window.addEventListener('portfolio:journey-wrapped',wrapped)
+    window.addEventListener('portfolio:journey-reversed',reversed)
+    window.addEventListener('pointermove',point,{capture:true,passive:true})
     window.addEventListener('keydown',navigationKey)
     return () => {
       detachTail();cancelCenter();observer.disconnect()
@@ -122,6 +140,8 @@ export function PolarExperience() {
       window.removeEventListener('portfolio:center-crystal',centerCrystal)
       window.removeEventListener('wheel',wheel);window.removeEventListener('touchstart',touch)
       window.removeEventListener('touchmove',drag);window.removeEventListener('portfolio:journey-wrapped',wrapped)
+      window.removeEventListener('portfolio:journey-reversed',reversed)
+      window.removeEventListener('pointermove',point,true)
       window.removeEventListener('keydown',navigationKey)
     }
   }, [])

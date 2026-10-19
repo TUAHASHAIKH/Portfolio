@@ -24,14 +24,25 @@ export function advanceJourney(state: Journey, motion: JourneyMotion, elapsed: n
 export const loopSettled = (state: Journey, motion: JourneyMotion) =>
   state.target===JOURNEY_END&&state.value>JOURNEY_END-.0001&&Math.abs(motion.velocity)<.002
 
+export function reverseAtBoundary(state:Journey,motion:JourneyMotion) {
+  if(state.reverseTarget===undefined||state.target!==0||state.value>.0001||Math.abs(motion.velocity)>=.002)return false
+  state.value=JOURNEY_END
+  state.target=state.reverseTarget
+  delete state.reverseTarget
+  motion.velocity=0
+  return true
+}
+
 // A trackpad's remaining momentum belongs to the lap it started in. Release
 // on the next gesture, so that tail cannot immediately scroll past the hero.
 export class LoopGesture {
   private holding=false
   private lastInput=-Infinity
-  input(now:number){
-    const blocked=this.holding&&now-this.lastInput<180
+  private direction=0
+  input(now:number,direction=1){
+    const blocked=this.holding&&now-this.lastInput<180&&(direction===0||direction===this.direction)
     this.lastInput=now
+    if(direction)this.direction=direction
     if(!blocked)this.holding=false
     return blocked
   }
