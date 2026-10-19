@@ -3,6 +3,47 @@ import { readFile } from 'node:fs/promises'
 import test from 'node:test'
 import ts from 'typescript'
 import vm from 'node:vm'
+import * as THREE from 'three'
+
+const materialsSource=await readFile(new URL('../components/polar/materials.ts',import.meta.url),'utf8')
+const materialsCode=ts.transpileModule(materialsSource,{compilerOptions:{module:ts.ModuleKind.ESNext}}).outputText
+  .replace("'three'",JSON.stringify(import.meta.resolve('three')))
+const {liftLandscape}=await import(`data:text/javascript;base64,${Buffer.from(materialsCode).toString('base64')}`)
+
+test('landscape shader patch survives effect replay with a replacement uniform',()=>{
+  const material=new THREE.ShaderMaterial({vertexShader:'void main(){gl_Position=vec4(position,1.);}'})
+  const first={value:0},replacement={value:.5}
+  liftLandscape(material,first)
+  const patched=material.vertexShader
+  for(let i=0;i<5;i++)liftLandscape(material,replacement)
+  assert.equal(material.vertexShader,patched,'Reapplying the patch must not change already patched source')
+  assert.equal(material.uniforms.landscapeLift,replacement)
+  assert.equal((patched.match(/uniform float landscapeLift;/g)||[]).length,1)
+  assert.equal((patched.match(/gl_Position.y \+= landscapeLift/g)||[]).length,1)
+  material.dispose()
+})
+
+test('landscape shader patch repairs duplicate source retained by hot reload',()=>{
+  const material=new THREE.ShaderMaterial({vertexShader:'uniform float landscapeLift;\nuniform float landscapeLift;\nvoid main(){gl_Position=vec4(position,1.); gl_Position.y += landscapeLift * gl_Position.w; gl_Position.y += landscapeLift * gl_Position.w;}'})
+  liftLandscape(material,{value:0})
+  assert.equal((material.vertexShader.match(/uniform float landscapeLift;/g)||[]).length,1)
+  assert.equal((material.vertexShader.match(/gl_Position.y \+= landscapeLift/g)||[]).length,1)
+  material.dispose()
+})
+
+test('built-in landscape material can compile repeatedly without accumulating declarations',()=>{
+  const material=new THREE.MeshBasicMaterial(),uniform={value:.3}
+  const shader={uniforms:{},vertexShader:'void main(){\n#include <project_vertex>\n}'}
+  liftLandscape(material,uniform)
+  material.onBeforeCompile(shader)
+  const patched=shader.vertexShader
+  for(let i=0;i<3;i++){liftLandscape(material,uniform);material.onBeforeCompile(shader)}
+  assert.equal(shader.vertexShader,patched)
+  assert.equal((shader.vertexShader.match(/uniform float landscapeLift;/g)||[]).length,1)
+  assert.equal((shader.vertexShader.match(/gl_Position.y \+= landscapeLift/g)||[]).length,1)
+  assert.equal(shader.uniforms.landscapeLift,uniform)
+  material.dispose()
+})
 
 // Exercise the actual pure TypeScript controller without adding a test runner.
 const source = await readFile(new URL('../components/polar/journey.ts', import.meta.url), 'utf8')

@@ -4,22 +4,30 @@ import type { PolarAssets } from './assets'
 // One clip-space displacement moves near ice and distant mountains together.
 // Moving only world-space Y leaves the horizon behind because of perspective.
 export function liftLandscape<T extends THREE.Material>(material: T, lift: { value: number }): T {
-  if(material.userData.landscapeLift===lift)return material
-  material.userData.landscapeLift=lift
-  const transform = (vertex: string) => `uniform float landscapeLift;\n${vertex}`.replace(
-    /gl_Position\s*=\s*[^;]+;/g, '$& gl_Position.y += landscapeLift * gl_Position.w;',
-  )
+  const transform = (vertex: string, builtIn=false) => {
+    // Effect replay and Fast Refresh can reuse patched source with a new
+    // uniform object. Normalize the source, including older duplicate patches,
+    // before injecting exactly one declaration and one displacement per write.
+    const source=vertex
+      .replace(/\buniform\s+float\s+landscapeLift\s*;\s*/g,'')
+      .replace(/^[ \t]*gl_Position\s*\.\s*y\s*\+=\s*landscapeLift\s*\*\s*gl_Position\s*\.\s*w\s*;[ \t]*\r?\n/gm,'')
+      .replace(/[ \t]*gl_Position\s*\.\s*y\s*\+=\s*landscapeLift\s*\*\s*gl_Position\s*\.\s*w\s*;[ \t]*/g,'')
+    const displacement='gl_Position.y += landscapeLift * gl_Position.w;'
+    return `uniform float landscapeLift;\n${builtIn
+      ?source.replace(/#include <project_vertex>[ \t]*(?:\r?\n)?/,`#include <project_vertex>\n${displacement}\n`)
+      :source.replace(/gl_Position\s*=\s*[^;]+;/g,`$& ${displacement}`)}`
+  }
   if (material instanceof THREE.ShaderMaterial) {
     material.uniforms.landscapeLift = lift
-    material.vertexShader = transform(material.vertexShader)
+    const vertex=transform(material.vertexShader)
+    if(vertex!==material.vertexShader){material.vertexShader=vertex;material.needsUpdate=true}
   } else {
     material.onBeforeCompile = shader => {
       shader.uniforms.landscapeLift = lift
-      shader.vertexShader = `uniform float landscapeLift;\n${shader.vertexShader}`.replace(
-        '#include <project_vertex>', '#include <project_vertex>\ngl_Position.y += landscapeLift * gl_Position.w;',
-      )
+      shader.vertexShader = transform(shader.vertexShader,true)
     }
-    material.customProgramCacheKey = () => 'landscape-lift-v1'
+    material.customProgramCacheKey = () => 'landscape-lift-v2'
+    material.needsUpdate=true
   }
   return material
 }
