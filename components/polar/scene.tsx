@@ -240,7 +240,7 @@ function World({ assets, onReady, reduced, journey }: { assets: PolarAssets; onR
   const normal = useMemo(() => new THREE.Vector3(), [])
   const ray = useMemo(() => new THREE.Raycaster(), [])
   const surfaces = useMemo(() => ({
-    ground: makeTerrainMaterial(assets.groundMap, { glow: assets.glow, wind: assets.wind }),
+    ground: makeTerrainMaterial(assets.groundMap, { glow: assets.glow, wind: assets.wind, cleanSurface: assets.terrainMap }),
     mountain: makeTerrainMaterial(assets.mountainMap, { mountain: true }),
     terrain: makeTerrainMaterial(assets.terrainMap, { wind: assets.wind }),
     patch: makeTerrainMaterial(assets.terrainMap, { patch: true, wind: assets.wind }),
