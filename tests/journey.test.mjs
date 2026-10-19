@@ -57,10 +57,39 @@ const { ringJourney } = await import(ringsUrl)
 const scrollSource=await readFile(new URL('../components/polar/scroll-path.ts',import.meta.url),'utf8')
 const scrollCode=ts.transpileModule(scrollSource,{compilerOptions:{module:ts.ModuleKind.ESNext}}).outputText
   .replace("'./journey'",JSON.stringify(journeyUrl)).replace("'./ring-journey'",JSON.stringify(ringsUrl))
-const {scrollToJourney,journeyToScroll}=await import(`data:text/javascript;base64,${Buffer.from(scrollCode).toString('base64')}`)
+const {scrollToJourney,journeyToScroll,reverseScrollTarget}=await import(`data:text/javascript;base64,${Buffer.from(scrollCode).toString('base64')}`)
 const motionSource=await readFile(new URL('../components/polar/journey-motion.ts',import.meta.url),'utf8')
 const motionCode=ts.transpileModule(motionSource,{compilerOptions:{module:ts.ModuleKind.ESNext}}).outputText.replace("'./journey'",JSON.stringify(journeyUrl))
 const {advanceJourney,loopSettled,reverseAtBoundary,forwardAtBoundary}=await import(`data:text/javascript;base64,${Buffer.from(motionCode).toString('base64')}`)
+
+test('reverse input retains boundary overshoot and queued distance past the contact section',()=>{
+  assert.equal(reverseScrollTarget(undefined,40,60,1000),undefined)
+  assert.equal(reverseScrollTarget(undefined,100,60,1000),9.6)
+  let target
+  for(let i=0;i<30;i++)target=reverseScrollTarget(target,10,0,1000)
+  assert(Math.abs(target-7)<1e-10,'A continuing reverse gesture must not stop at 8.3')
+  assert.equal(reverseScrollTarget(undefined,100,0,1000),9)
+})
+
+test('reverse and forward boundary crossings preserve equivalent movement at every frame rate',()=>{
+  for(const fps of [30,60,120]){
+    const forward={value:9.8,target:10,forwardTarget:12.4}
+    const reverse={value:.2,target:0,reverseTarget:7.6}
+    const forwardMotion={velocity:.6},reverseMotion={velocity:-.6}
+    let forwardWrapped=false,reverseWrapped=false
+    for(let frame=0;frame<fps*3;frame++){
+      advanceJourney(forward,forwardMotion,1/fps,false)
+      advanceJourney(reverse,reverseMotion,1/fps,false)
+      if(forwardAtBoundary(forward,forwardMotion))forwardWrapped=true
+      if(reverseAtBoundary(reverse,reverseMotion))reverseWrapped=true
+      const forwardDistance=(forwardWrapped?10+forward.value:forward.value)-9.8
+      const reverseDistance=.2-(reverseWrapped?reverse.value-10:reverse.value)
+      assert(Math.abs(forwardDistance-reverseDistance)<1e-9,'Both directions must carry the same distance through the seam')
+      assert(Math.abs(forwardMotion.velocity+reverseMotion.velocity)<1e-9)
+    }
+    assert(forwardWrapped&&reverseWrapped)
+  }
+})
 
 test('continuous input crosses the igloo center without discarding velocity or scroll distance',()=>{
   for(const fps of [30,60,120]){

@@ -40,3 +40,12 @@ export function journeyToScroll(journey:number) {
   const index=(value-start)/step,low=Math.floor(index)
   return distance[low]+(distance[low+1]-distance[low])*(index-low)
 }
+
+// Preserve the part of a gesture that crosses native zero, just as forward
+// scrolling preserves distance beyond the bottom. Do not park queued input at
+// the contact section while the renderer is still crossing the loop boundary.
+export function reverseScrollTarget(previous:number|undefined,pixels:number,scroll:number,distance:number) {
+  const excess=Math.max(0,pixels-scroll)
+  if(!excess)return previous
+  return Math.max(.001,(previous??JOURNEY_END)-excess/Math.max(1,distance)*JOURNEY_END)
+}

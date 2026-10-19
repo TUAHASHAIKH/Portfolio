@@ -6,7 +6,7 @@ import { Wordmark } from './wordmark'
 import { crystalCenter, isCrystalKind, JOURNEY_END, type Journey } from './journey'
 import { CrystalReadout } from './crystal-readout'
 import { SocialControls } from './social-controls'
-import { scrollToJourney, journeyToScroll } from './scroll-path'
+import { scrollToJourney, journeyToScroll, reverseScrollTarget } from './scroll-path'
 
 const App3D = dynamic(() => import('./scene'), { ssr: false })
 
@@ -50,10 +50,11 @@ export function PolarExperience() {
       scrollPointer.x=pointer.x;scrollPointer.y=pointer.y
     }
     const reverseLoop=(pixels:number)=>{
-      if(window.scrollY>.5||document.querySelector('dialog[open]'))return
+      if(document.querySelector('dialog[open]'))return
+      const target=reverseScrollTarget(journey.current.reverseTarget,pixels,window.scrollY,distance)
+      if(target===undefined)return
       cancelCenter()
-      const previous=journey.current.reverseTarget??JOURNEY_END
-      journey.current.reverseTarget=Math.max(8.3,previous-Math.max(1,pixels)/distance*JOURNEY_END)
+      journey.current.reverseTarget=target
       journey.current.target=0
     }
     const reversed=(event:Event)=>{
