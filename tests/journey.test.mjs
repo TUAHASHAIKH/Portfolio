@@ -105,6 +105,19 @@ test('the contact retreats while loose igloo blocks arrive and assemble',()=>{
   assert.equal(returnChoreography(9.8).arrival,1)
 })
 
+test('the full landscape settles with no velocity or acceleration snap',()=>{
+  const arrival=value=>returnChoreography(value).arrival
+  const step=.0001
+  for(const endpoint of [8.35,9.7]){
+    const left=(arrival(endpoint)-arrival(endpoint-step))/step
+    const right=(arrival(endpoint+step)-arrival(endpoint))/step
+    assert(Math.abs(left)<.00001&&Math.abs(right)<.00001,'Arrival starts and ends at rest')
+    const acceleration=(arrival(endpoint+step)-2*arrival(endpoint)+arrival(endpoint-step))/(step*step)
+    assert(Math.abs(acceleration)<.001,'Acceleration must meet the resting pose continuously')
+  }
+  assert(arrival(9.05)>.5,'The landscape overlaps the departing contact scene')
+})
+
 test('the worker creates complete, finite particle targets for both social silhouettes',async()=>{
   const source=await readFile(new URL('../public/workers/ring-core.js',import.meta.url),'utf8')
   const size=8,data=new Uint8Array(size**3*4),mask=new Uint8Array(256**2)

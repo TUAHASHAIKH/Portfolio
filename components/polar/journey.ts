@@ -8,6 +8,7 @@ export const crystalCenter = (kind: CrystalKind) => CRYSTAL_KINDS.indexOf(kind)+
 export const clamp = (value: number) => Math.min(1, Math.max(0, value))
 export const range = (value: number, start: number, end: number) => clamp((value - start) / (end - start))
 export const ease = (value: number) => value * value * (3 - 2 * value)
+const smoother = (value: number) => value*value*value*(value*(value*6-15)+10)
 export const returnProgress = (value: number) => ease(range(value,8.6,9.8))
 
 // The chamber retreats before its upward departure finishes. At the same time,
@@ -16,7 +17,7 @@ export function returnChoreography(value: number) {
   return {
     retreat: ease(range(value,8.3,9.5)),
     departure: ease(range(value,8.85,9.8)),
-    arrival: ease(range(value,8.65,9.7)),
+    arrival: smoother(range(value,8.35,9.7)),
     scatter: 1-ease(range(value,8.9,9.75)),
   }
 }
