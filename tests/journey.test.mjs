@@ -8,7 +8,7 @@ import vm from 'node:vm'
 const source = await readFile(new URL('../components/polar/journey.ts', import.meta.url), 'utf8')
 const { outputText } = ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.ESNext } })
 const journeyUrl = `data:text/javascript;base64,${Buffer.from(outputText).toString('base64')}`
-const { crystalJourney, CRYSTAL_KINDS, crystalCenter, JOURNEY_END, journeyView } = await import(journeyUrl)
+const { crystalJourney, CRYSTAL_KINDS, crystalCenter, JOURNEY_END, journeyView, returnProgress } = await import(journeyUrl)
 const ringsSource = await readFile(new URL('../components/polar/ring-journey.ts', import.meta.url), 'utf8')
 const ringsCode = ts.transpileModule(ringsSource, { compilerOptions: { module: ts.ModuleKind.ESNext } }).outputText.replace("'./journey'",JSON.stringify(journeyUrl))
 const { ringJourney } = await import(`data:text/javascript;base64,${Buffer.from(ringsCode).toString('base64')}`)
@@ -70,6 +70,19 @@ test('the infinite journey ends in the same camera pose as its beginning',()=>{
   assert.equal(ringJourney(JOURNEY_END).contact,0)
   assert.equal(ringJourney(7.2).contact,1)
   assert.equal(ringJourney(3).contact,0)
+})
+
+test('the return advances upward continuously without a second camera zoom',()=>{
+  assert.equal(returnProgress(8.6),0)
+  assert.equal(returnProgress(9.8),1)
+  let previous=0
+  for(let value=8.601;value<9.8;value+=.001){
+    const next=returnProgress(value)
+    assert(next>previous,'The upward movement must keep advancing with scroll')
+    assert(next-previous<.002,'The return must not jump between stages')
+    assert.equal(journeyView(value).zoom,0,'The hero keeps its final framing during the upward reveal')
+    previous=next
+  }
 })
 
 test('the worker creates complete, finite particle targets for both social silhouettes',async()=>{
