@@ -17,6 +17,40 @@ const scrollSource=await readFile(new URL('../components/polar/scroll-path.ts',i
 const scrollCode=ts.transpileModule(scrollSource,{compilerOptions:{module:ts.ModuleKind.ESNext}}).outputText
   .replace("'./journey'",JSON.stringify(journeyUrl)).replace("'./ring-journey'",JSON.stringify(ringsUrl))
 const {scrollToJourney,journeyToScroll}=await import(`data:text/javascript;base64,${Buffer.from(scrollCode).toString('base64')}`)
+const motionSource=await readFile(new URL('../components/polar/journey-motion.ts',import.meta.url),'utf8')
+const motionCode=ts.transpileModule(motionSource,{compilerOptions:{module:ts.ModuleKind.ESNext}}).outputText.replace("'./journey'",JSON.stringify(journeyUrl))
+const {advanceJourney,loopSettled,LoopGesture}=await import(`data:text/javascript;base64,${Buffer.from(motionCode).toString('base64')}`)
+
+test('large input bursts traverse continuously at matching speeds across frame rates',()=>{
+  const endings=[]
+  for(const fps of [30,60,120]){
+    const state={value:8.3,target:10},motion={velocity:0}
+    for(let frame=0;frame<fps;frame++){
+      const previous=state.value
+      advanceJourney(state,motion,1/fps,false)
+      assert(state.value>=previous&&state.value-previous<=1.5/fps+1e-10,'A wheel burst cannot skip the return')
+    }
+    endings.push(state.value)
+    assert(!loopSettled(state,motion),'The loop must not reset before it settles')
+    for(let frame=0;frame<fps*3;frame++)advanceJourney(state,motion,1/fps,false)
+    assert(loopSettled(state,motion))
+  }
+  assert(Math.max(...endings)-Math.min(...endings)<1e-9)
+})
+
+test('the old wheel tail cannot start another lap, and a fresh gesture releases immediately',()=>{
+  const gesture=new LoopGesture()
+  assert(!gesture.input(0))
+  gesture.wrap(20)
+  for(let time=40;time<400;time+=40)assert(gesture.input(time))
+  assert(!gesture.input(600),'A distinct next gesture can leave the igloo')
+  gesture.wrap(620);gesture.reset()
+  assert(!gesture.input(640),'A new touch or keyboard gesture is never trapped')
+  const state={value:9.9,target:10},motion={velocity:1}
+  assert(!loopSettled(state,motion),'Matching scenery alone does not justify dropping camera velocity')
+  advanceJourney(state,motion,1/60,true)
+  assert(loopSettled(state,motion),'Reduced motion remains immediate')
+})
 
 test('native scroll follows one continuous reversible path without changing crystal sensitivity',()=>{
   let previous=0

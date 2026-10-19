@@ -7,6 +7,7 @@ import { crystalCenter, isCrystalKind, JOURNEY_END, type Journey } from './journ
 import { CrystalReadout } from './crystal-readout'
 import { SocialControls } from './social-controls'
 import { scrollToJourney, journeyToScroll } from './scroll-path'
+import { LoopGesture } from './journey-motion'
 
 const App3D = dynamic(() => import('./scene'), { ssr: false })
 
@@ -35,6 +36,15 @@ export function PolarExperience() {
     let distance = 1
     let centering: number | null = null
     let intentUntil = 0
+    const loopGesture=new LoopGesture()
+    const detachTail=()=>{
+      window.removeEventListener('wheel',tail,true)
+      window.removeEventListener('touchmove',tail,true)
+    }
+    const tail=(event:WheelEvent|TouchEvent)=>{
+      if(loopGesture.input(performance.now())){event.preventDefault();event.stopImmediatePropagation();return}
+      detachTail()
+    }
     // Scroll events only sample position; layout is measured when the track resizes.
     const update = () => {
       journey.current.target = scrollToJourney(JOURNEY_END * Math.min(1, Math.max(0, window.scrollY / distance)))
@@ -51,19 +61,37 @@ export function PolarExperience() {
       window.dispatchEvent(new Event('portfolio:reset-motion'))
       window.scrollTo({top:distance-1,behavior:'instant'})
     }
-    const wheel=(event:WheelEvent)=>{cancelCenter();if(event.deltaY<0)reverseLoop()}
+    const wheel=(event:WheelEvent)=>{
+      if(event.ctrlKey||document.querySelector('dialog[open]'))return
+      cancelCenter()
+      loopGesture.input(performance.now())
+      if(event.deltaY<0)reverseLoop()
+    }
     let touchStart=0
-    const touch=(event:TouchEvent)=>{cancelCenter();touchStart=event.touches[0]?.clientY||0}
-    const drag=(event:TouchEvent)=>{if((event.touches[0]?.clientY||0)>touchStart+8)reverseLoop()}
-    const wrapped=()=>{cancelCenter();window.scrollTo({top:0,behavior:'instant'})}
+    const touch=(event:TouchEvent)=>{detachTail();loopGesture.reset();cancelCenter();touchStart=event.touches[0]?.clientY||0}
+    const drag=(event:TouchEvent)=>{
+      loopGesture.input(performance.now())
+      if((event.touches[0]?.clientY||0)>touchStart+8)reverseLoop()
+    }
+    const wrapped=()=>{
+      detachTail()
+      // Normal scrolling stays passive. Only the finishing gesture needs a
+      // temporary cancelable listener, removed on the next gesture.
+      if(loopGesture.wrap(performance.now())){
+        window.addEventListener('wheel',tail,{capture:true,passive:false})
+        window.addEventListener('touchmove',tail,{capture:true,passive:false})
+      }
+      cancelCenter();window.scrollTo({top:0,behavior:'instant'})
+    }
     const navigationKey = (event: KeyboardEvent) => {
       if(event.defaultPrevented)return
+      detachTail();loopGesture.reset()
       if (['ArrowUp','ArrowDown','PageUp','PageDown','Home','End',' '].includes(event.key)) cancelCenter()
       if(['ArrowUp','PageUp'].includes(event.key)||(event.key===' '&&event.shiftKey))reverseLoop()
     }
     const centerCrystal = (event: Event) => {
       const kind=(event as CustomEvent<unknown>).detail
-      if (!isCrystalKind(kind) || performance.now()<intentUntil) return
+      if (!isCrystalKind(kind) || performance.now()<intentUntil || Math.abs(journey.current.value-journey.current.target)>.015) return
       const destination=distance*journeyToScroll(crystalCenter(kind))/JOURNEY_END
       if (centering===destination || Math.abs(window.scrollY-destination)<1) return
       centering=destination
@@ -89,7 +117,7 @@ export function PolarExperience() {
     window.addEventListener('portfolio:journey-wrapped',wrapped)
     window.addEventListener('keydown',navigationKey)
     return () => {
-      cancelCenter();observer.disconnect()
+      detachTail();cancelCenter();observer.disconnect()
       window.removeEventListener('scroll',update);window.removeEventListener('resize',measure)
       window.removeEventListener('portfolio:center-crystal',centerCrystal)
       window.removeEventListener('wheel',wheel);window.removeEventListener('touchstart',touch)

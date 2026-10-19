@@ -17,6 +17,7 @@ import { Assembly, progress, smooth } from './assembly'
 import { Crystal } from './crystal'
 import { Rings } from './rings'
 import { ringJourney } from './ring-journey'
+import { advanceJourney, loopSettled } from './journey-motion'
 import { ease, range, returnProgress, returnChoreography, journeyView, crystalJourney, CRYSTAL_KINDS, JOURNEY_END, type Journey } from './journey'
 
 type Motion = { fast: number; slow: number }
@@ -410,11 +411,11 @@ export default function App3D({ onReady, reducedMotion, journey }: { onReady: ()
 
 function JourneyMotion({ journey, reduced }: { journey: React.RefObject<Journey>; reduced: boolean }) {
   const { gl } = useThree()
-  const velocity = useRef(0)
+  const motion = useRef({velocity:0})
   const overlay = useRef<HTMLElement | null>(null)
   const laps=useRef(0)
   useEffect(()=>{
-    const reset=()=>{velocity.current=0}
+    const reset=()=>{motion.current.velocity=0}
     window.addEventListener('portfolio:reset-motion',reset)
     return()=>window.removeEventListener('portfolio:reset-motion',reset)
   },[])
@@ -422,19 +423,11 @@ function JourneyMotion({ journey, reduced }: { journey: React.RefObject<Journey>
     const state = journey.current
     // Analytic critically damped spring: continuous velocity even when scrolling reverses.
     // The same trajectory drives retreat, curtain and crystal, without a stage switch.
-    const dt = Math.min(delta, .25), rate = 14
-    const offset = state.value - state.target
-    const decay = Math.exp(-rate * dt), impulse = velocity.current + rate * offset
-    state.value = reduced ? state.target : THREE.MathUtils.clamp(state.target + (offset + impulse * dt) * decay, 0, JOURNEY_END)
-    velocity.current = reduced ? 0 : (velocity.current - rate * impulse * dt) * decay
-    if (Math.abs(state.target - state.value) < .00001 && Math.abs(velocity.current) < .0001) {
-      state.value = state.target
-      velocity.current = 0
-    }
+    advanceJourney(state,motion.current,delta,reduced)
     // Both ends render the same assembled hero. Rebase only at the matching
     // pose, retaining free native scrolling in either direction.
-    if(state.target===JOURNEY_END&&state.value>JOURNEY_END-.15){
-      state.value=state.target=0;velocity.current=0;laps.current++
+    if(loopSettled(state,motion.current)){
+      state.value=state.target=0;motion.current.velocity=0;laps.current++
       window.dispatchEvent(new Event('portfolio:journey-wrapped'))
     }
     const app = overlay.current ||= gl.domElement.closest('#app') as HTMLElement | null
