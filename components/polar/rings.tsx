@@ -85,7 +85,7 @@ function RingPassage({ assets, journey, noise, reduced }: { assets: RingAssets; 
     for(const material of materials.materials){
       material.uniforms.time.value=clock.current
       material.uniforms.opacity.value=travel.opacity
-      material.uniforms.screenLift.value=travel.returning*2
+      material.uniforms.screenLift.value=travel.departure*2
       material.uniforms.eye.value.copy(virtual.position)
       material.uniforms.resolution.value.set(width,height)
       if(material.uniforms.motion)material.uniforms.motion.value=reduced?0:1

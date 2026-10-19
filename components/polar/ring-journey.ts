@@ -1,4 +1,4 @@
-import { ease, range } from './journey'
+import { ease, range, returnChoreography } from './journey'
 
 // Scroll is the only playhead: all camera and portal poses reverse together.
 // These curves preserve the reference's long descent and overlapping roll.
@@ -25,7 +25,8 @@ const pulse = (time: number, start: number, peak: number, end: number) => time<p
 export function ringJourney(value: number) {
   // Keep the existing passage's timing, then continue the same camera path
   // down to eye level in the contact chamber.
-  const time = Math.min(7.2,Math.max(0,(value-3.25)*1.8))
+  const returning = returnChoreography(value)
+  const time = Math.min(7.2,Math.max(0,(value-3.25)*1.8))+returning.retreat*2
   const progress = time/9.2
   const approach = 1-Math.pow(1-range(time,0,2.5),3)
   const settle = bezier(range(time,3.5,7.2),returnUp)
@@ -47,5 +48,6 @@ export function ringJourney(value: number) {
     contact: ease(range(value,6.35,7.15))*(1-ease(range(value,8.3,8.8))),
     chamber: ease(range(time,4.5,6.5)),
     returning: ease(range(value,8.6,9.8)),
+    departure: returning.departure,
   }
 }

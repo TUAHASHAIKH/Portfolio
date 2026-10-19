@@ -10,6 +10,17 @@ export const range = (value: number, start: number, end: number) => clamp((value
 export const ease = (value: number) => value * value * (3 - 2 * value)
 export const returnProgress = (value: number) => ease(range(value,8.6,9.8))
 
+// The chamber retreats before its upward departure finishes. At the same time,
+// loose igloo blocks arrive below it and settle individually into their seats.
+export function returnChoreography(value: number) {
+  return {
+    retreat: ease(range(value,8.3,9.5)),
+    departure: ease(range(value,8.85,9.8)),
+    arrival: ease(range(value,8.65,9.7)),
+    scatter: 1-ease(range(value,8.9,9.75)),
+  }
+}
+
 // Preserve every center as the journey grows; each following crystal occupies
 // one interval with the reference scene's 5.75-unit vertical spacing.
 export function crystalJourney(value: number) {
