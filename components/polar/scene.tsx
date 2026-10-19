@@ -17,7 +17,7 @@ import { Assembly, progress, smooth } from './assembly'
 import { Crystal } from './crystal'
 import { Rings } from './rings'
 import { ringJourney } from './ring-journey'
-import { ease, range, returnProgress, journeyView, crystalJourney, CRYSTAL_KINDS, JOURNEY_END, type Journey } from './journey'
+import { ease, range, returnProgress, returnChoreography, journeyView, crystalJourney, CRYSTAL_KINDS, JOURNEY_END, type Journey } from './journey'
 
 type Motion = { fast: number; slow: number }
 const radians = (degrees: number) => degrees * Math.PI / 180
@@ -166,6 +166,7 @@ function Ice({ assets, cursor, engaged, reduced, intro, journey }: { assets: Pol
   const idle=useRef(0)
   const cleared=useRef(-1)
   const rise=useMemo(()=>new THREE.Vector3(),[])
+  const outline=useRef<THREE.MeshBasicMaterial>(null)
   const meshes = useRef<(THREE.Mesh | null)[]>([])
   const resources = useMemo(() => assets.pieces.map(piece => {
     const material = makeIceMaterial(assets)
@@ -177,11 +178,13 @@ function Ice({ assets, cursor, engaged, reduced, intro, journey }: { assets: Pol
     const delta = Math.min(frameDelta, .25)
     if(!reduced)idle.current+=delta
     const p=journey.current.value
+    const returning=returnChoreography(p)
     const hero=p>8.6?returnProgress(p):1-ease(range(p,.03,.65))
     const arrival=ease(range(intro.current,1.7,3.3))
     const height=2*Math.tan((camera as THREE.PerspectiveCamera).fov*Math.PI/360)*camera.position.length()
-    rise.set(0,1,0).applyQuaternion(camera.quaternion).multiplyScalar(p>8.6&&!reduced?-(1-returnProgress(p))*height*.72:0)
+    rise.set(0,1,0).applyQuaternion(camera.quaternion).multiplyScalar(p>8.6&&!reduced?-(1-returning.arrival)*height*.72:0)
     if(group.current)group.current.position.copy(rise)
+    if(outline.current)outline.current.opacity=p>8.6&&!reduced?returning.scatter*returning.arrival*.32:0
     resources.forEach((piece, index) => {
       const mesh = meshes.current[index]
       if (!mesh) return
@@ -197,7 +200,10 @@ function Ice({ assets, cursor, engaged, reduced, intro, journey }: { assets: Pol
       // Preserve the reference's two-stage easing without the previous extra slowdown.
       piece.motion.fast = THREE.MathUtils.damp(piece.motion.fast, target, blockResponse, delta)
       piece.motion.slow = THREE.MathUtils.damp(piece.motion.slow, piece.motion.fast, blockResponse, delta)
-      const amount = piece.motion.slow
+      // Assembly is scroll-driven, so reversal retraces the same loose pieces
+      // without waiting for the hover spring or replaying an intro timer.
+      const assembly=p>8.6&&!reduced?returning.scatter*anchored*(.5+piece.seed.y*.15):0
+      const amount = piece.motion.slow+assembly
       mesh.position.copy(piece.center).addScaledVector(piece.center, amount)
       mesh.rotation.set(
         Math.cos(piece.seed.y * 30 + amount * 2) * amount * .5,
@@ -210,6 +216,9 @@ function Ice({ assets, cursor, engaged, reduced, intro, journey }: { assets: Pol
     })
   })
   return <group ref={group} name="living-igloo">
+    <mesh geometry={assets.introOutline} renderOrder={5} raycast={()=>{}}>
+      <meshBasicMaterial ref={outline} transparent opacity={0} color="#dceaff" depthWrite={false} blending={THREE.AdditiveBlending} />
+    </mesh>
     {resources.map((piece, index) => <mesh key={index} ref={mesh => { meshes.current[index] = mesh }} geometry={piece.geometry} material={piece.material} position={piece.center} renderOrder={4} onBeforeRender={renderer=>{
       if(journey.current.value>8.6&&journey.current.value<9.8&&cleared.current!==renderer.info.render.frame){renderer.state.buffers.depth.setMask(true);renderer.clearDepth();cleared.current=renderer.info.render.frame}
     }} />)}
