@@ -100,6 +100,21 @@ test('native scroll follows one continuous reversible path without changing crys
   }
 })
 
+test('continued scrolling through GitHub never holds the contact camera still',()=>{
+  let previous=ringJourney(7.15)
+  for(let value=7.16;value<=8.6;value+=.01){
+    const next=ringJourney(value)
+    const movement=Math.hypot(next.y-previous.y,next.z-previous.z,next.targetY-previous.targetY,next.fov-previous.fov)
+    assert(movement>.00001,`The contact camera stops at ${value}`)
+    assert(next.time>previous.time,'The contact playhead must continue into the return')
+    previous=next
+  }
+  const step=.0001,join=6.35
+  const left=(ringJourney(join).time-ringJourney(join-step).time)/step
+  const right=(ringJourney(join+step).time-ringJourney(join).time)/step
+  assert(Math.abs(left-right)<.001,'The contact entry must preserve incoming velocity')
+})
+
 test('equal scroll gestures move every crystal equally through its center', () => {
   for (const direction of [-1, 1]) {
     for (let offset = -.3; offset <= .3; offset += .01) {
@@ -173,7 +188,7 @@ test('the return advances upward continuously without a second camera zoom',()=>
 })
 
 test('the contact retreats while loose igloo blocks arrive and assemble',()=>{
-  const before=ringJourney(8.3),retreated=ringJourney(9.5)
+  const before=ringJourney(7.15),retreated=ringJourney(9.5)
   assert(retreated.z<before.z-1.4,'The contact camera must retreat into depth')
   assert(returnChoreography(8.6).retreat>0,'Zoom-out starts before the igloo arrives')
   const overlap=returnChoreography(9.05)

@@ -22,11 +22,20 @@ const returnUp = [0,0,.358,0,.336,.209,.442,.519,.59,.952,.768,.918,1,1]
 const powerInOut = (t: number, power: number) => t < .5 ? Math.pow(t*2,power)*.5 : 1-Math.pow((1-t)*2,power)*.5
 const pulse = (time: number, start: number, peak: number, end: number) => time<peak ? Math.pow(range(time,start,peak),2) : Math.pow(1-range(time,peak,end),2)
 
+function cameraTime(value:number) {
+  const entry=6.35,exit=9.5,initial=(entry-3.25)*1.8
+  if(value<=entry)return Math.max(0,(value-3.25)*1.8)
+  const t=range(value,entry,exit),square=t*t,cube=square*t
+  // Continue the incoming velocity through the contact pose, then settle at
+  // the return endpoint. Clamping at 7.2 previously created a long dead zone.
+  return (2*cube-3*square+1)*initial+(cube-2*square+t)*(exit-entry)*1.8+(-2*cube+3*square)*9.2
+}
+
 function calculateRingJourney(value: number) {
   // Keep the existing passage's timing, then continue the same camera path
   // down to eye level in the contact chamber.
   const returning = returnChoreography(value)
-  const time = Math.min(7.2,Math.max(0,(value-3.25)*1.8))+returning.retreat*2
+  const time = cameraTime(value)
   const progress = time/9.2
   const approach = 1-Math.pow(1-range(time,0,2.5),3)
   const settle = bezier(range(time,3.5,7.2),returnUp)
