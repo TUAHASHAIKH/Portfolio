@@ -1,4 +1,4 @@
-export type Journey = { target: number; value: number; reverseTarget?: number }
+export type Journey = { target: number; value: number; reverseTarget?: number; forwardTarget?: number }
 export const CRYSTAL_KINDS = ['skills','projects','about'] as const
 export type CrystalKind = typeof CRYSTAL_KINDS[number]
 export const JOURNEY_END = 10
@@ -13,6 +13,16 @@ export const clamp = (value: number) => Math.min(1, Math.max(0, value))
 export const range = (value: number, start: number, end: number) => clamp((value - start) / (end - start))
 export const ease = (value: number) => value * value * (3 - 2 * value)
 const smoother = (value: number) => value*value*value*(value*(value*6-15)+10)
+export function landscapeTravel(value:number) {
+  const speed=2.15
+  if(value<=1)return speed*value
+  if(value<=8.6)return 0
+  const duration=JOURNEY_END-8.35,t=range(value,8.35,JOURNEY_END)
+  const endVelocity=-4*t*t*t+7*t*t*t*t-3*t*t*t*t*t
+  // Arrive at the hero with the same velocity and acceleration as its upward
+  // departure on the next lap, instead of settling early and waiting there.
+  return -speed+speed*smoother(t)+duration*speed*endVelocity
+}
 export const returnProgress = (value: number) => ease(range(value,8.6,9.8))
 
 // The chamber retreats before its upward departure finishes. At the same time,

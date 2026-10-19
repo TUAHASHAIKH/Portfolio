@@ -41,6 +41,7 @@ export function PolarExperience() {
     const update = () => {
       journey.current.target = scrollToJourney(JOURNEY_END * Math.min(1, Math.max(0, window.scrollY / distance)))
       if(window.scrollY>.5)delete journey.current.reverseTarget
+      if(window.scrollY<distance-1)delete journey.current.forwardTarget
       if (centering !== null && Math.abs(window.scrollY-centering)<1) centering=null
     }
     const cancelCenter = () => {
@@ -62,26 +63,35 @@ export function PolarExperience() {
     const wheel=(event:WheelEvent)=>{
       if(event.ctrlKey||document.querySelector('dialog[open]'))return
       cancelCenter()
-      if(event.deltaY<0)reverseLoop(-event.deltaY*(event.deltaMode===1?16:event.deltaMode===2?window.innerHeight:1))
-      else if(event.deltaY>0)delete journey.current.reverseTarget
+      const pixels=event.deltaY*(event.deltaMode===1?16:event.deltaMode===2?window.innerHeight:1)
+      if(pixels<0){delete journey.current.forwardTarget;reverseLoop(-pixels)}
+      else if(pixels>0){delete journey.current.reverseTarget;forwardLoop(pixels)}
+    }
+    const forwardLoop=(pixels:number)=>{
+      const excess=Math.max(0,pixels-(distance-window.scrollY))
+      if(!excess)return
+      journey.current.forwardTarget=Math.min(JOURNEY_END*2-.001,(journey.current.forwardTarget??JOURNEY_END)+excess/distance*JOURNEY_END)
     }
     let touchStart=0
     const touch=(event:TouchEvent)=>{cancelCenter();touchStart=event.touches[0]?.clientY||0}
     const drag=(event:TouchEvent)=>{
       const next=event.touches[0]?.clientY||0,delta=next-touchStart
-      if(delta>0)reverseLoop(delta)
-      else if(delta<0)delete journey.current.reverseTarget
+      if(delta>0){delete journey.current.forwardTarget;reverseLoop(delta)}
+      else if(delta<0){delete journey.current.reverseTarget;forwardLoop(-delta)}
       touchStart=next
     }
-    const wrapped=()=>{
+    const wrapped=(event:Event)=>{
       // Keep native input flowing into the next lap. The bounded scene spring
       // controls speed; a wheel-event guard must never hold the hero in place.
-      cancelCenter();window.scrollTo({top:0,behavior:'instant'})
+      const target=(event as CustomEvent<number>).detail||0
+      cancelCenter();window.scrollTo({top:distance*journeyToScroll(target)/JOURNEY_END,behavior:'instant'})
     }
     const navigationKey = (event: KeyboardEvent) => {
       if(event.defaultPrevented)return
+      if(event.key==='Home')delete journey.current.forwardTarget
       if (['ArrowUp','ArrowDown','PageUp','PageDown','Home','End',' '].includes(event.key)) cancelCenter()
-      if(['ArrowUp','PageUp'].includes(event.key)||(event.key===' '&&event.shiftKey))reverseLoop(event.key==='ArrowUp'?40:window.innerHeight*.9)
+      if(['ArrowUp','PageUp'].includes(event.key)||(event.key===' '&&event.shiftKey)){delete journey.current.forwardTarget;reverseLoop(event.key==='ArrowUp'?40:window.innerHeight*.9)}
+      if(['ArrowDown','PageDown'].includes(event.key)||(event.key===' '&&!event.shiftKey))forwardLoop(event.key==='ArrowDown'?40:window.innerHeight*.9)
     }
     const centerCrystal = (event: Event) => {
       const detail=(event as CustomEvent<unknown>).detail

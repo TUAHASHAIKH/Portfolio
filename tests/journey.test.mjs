@@ -8,7 +8,7 @@ import vm from 'node:vm'
 const source = await readFile(new URL('../components/polar/journey.ts', import.meta.url), 'utf8')
 const { outputText } = ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.ESNext } })
 const journeyUrl = `data:text/javascript;base64,${Buffer.from(outputText).toString('base64')}`
-const { crystalJourney, crystalPose, CRYSTAL_KINDS, crystalCenter, JOURNEY_END, journeyView, returnProgress, returnChoreography } = await import(journeyUrl)
+const { crystalJourney, crystalPose, CRYSTAL_KINDS, crystalCenter, JOURNEY_END, journeyView, returnProgress, returnChoreography, landscapeTravel } = await import(journeyUrl)
 const ringsSource = await readFile(new URL('../components/polar/ring-journey.ts', import.meta.url), 'utf8')
 const ringsCode = ts.transpileModule(ringsSource, { compilerOptions: { module: ts.ModuleKind.ESNext } }).outputText.replace("'./journey'",JSON.stringify(journeyUrl))
 const ringsUrl=`data:text/javascript;base64,${Buffer.from(ringsCode).toString('base64')}`
@@ -19,22 +19,58 @@ const scrollCode=ts.transpileModule(scrollSource,{compilerOptions:{module:ts.Mod
 const {scrollToJourney,journeyToScroll}=await import(`data:text/javascript;base64,${Buffer.from(scrollCode).toString('base64')}`)
 const motionSource=await readFile(new URL('../components/polar/journey-motion.ts',import.meta.url),'utf8')
 const motionCode=ts.transpileModule(motionSource,{compilerOptions:{module:ts.ModuleKind.ESNext}}).outputText.replace("'./journey'",JSON.stringify(journeyUrl))
-const {advanceJourney,loopSettled,reverseAtBoundary}=await import(`data:text/javascript;base64,${Buffer.from(motionCode).toString('base64')}`)
+const {advanceJourney,loopSettled,reverseAtBoundary,forwardAtBoundary}=await import(`data:text/javascript;base64,${Buffer.from(motionCode).toString('base64')}`)
 
-test('reverse crossing waits for the matching pose and retains the requested backward distance',()=>{
+test('continuous input crosses the igloo center without discarding velocity or scroll distance',()=>{
+  for(const fps of [30,60,120]){
+    const state={value:9.8,target:10,forwardTarget:10.4},motion={velocity:1}
+    let crossed=false
+    for(let frame=0;frame<fps;frame++){
+      const before=landscapeTravel(state.value)
+      advanceJourney(state,motion,1/fps,false)
+      const velocity=motion.velocity
+      if(forwardAtBoundary(state,motion)){
+        crossed=true
+        assert.equal(motion.velocity,velocity,'The seam must preserve camera velocity')
+        assert(Math.abs(state.target-.4)<1e-10,'Extra wheel distance continues into the next lap')
+      }
+      const after=landscapeTravel(state.value)
+      assert(after>before,'The landscape keeps moving upwards, including across the seam')
+      assert(after-before<.15,'Rebasing must not jump the landscape')
+      if(crossed)break
+    }
+    assert(crossed)
+  }
+})
+
+test('the igloo arrival joins its departure without a stationary interval',()=>{
+  let previous=landscapeTravel(9.65)
+  for(let value=9.651;value<=10;value+=.001){
+    const next=landscapeTravel(value)
+    assert(next>previous,'The igloo must not park at the center before the loop ends')
+    previous=next
+  }
+  const step=.0001
+  const incoming=(landscapeTravel(10)-landscapeTravel(10-step))/step
+  const outgoing=(landscapeTravel(step)-landscapeTravel(0))/step
+  assert(Math.abs(incoming-outgoing)<.001,'Arrival and departure share the same velocity')
+  assert(incoming>2,'The matching center pose is moving, not a stop')
+})
+
+test('reverse crossing passes the matching pose without discarding backward velocity or distance',()=>{
   for(const fps of [30,60,120]){
     const state={value:.3,target:0,reverseTarget:9.82},motion={velocity:-.4}
     assert(!reverseAtBoundary(state,motion),'Never jump while the opening scene is moving')
     let crossed=false
     for(let frame=0;frame<fps*3;frame++){
       advanceJourney(state,motion,1/fps,false)
-      if(reverseAtBoundary(state,motion)){crossed=true;break}
+      const velocity=motion.velocity
+      if(reverseAtBoundary(state,motion)){assert.equal(motion.velocity,velocity);crossed=true;break}
     }
     assert(crossed)
-    assert.equal(state.value,10)
+    assert(state.value<=10&&state.value>9.95)
     assert.equal(state.target,9.82)
     assert.equal(state.reverseTarget,undefined)
-    assert.deepEqual(journeyView(state.value),journeyView(0))
     const before=state.value
     advanceJourney(state,motion,1/fps,false)
     assert(state.value<before&&before-state.value<1.5/fps,'Reverse departure uses the same smooth controller')

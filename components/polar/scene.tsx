@@ -17,8 +17,8 @@ import { Assembly, progress, smooth } from './assembly'
 import { Crystal } from './crystal'
 import { Rings } from './rings'
 import { ringJourney } from './ring-journey'
-import { advanceJourney, loopSettled, reverseAtBoundary } from './journey-motion'
-import { ease, range, returnProgress, returnChoreography, journeyView, crystalJourney, CRYSTAL_KINDS, JOURNEY_END, type Journey } from './journey'
+import { advanceJourney, forwardAtBoundary, reverseAtBoundary } from './journey-motion'
+import { ease, range, returnProgress, returnChoreography, landscapeTravel, journeyView, crystalJourney, CRYSTAL_KINDS, JOURNEY_END, type Journey } from './journey'
 
 type Motion = { fast: number; slow: number }
 const radians = (degrees: number) => degrees * Math.PI / 180
@@ -312,10 +312,10 @@ function World({ assets, onReady, reduced, journey }: { assets: PolarAssets; onR
   useFrame((_, frameDelta) => {
     const delta = Math.min(frameDelta, .25), mobile = size.width < 700
     const p = journey.current.value
-    lift.value=p>8.6&&!reduced?-2.15*(1-returnChoreography(p).arrival):0
+    lift.value=reduced?0:landscapeTravel(p)
     if (landscape.current) {
       landscape.current.visible = p < .94 || p > 8.6 || gl.domElement.closest('#app')?.getAttribute('data-crystal-ready') !== 'true'
-      landscape.current.position.y = reduced || p>8.6 ? 0 : journeyView(p).lift * 8
+      landscape.current.position.y = 0
     }
     const distance = mobile ? 1.65 : 1
     // Reference: ±pi/2 pointer mapping, .07/.025 angular gain and .035/frame easing.
@@ -430,9 +430,9 @@ function JourneyMotion({ journey, reduced }: { journey: React.RefObject<Journey>
     }
     // Both ends render the same assembled hero. Rebase only at the matching
     // pose, retaining free native scrolling in either direction.
-    if(loopSettled(state,motion.current)){
-      state.value=state.target=0;motion.current.velocity=0;laps.current++
-      window.dispatchEvent(new Event('portfolio:journey-wrapped'))
+    if(forwardAtBoundary(state,motion.current)){
+      laps.current++
+      window.dispatchEvent(new CustomEvent('portfolio:journey-wrapped',{detail:state.target}))
     }
     const app = overlay.current ||= gl.domElement.closest('#app') as HTMLElement | null
     if (!app) return
