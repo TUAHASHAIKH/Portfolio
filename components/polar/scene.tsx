@@ -444,8 +444,9 @@ function JourneyMotion({ journey, reduced }: { journey: React.RefObject<Journey>
     app.dataset.journeyLoops=String(laps.current)
     const shards = crystalJourney(state.value)
     const contact=ringJourney(state.value).contact
-    app.style.setProperty('--contact-opacity',contact.toFixed(4))
-    app.dataset.contactInteractive=String(contact>.05)
+    const contactOpacity=contact.toFixed(4),contactInteractive=String(contact>.05)
+    if(app.style.getPropertyValue('--contact-opacity')!==contactOpacity)app.style.setProperty('--contact-opacity',contactOpacity)
+    if(app.dataset.contactInteractive!==contactInteractive)app.dataset.contactInteractive=contactInteractive
     if (app.style.getPropertyValue('--hero-opacity') !== hero) app.style.setProperty('--hero-opacity', hero)
     if (app.style.getPropertyValue('--crystal-opacity') !== crystal) app.style.setProperty('--crystal-opacity', crystal)
     for (const kind of CRYSTAL_KINDS) {

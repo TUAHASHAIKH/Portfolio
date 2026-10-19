@@ -22,7 +22,7 @@ const returnUp = [0,0,.358,0,.336,.209,.442,.519,.59,.952,.768,.918,1,1]
 const powerInOut = (t: number, power: number) => t < .5 ? Math.pow(t*2,power)*.5 : 1-Math.pow((1-t)*2,power)*.5
 const pulse = (time: number, start: number, peak: number, end: number) => time<peak ? Math.pow(range(time,start,peak),2) : Math.pow(1-range(time,peak,end),2)
 
-export function ringJourney(value: number) {
+function calculateRingJourney(value: number) {
   // Keep the existing passage's timing, then continue the same camera path
   // down to eye level in the contact chamber.
   const returning = returnChoreography(value)
@@ -50,4 +50,13 @@ export function ringJourney(value: number) {
     returning: ease(range(value,8.6,9.8)),
     departure: returning.departure,
   }
+}
+
+// Several scene layers read the same playhead each frame. Share its immutable
+// pose instead of solving the same Bezier curves for each consumer.
+let previousValue=NaN
+let previousPose: ReturnType<typeof calculateRingJourney>
+export function ringJourney(value:number) {
+  if(value!==previousValue){previousPose=calculateRingJourney(value);previousValue=value}
+  return previousPose
 }
