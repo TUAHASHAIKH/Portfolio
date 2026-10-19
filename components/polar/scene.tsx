@@ -10,7 +10,7 @@ import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js'
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js'
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js'
 import { loadPolarAssets, type PolarAssets } from './assets'
-import { makeIceMaterial, makeTerrainMaterial, surfaceVertex } from './materials'
+import { liftLandscape, makeIceMaterial, makeTerrainMaterial, surfaceVertex } from './materials'
 import { Measurements } from './measurements'
 import { Wind, ForegroundWind } from './wind'
 import { Assembly, progress, smooth } from './assembly'
@@ -160,12 +160,8 @@ function PostProcessing({ assets, journey, reduced }: { assets: PolarAssets; jou
   return null
 }
 
-function Ice({ assets, cursor, engaged, reduced, intro, journey }: { assets: PolarAssets; cursor: THREE.Vector3; engaged: React.RefObject<boolean>; reduced: boolean; intro: React.RefObject<number>; journey: React.RefObject<Journey> }) {
-  const {camera}=useThree()
-  const group=useRef<THREE.Group>(null)
+function Ice({ assets, cursor, engaged, reduced, intro, journey, lift }: { assets: PolarAssets; cursor: THREE.Vector3; engaged: React.RefObject<boolean>; reduced: boolean; intro: React.RefObject<number>; journey: React.RefObject<Journey>; lift: { value: number } }) {
   const idle=useRef(0)
-  const cleared=useRef(-1)
-  const rise=useMemo(()=>new THREE.Vector3(),[])
   const outline=useRef<THREE.MeshBasicMaterial>(null)
   const meshes = useRef<(THREE.Mesh | null)[]>([])
   const resources = useMemo(() => assets.pieces.map(piece => {
@@ -181,9 +177,6 @@ function Ice({ assets, cursor, engaged, reduced, intro, journey }: { assets: Pol
     const returning=returnChoreography(p)
     const hero=p>8.6?returnProgress(p):1-ease(range(p,.03,.65))
     const arrival=ease(range(intro.current,1.7,3.3))
-    const height=2*Math.tan((camera as THREE.PerspectiveCamera).fov*Math.PI/360)*camera.position.length()
-    rise.set(0,1,0).applyQuaternion(camera.quaternion).multiplyScalar(p>8.6&&!reduced?-(1-returning.arrival)*height*.72:0)
-    if(group.current)group.current.position.copy(rise)
     if(outline.current)outline.current.opacity=p>8.6&&!reduced?returning.scatter*returning.arrival*.32:0
     resources.forEach((piece, index) => {
       const mesh = meshes.current[index]
@@ -212,17 +205,15 @@ function Ice({ assets, cursor, engaged, reduced, intro, journey }: { assets: Pol
       )
       piece.material.uniforms.materialize.value = reduced ? 1 : smooth(progress(intro.current, 1.1, 2.25))
       piece.material.uniforms.separation.value = amount
-      piece.point.copy(mesh.position).add(rise)
+      piece.point.copy(mesh.position)
     })
   })
-  return <group ref={group} name="living-igloo">
+  return <group name="living-igloo">
     <mesh geometry={assets.introOutline} renderOrder={5} raycast={()=>{}}>
       <meshBasicMaterial ref={outline} transparent opacity={0} color="#dceaff" depthWrite={false} blending={THREE.AdditiveBlending} />
     </mesh>
-    {resources.map((piece, index) => <mesh key={index} ref={mesh => { meshes.current[index] = mesh }} geometry={piece.geometry} material={piece.material} position={piece.center} renderOrder={4} onBeforeRender={renderer=>{
-      if(journey.current.value>8.6&&journey.current.value<9.8&&cleared.current!==renderer.info.render.frame){renderer.state.buffers.depth.setMask(true);renderer.clearDepth();cleared.current=renderer.info.render.frame}
-    }} />)}
-    <Measurements pieces={resources} cursor={cursor} reduced={reduced} />
+    {resources.map((piece, index) => <mesh key={index} ref={mesh => { meshes.current[index] = mesh }} geometry={piece.geometry} material={piece.material} position={piece.center} renderOrder={4} />)}
+    <Measurements pieces={resources} cursor={cursor} reduced={reduced} lift={lift} />
   </group>
 }
 
@@ -230,6 +221,8 @@ function World({ assets, onReady, reduced, journey }: { assets: PolarAssets; onR
   const { gl, camera, size } = useThree()
   const pointer = useMemo(() => new THREE.Vector2(), [])
   const landscape = useRef<THREE.Group>(null)
+  const lift = useMemo(()=>({ value: 0 }),[])
+  const rayPointer = useMemo(()=>new THREE.Vector2(),[])
   const retreat = useMemo(() => new THREE.Vector3(), [])
   const orbit = useRef({ yaw: 0, pitch: 0 })
   const cameraTarget = useMemo(() => new THREE.Vector3(0, 1.6, 0), [])
@@ -249,7 +242,7 @@ function World({ assets, onReady, reduced, journey }: { assets: PolarAssets; onR
   const normal = useMemo(() => new THREE.Vector3(), [])
   const ray = useMemo(() => new THREE.Raycaster(), [])
   const surfaces = useMemo(() => ({
-    ground: makeTerrainMaterial(assets.groundMap, { glow: assets.glow, wind: assets.wind, cleanSurface: assets.terrainMap }),
+    ground: makeTerrainMaterial(assets.groundMap, { glow: assets.glow, wind: assets.wind }),
     mountain: makeTerrainMaterial(assets.mountainMap, { mountain: true }),
     terrain: makeTerrainMaterial(assets.terrainMap, { wind: assets.wind }),
     patch: makeTerrainMaterial(assets.terrainMap, { patch: true, wind: assets.wind }),
@@ -281,6 +274,21 @@ function World({ assets, onReady, reduced, journey }: { assets: PolarAssets; onR
       fragmentShader: 'uniform vec2 resolution;void main(){vec2 uv=gl_FragCoord.xy/resolution;float t=pow((uv.x+uv.y)*.5,2.);gl_FragColor=vec4(mix(vec3(.4287,.4678,.5711),vec3(.6376,.6724,.7682),t),1.);}',
     }),
   }), [assets])
+  useEffect(()=>{
+    const seen=new Set<THREE.Material>()
+    landscape.current?.traverse(object=>{
+      const mesh=object as THREE.Mesh
+      if(!mesh.material||object.name==='landscape-sky')return
+      // GPU displacement must not be culled using the unshifted CPU bounds.
+      mesh.frustumCulled=false
+      for(const material of Array.isArray(mesh.material)?mesh.material:[mesh.material]){
+        if(seen.has(material))continue
+        seen.add(material)
+        liftLandscape(material,lift)
+        material.needsUpdate=true
+      }
+    })
+  },[assets,lift,surfaces])
   useEffect(() => {
     const move = (event: Event) => {
       const { clientX, clientY } = event as PointerEvent
@@ -303,6 +311,7 @@ function World({ assets, onReady, reduced, journey }: { assets: PolarAssets; onR
   useFrame((_, frameDelta) => {
     const delta = Math.min(frameDelta, .25), mobile = size.width < 700
     const p = journey.current.value
+    lift.value=p>8.6&&!reduced?-2.15*(1-returnChoreography(p).arrival):0
     if (landscape.current) {
       landscape.current.visible = p < .94 || p > 8.6 || gl.domElement.closest('#app')?.getAttribute('data-crystal-ready') !== 'true'
       landscape.current.position.y = reduced || p>8.6 ? 0 : journeyView(p).lift * 8
@@ -334,7 +343,8 @@ function World({ assets, onReady, reduced, journey }: { assets: PolarAssets; onR
     camera.getWorldDirection(normal)
     target.copy(camera.position).addScaledVector(normal, mobile ? 31.8 : 19.25)
     plane.setFromNormalAndCoplanarPoint(normal, target)
-    ray.setFromCamera(pointer, camera)
+    rayPointer.copy(pointer);rayPointer.y-=lift.value
+    ray.setFromCamera(rayPointer, camera)
     ray.ray.intersectPlane(plane, target)
     cursor.lerp(target, 1 - Math.exp(-pointerResponse * delta))
     const dpr = gl.getPixelRatio()
@@ -344,12 +354,11 @@ function World({ assets, onReady, reduced, journey }: { assets: PolarAssets; onR
       if (material.uniforms.time) material.uniforms.time.value = windTime.current
     }
     surfaces.ground.uniforms.cursor.value.copy(cursor)
-    surfaces.ground.uniforms.returnCover.value=p>8.6?1-ease(range(returnProgress(p),.8,1)):0
     surfaces.ground.uniforms.groundLight.value = THREE.MathUtils.damp(surfaces.ground.uniforms.groundLight.value, engaged.current && !reduced ? .8 : .1, 1.4, delta)
-  })
+  },-1)
   return <>
     <group ref={landscape} name="polar-landscape">
-    <mesh material={surfaces.sky} renderOrder={-10}><sphereGeometry args={[700, 12, 12]} /></mesh>
+    <mesh name="landscape-sky" material={surfaces.sky} renderOrder={-10}><sphereGeometry args={[700, 12, 12]} /></mesh>
     {mountains.map((item, index) => <mesh key={`mountain-${index}`} geometry={assets.mountain} material={surfaces.mountain} position={tuple(item.position)} scale={tuple(item.scale)} rotation={tuple(item.rotation.map(radians))} renderOrder={0} />)}
     {terrain.map((item, index) => <mesh key={`terrain-${index}`} geometry={assets.ground} material={surfaces.terrain} position={tuple(item.position)} scale={tuple(item.scale)} rotation={tuple(item.rotation.map(radians))} renderOrder={1} />)}
     <mesh geometry={assets.patch} material={surfaces.patch} position={[-9.34,-1.77,6.96]} scale={7} renderOrder={0} />
@@ -357,7 +366,7 @@ function World({ assets, onReady, reduced, journey }: { assets: PolarAssets; onR
     <mesh geometry={assets.ground} material={surfaces.ground} renderOrder={2} />
     <mesh material={surfaces.haze} position={[-5,1.25,-10]} renderOrder={3}><planeGeometry args={[20,5]} /></mesh>
     <mesh material={surfaces.haze} position={[13.45,3,-4]} rotation={[0,radians(-10),0]} renderOrder={3}><planeGeometry args={[20,5]} /></mesh>
-    <Ice assets={assets} cursor={cursor} engaged={engaged} reduced={reduced} intro={introTime} journey={journey} />
+    <Ice assets={assets} cursor={cursor} engaged={engaged} reduced={reduced} intro={introTime} journey={journey} lift={lift} />
     {!reduced && assembling && <Assembly assets={assets} time={introTime} />}
     {!reduced && <Wind />}
     {!reduced && <ForegroundWind noise={assets.wind} intro={introTime} />}

@@ -8,7 +8,7 @@ import * as THREE from 'three'
 type Piece = { center: THREE.Vector3; point: THREE.Vector3; motion: { slow: number } }
 type Node = { id: number; progress: number; leaving: boolean; x: number; y: number }
 
-export function Measurements({ pieces, cursor, reduced }: { pieces: Piece[]; cursor: THREE.Vector3; reduced: boolean }) {
+export function Measurements({ pieces, cursor, reduced, lift }: { pieces: Piece[]; cursor: THREE.Vector3; reduced: boolean; lift?: { value: number } }) {
   const { camera, size } = useThree()
   const svg = useRef<SVGSVGElement>(null)
   const groups = useRef<(SVGGElement | null)[]>([])
@@ -75,7 +75,7 @@ export function Measurements({ pieces, cursor, reduced }: { pieces: Piece[]; cur
       const piece = pieces[node.id]
       scratch.point.copy(piece.center).normalize().multiplyScalar(.2).add(piece.point).project(camera)
       node.x = (scratch.point.x * .5 + .5) * size.width
-      node.y = (-scratch.point.y * .5 + .5) * size.height
+      node.y = (-(scratch.point.y+(lift?.value||0)) * .5 + .5) * size.height
       group.setAttribute('transform', `translate(${node.x} ${node.y}) scale(${node.progress})`)
       group.setAttribute('opacity', String(node.progress))
       group.dataset.piece = String(node.id)

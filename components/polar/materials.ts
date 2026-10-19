@@ -1,6 +1,29 @@
 import * as THREE from 'three'
 import type { PolarAssets } from './assets'
 
+// One clip-space displacement moves near ice and distant mountains together.
+// Moving only world-space Y leaves the horizon behind because of perspective.
+export function liftLandscape<T extends THREE.Material>(material: T, lift: { value: number }): T {
+  if(material.userData.landscapeLift===lift)return material
+  material.userData.landscapeLift=lift
+  const transform = (vertex: string) => `uniform float landscapeLift;\n${vertex}`.replace(
+    /gl_Position\s*=\s*[^;]+;/g, '$& gl_Position.y += landscapeLift * gl_Position.w;',
+  )
+  if (material instanceof THREE.ShaderMaterial) {
+    material.uniforms.landscapeLift = lift
+    material.vertexShader = transform(material.vertexShader)
+  } else {
+    material.onBeforeCompile = shader => {
+      shader.uniforms.landscapeLift = lift
+      shader.vertexShader = `uniform float landscapeLift;\n${shader.vertexShader}`.replace(
+        '#include <project_vertex>', '#include <project_vertex>\ngl_Position.y += landscapeLift * gl_Position.w;',
+      )
+    }
+    material.customProgramCacheKey = () => 'landscape-lift-v1'
+  }
+  return material
+}
+
 export const surfaceVertex = `
   varying vec2 surfaceUv;
   varying vec3 localPoint;
@@ -16,22 +39,20 @@ export const surfaceVertex = `
   }
 `
 
-export function makeTerrainMaterial(map: THREE.Texture, options: { mountain?: boolean; patch?: boolean; glow?: THREE.Texture; wind?: THREE.Texture; cleanSurface?: THREE.Texture } = {}) {
+export function makeTerrainMaterial(map: THREE.Texture, options: { mountain?: boolean; patch?: boolean; glow?: THREE.Texture; wind?: THREE.Texture } = {}) {
   return new THREE.ShaderMaterial({
     transparent: true,
     depthWrite: true,
-    uniforms: { reveal: { value: 1 }, returnCover: { value: 0 }, surface: { value: map }, cleanSurface: { value: options.cleanSurface || map }, glow: { value: options.glow || map }, windTexture: { value: options.wind || map }, time: { value: 0 }, groundLight: { value: 0 }, cursor: { value: new THREE.Vector3(0, -10, 0) }, resolution: { value: new THREE.Vector2(1440, 900) } },
+    uniforms: { reveal: { value: 1 }, surface: { value: map }, glow: { value: options.glow || map }, windTexture: { value: options.wind || map }, time: { value: 0 }, groundLight: { value: 0 }, cursor: { value: new THREE.Vector3(0, -10, 0) }, resolution: { value: new THREE.Vector2(1440, 900) } },
     defines: { MOUNTAIN: options.mountain ? 1 : 0, PATCH: options.patch ? 1 : 0, GROUND_GLOW: options.glow ? 1 : 0, GROUND_WIND: options.wind ? 1 : 0 },
     vertexShader: surfaceVertex,
     fragmentShader: `
       uniform float reveal;
       uniform sampler2D surface;
-      uniform sampler2D cleanSurface;
       uniform sampler2D glow;
       uniform sampler2D windTexture;
       uniform float time;
       uniform float groundLight;
-      uniform float returnCover;
       uniform vec3 cursor;
       uniform vec2 resolution;
       varying vec2 surfaceUv;
@@ -40,7 +61,6 @@ export function makeTerrainMaterial(map: THREE.Texture, options: { mountain?: bo
       varying float viewDepth;
       void main() {
         vec3 color = texture2D(surface, surfaceUv).rgb;
-        color = mix(color, texture2D(cleanSurface, surfaceUv).rgb, returnCover);
         // Unpainted atlas padding must reveal the snowy underlay, not black polygons.
         float painted = smoothstep(.002, .02, max(color.r, max(color.g, color.b)));
         float radius = length(localPoint.xz);
@@ -59,7 +79,7 @@ export function makeTerrainMaterial(map: THREE.Texture, options: { mountain?: bo
         #if GROUND_GLOW == 1
           alpha = 1. - smoothstep(.8, 1., radius * .1085);
           float nearCursor = 1. - smoothstep(0., 5., distance(cursor.xz, worldPoint.xz));
-          color += texture2D(glow, surfaceUv).rgb * color.r * (.25 + groundLight * .7) * (1.-returnCover);
+          color += texture2D(glow, surfaceUv).rgb * color.r * (.25 + groundLight * .7);
           color += nearCursor * groundLight * vec3(.12,.17,.22) * color.r;
         #endif
         #if GROUND_WIND == 1
