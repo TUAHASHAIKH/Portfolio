@@ -185,7 +185,7 @@ export function PolarExperience() {
     <aside className="intro" aria-label="About Tuaha">
       <p className="index">////// Tuaha Shaikh</p>
       <p>Software engineer<br />exploring the space<br />between thoughtful<br />design and intelligent<br />systems. From an idea<br />to something real.</p>
-      <nav aria-label="Social links"><a href="https://github.com/TUAHASHAIKH" target="_blank" rel="noreferrer">GitHub ↗</a><a href="https://www.linkedin.com/in/tuaha-shaikh-b7122526a" target="_blank" rel="noreferrer">LinkedIn ↗</a></nav>
+      <nav aria-label="Social links"><a href="https://github.com/TUAHASHAIKH" target="_blank" rel="noreferrer">GitHub ↗</a><a href="https://www.linkedin.com/in/muhammad-tuaha-shaikh" target="_blank" rel="noreferrer">LinkedIn ↗</a><a href="mailto:tuaha486@gmail.com">Email ↗</a></nav>
     </aside>
     <footer className="bottom-bar">
       <button className="sound-toggle" onClick={toggleSound} aria-pressed={sound} disabled={!audioReady} aria-label={sound ? 'Mute ambient wind' : 'Play ambient wind'}>

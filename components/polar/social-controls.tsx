@@ -29,5 +29,6 @@ export function SocialControls(){
       <a className="social-current" href={SOCIAL_LINKS[selected].href} target="_blank" rel="noopener noreferrer" aria-label={`Open Tuaha's ${SOCIAL_LINKS[selected].name}`}><span aria-live="polite">{SOCIAL_LINKS[selected].name}</span><i aria-hidden="true" /></a>
       <button className="social-neighbor" onClick={()=>select(current.current+1)} aria-label={`Show ${SOCIAL_LINKS[socialIndex(selected+1)].name}`}>{SOCIAL_LINKS[socialIndex(selected+1)].name}</button>
     </nav>
+    <a className="social-email" href="mailto:tuaha486@gmail.com">tuaha486@gmail.com</a>
   </section>
 }

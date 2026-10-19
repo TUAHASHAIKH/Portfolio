@@ -27,7 +27,7 @@ export function Hero() {
         </a>
         
         <a 
-          href="https://www.linkedin.com/in/tuaha-shaikh-b7122526a" 
+          href="https://www.linkedin.com/in/muhammad-tuaha-shaikh"
           target="_blank" 
           rel="noopener noreferrer"
           className="text-foreground/60 hover:text-accent transition-colors"

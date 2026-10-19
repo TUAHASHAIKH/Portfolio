@@ -1,6 +1,6 @@
 export const SOCIAL_LINKS = [
   { name:'GitHub', href:'https://github.com/TUAHASHAIKH' },
-  { name:'LinkedIn', href:'https://www.linkedin.com/in/tuaha-shaikh-b7122526a' },
+  { name:'LinkedIn', href:'https://www.linkedin.com/in/muhammad-tuaha-shaikh' },
   { name:'WhatsApp', href:'https://wa.me/923116102857' },
 ] as const
 

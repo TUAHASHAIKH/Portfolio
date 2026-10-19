@@ -59,7 +59,7 @@ export function CrystalReadout({ kind = 'skills' }: { kind?: CrystalKind }) {
       {kind==='about' ? <>
         <p>I’m Tuaha Shaikh, a software engineer exploring the space between thoughtful design and intelligent systems.</p>
         <p>I build full stack applications and experiment with AI, turning ideas into working software.</p>
-        <p><a href="https://github.com/TUAHASHAIKH" target="_blank" rel="noreferrer">GITHUB ↗</a> / <a href="https://www.linkedin.com/in/tuaha-shaikh-b7122526a" target="_blank" rel="noreferrer">LINKEDIN ↗</a></p>
+        <p><a href="https://github.com/TUAHASHAIKH" target="_blank" rel="noreferrer">GITHUB ↗</a> / <a href="https://www.linkedin.com/in/muhammad-tuaha-shaikh" target="_blank" rel="noreferrer">LINKEDIN ↗</a> / <a href="mailto:tuaha486@gmail.com">EMAIL ↗</a></p>
       </> : projects ? <><p>Explore my repositories, experiments, and work in progress.</p><a href="https://github.com/TUAHASHAIKH?tab=repositories" target="_blank" rel="noreferrer">VIEW PROJECTS ON GITHUB ↗</a></> : <dl>
         <dt>Languages</dt><dd>C / C++ / Java / Python / PHP / JavaScript</dd>
         <dt>Web</dt><dd>React / Node.js / Express / Django / HTML / CSS</dd>
