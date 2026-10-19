@@ -7,7 +7,6 @@ import { crystalCenter, isCrystalKind, JOURNEY_END, type Journey } from './journ
 import { CrystalReadout } from './crystal-readout'
 import { SocialControls } from './social-controls'
 import { scrollToJourney, journeyToScroll } from './scroll-path'
-import { LoopGesture } from './journey-motion'
 
 const App3D = dynamic(() => import('./scene'), { ssr: false })
 
@@ -38,16 +37,6 @@ export function PolarExperience() {
     let intentUntil = 0
     const pointer={x:0,y:0},scrollPointer={x:0,y:0}
     const point=(event:PointerEvent)=>{pointer.x=event.clientX;pointer.y=event.clientY}
-    const loopGesture=new LoopGesture()
-    const detachTail=()=>{
-      window.removeEventListener('wheel',tail,true)
-      window.removeEventListener('touchmove',tail,true)
-    }
-    const tail=(event:WheelEvent|TouchEvent)=>{
-      const direction='deltaY'in event?Math.sign(event.deltaY):0
-      if(loopGesture.input(performance.now(),direction)){event.preventDefault();event.stopImmediatePropagation();return}
-      detachTail()
-    }
     // Scroll events only sample position; layout is measured when the track resizes.
     const update = () => {
       journey.current.target = scrollToJourney(JOURNEY_END * Math.min(1, Math.max(0, window.scrollY / distance)))
@@ -73,32 +62,24 @@ export function PolarExperience() {
     const wheel=(event:WheelEvent)=>{
       if(event.ctrlKey||document.querySelector('dialog[open]'))return
       cancelCenter()
-      loopGesture.input(performance.now(),Math.sign(event.deltaY))
       if(event.deltaY<0)reverseLoop(-event.deltaY*(event.deltaMode===1?16:event.deltaMode===2?window.innerHeight:1))
       else if(event.deltaY>0)delete journey.current.reverseTarget
     }
     let touchStart=0
-    const touch=(event:TouchEvent)=>{detachTail();loopGesture.reset();cancelCenter();touchStart=event.touches[0]?.clientY||0}
+    const touch=(event:TouchEvent)=>{cancelCenter();touchStart=event.touches[0]?.clientY||0}
     const drag=(event:TouchEvent)=>{
       const next=event.touches[0]?.clientY||0,delta=next-touchStart
-      loopGesture.input(performance.now(),-Math.sign(delta))
       if(delta>0)reverseLoop(delta)
       else if(delta<0)delete journey.current.reverseTarget
       touchStart=next
     }
     const wrapped=()=>{
-      detachTail()
-      // Normal scrolling stays passive. Only the finishing gesture needs a
-      // temporary cancelable listener, removed on the next gesture.
-      if(loopGesture.wrap(performance.now())){
-        window.addEventListener('wheel',tail,{capture:true,passive:false})
-        window.addEventListener('touchmove',tail,{capture:true,passive:false})
-      }
+      // Keep native input flowing into the next lap. The bounded scene spring
+      // controls speed; a wheel-event guard must never hold the hero in place.
       cancelCenter();window.scrollTo({top:0,behavior:'instant'})
     }
     const navigationKey = (event: KeyboardEvent) => {
       if(event.defaultPrevented)return
-      detachTail();loopGesture.reset()
       if (['ArrowUp','ArrowDown','PageUp','PageDown','Home','End',' '].includes(event.key)) cancelCenter()
       if(['ArrowUp','PageUp'].includes(event.key)||(event.key===' '&&event.shiftKey))reverseLoop(event.key==='ArrowUp'?40:window.innerHeight*.9)
     }
@@ -135,7 +116,7 @@ export function PolarExperience() {
     window.addEventListener('pointermove',point,{capture:true,passive:true})
     window.addEventListener('keydown',navigationKey)
     return () => {
-      detachTail();cancelCenter();observer.disconnect()
+      cancelCenter();observer.disconnect()
       window.removeEventListener('scroll',update);window.removeEventListener('resize',measure)
       window.removeEventListener('portfolio:center-crystal',centerCrystal)
       window.removeEventListener('wheel',wheel);window.removeEventListener('touchstart',touch)

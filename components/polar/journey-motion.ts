@@ -32,20 +32,3 @@ export function reverseAtBoundary(state:Journey,motion:JourneyMotion) {
   motion.velocity=0
   return true
 }
-
-// A trackpad's remaining momentum belongs to the lap it started in. Release
-// on the next gesture, so that tail cannot immediately scroll past the hero.
-export class LoopGesture {
-  private holding=false
-  private lastInput=-Infinity
-  private direction=0
-  input(now:number,direction=1){
-    const blocked=this.holding&&now-this.lastInput<180&&(direction===0||direction===this.direction)
-    this.lastInput=now
-    if(direction)this.direction=direction
-    if(!blocked)this.holding=false
-    return blocked
-  }
-  wrap(now:number){this.holding=now-this.lastInput<180;return this.holding}
-  reset(){this.holding=false}
-}

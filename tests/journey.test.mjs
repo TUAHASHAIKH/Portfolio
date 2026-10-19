@@ -19,7 +19,7 @@ const scrollCode=ts.transpileModule(scrollSource,{compilerOptions:{module:ts.Mod
 const {scrollToJourney,journeyToScroll}=await import(`data:text/javascript;base64,${Buffer.from(scrollCode).toString('base64')}`)
 const motionSource=await readFile(new URL('../components/polar/journey-motion.ts',import.meta.url),'utf8')
 const motionCode=ts.transpileModule(motionSource,{compilerOptions:{module:ts.ModuleKind.ESNext}}).outputText.replace("'./journey'",JSON.stringify(journeyUrl))
-const {advanceJourney,loopSettled,reverseAtBoundary,LoopGesture}=await import(`data:text/javascript;base64,${Buffer.from(motionCode).toString('base64')}`)
+const {advanceJourney,loopSettled,reverseAtBoundary}=await import(`data:text/javascript;base64,${Buffer.from(motionCode).toString('base64')}`)
 
 test('reverse crossing waits for the matching pose and retains the requested backward distance',()=>{
   for(const fps of [30,60,120]){
@@ -39,9 +39,6 @@ test('reverse crossing waits for the matching pose and retains the requested bac
     advanceJourney(state,motion,1/fps,false)
     assert(state.value<before&&before-state.value<1.5/fps,'Reverse departure uses the same smooth controller')
   }
-  const gesture=new LoopGesture()
-  gesture.input(0,1);gesture.wrap(20)
-  assert(!gesture.input(40,-1),'An immediate reversal must release the forward momentum guard')
 })
 
 test('the first crystal uses the same entry pose as the other crystals below the center',()=>{
@@ -70,14 +67,15 @@ test('large input bursts traverse continuously at matching speeds across frame r
   assert(Math.max(...endings)-Math.min(...endings)<1e-9)
 })
 
-test('the old wheel tail cannot start another lap, and a fresh gesture releases immediately',()=>{
-  const gesture=new LoopGesture()
-  assert(!gesture.input(0))
-  gesture.wrap(20)
-  for(let time=40;time<400;time+=40)assert(gesture.input(time))
-  assert(!gesture.input(600),'A distinct next gesture can leave the igloo')
-  gesture.wrap(620);gesture.reset()
-  assert(!gesture.input(640),'A new touch or keyboard gesture is never trapped')
+test('continued input after wrapping immediately advances the next lap at a bounded speed',()=>{
+  const next={value:0,target:0},nextMotion={velocity:0}
+  for(let tick=0;tick<60;tick++){
+    next.target+=.01
+    const previous=next.value
+    advanceJourney(next,nextMotion,1/60,false)
+    assert(next.value>previous,'No cursor movement or new gesture is required')
+    assert(next.value-previous<=1.5/60,'Continued input cannot teleport past the hero')
+  }
   const state={value:9.9,target:10},motion={velocity:1}
   assert(!loopSettled(state,motion),'Matching scenery alone does not justify dropping camera velocity')
   advanceJourney(state,motion,1/60,true)
