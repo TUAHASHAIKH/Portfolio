@@ -41,10 +41,11 @@ function CrystalView({ assets, noise, journey, reduced }: { assets: CrystalAsset
     if (!interactive(index)) return
     event.stopPropagation()
     const state=interactions[index].current
+    const entering=!state.active
     if (event.uv1 && event.object === iceMeshes[index].current) state.uv.copy(event.uv1)
     state.active = true
     gl.domElement.style.cursor = 'pointer'
-    center(index)
+    if(entering)center(index)
   }
   const leave = (index: number) => { interactions[index].current.active = false; gl.domElement.style.cursor = '' }
   const explore = (index: number, event: ThreeEvent<MouseEvent>) => {

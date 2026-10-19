@@ -36,7 +36,20 @@ export function useCrystalFrost(assets: CrystalAssets, interaction: RefObject<Cr
     gl.setClearColor(0,0)
     for(const target of [simulation.first,simulation.second]){gl.setRenderTarget(target);gl.clear()}
     gl.setRenderTarget(previous);gl.setClearColor(clear,alpha)
-    return () => { simulation.first.dispose();simulation.second.dispose();simulation.material.dispose();simulation.quad.dispose() }
+    // Compile and upload the feedback pass during loading. Previously its first
+    // draw happened under the cursor on the first crystal, stalling that frame.
+    const scene=new THREE.Scene(),camera=new THREE.OrthographicCamera(-1,1,1,-1,0,1)
+    const geometry=new THREE.PlaneGeometry(2,2)
+    const target=new THREE.WebGLRenderTarget(1,1,{type:THREE.HalfFloatType,depthBuffer:false})
+    scene.add(new THREE.Mesh(geometry,simulation.material))
+    let cancelled=false
+    void gl.compileAsync(scene,camera).then(()=>{
+      if(cancelled)return
+      const saved=gl.getRenderTarget()
+      try{gl.setRenderTarget(target);simulation.quad.render(gl)}
+      finally{gl.setRenderTarget(saved);geometry.dispose();target.dispose()}
+    }).catch(error=>{if(!cancelled)console.error('Crystal hover preparation:',error)})
+    return () => { cancelled=true;geometry.dispose();target.dispose();simulation.first.dispose();simulation.second.dispose();simulation.material.dispose();simulation.quad.dispose() }
   }, [gl,simulation])
   useFrame((_,delta) => {
     const state=interaction.current, movement=motion.current
