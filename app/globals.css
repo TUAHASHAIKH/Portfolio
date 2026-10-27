@@ -19,11 +19,13 @@ html{--bgColor:#a0a5b1;--default-font:'IBM Plex Mono','Courier New',monospace;ba
 #volume-booster-visusalizer,#volume-booster-visualizer,[id^=volume-booster]{display:none!important;visibility:hidden!important;pointer-events:none!important}
 .intro nav{display:none}.vignette{background:radial-gradient(ellipse at 78% 25%,transparent 35%,#25273312 100%)}
 
-/* The reference name is an outlined logo; keep the personalized lettering font-independent. */
-.identity h1{width:clamp(155px,10.8vw,244px);font-size:inherit;line-height:0;letter-spacing:0;margin-bottom:18px}
+/* Shared viewport coordinates keep the logo stationary across native dialogs. */
+html{--brand-top:6.7dvh;--brand-left:3.4vw;--brand-width:clamp(155px,10.8vw,244px)}
+.identity{top:var(--brand-top);left:var(--brand-left)}
+.identity h1{width:var(--brand-width);font-size:inherit;line-height:0;letter-spacing:0;margin-bottom:18px}
 .wordmark-image{display:block;width:100%;height:auto;filter:drop-shadow(0 0 1px #ffffff80);user-select:none}
 .specialties,.intro,.sound-toggle{font-weight:500;text-shadow:0 0 1px #ffffff65}
-@media(max-width:640px){.identity h1{width:155px;margin-bottom:15px}}
+@media(max-width:640px){html{--brand-top:5dvh;--brand-left:6vw;--brand-width:155px}.identity h1{margin-bottom:15px}}
 
 .wordmark-trigger{display:block;position:relative;width:100%;padding:0;border:0;background:transparent;line-height:0;cursor:pointer;pointer-events:auto}
 .wordmark-layers{display:block;position:relative;isolation:isolate}
