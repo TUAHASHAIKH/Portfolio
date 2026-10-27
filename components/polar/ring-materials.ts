@@ -102,18 +102,29 @@ export function makeRingMaterials(assets: RingAssets, wind: THREE.Texture) {
       pos=mix(pos,simulated.xyz,simulationMix);
       pos+=shapeNormal*sin(time+seed*30.)*.0015;
       pos+=shapeNormal*forming*.018*sin(seed*94.+time*.7);
-      light=pow(clamp(dot(shapeNormal,normalize(vec3(-.75,1.,-.1)))*.5+.5,0.,1.),1.5);
+      float diffuse=dot(shapeNormal,normalize(vec3(-.75,1.,-.1)));
+      light=max(0.,(diffuse+.25)/1.25)+max(0.,-diffuse)*.1;
       vec4 mv=modelViewMatrix*vec4(pos,1.);gl_Position=projectionMatrix*mv;
       gl_PointSize=clamp(mix(5.,8.,socialView)/length(mv.xyz)*(resolution.y/1300.),.75,6.*pixelRatio);
     }`,`${common}
-    uniform float glow;uniform float reveal;varying float light;varying float seed;varying float energy;
+    uniform float glow;uniform float reveal;uniform vec3 colorDark;uniform vec3 colorLight;uniform vec3 colorFast;uniform vec3 colorInitial;
+    varying float light;varying float seed;varying float energy;
     void main(){float circle=step(length(gl_PointCoord-.5),.5);if(circle<.001)discard;
       vec2 uv=gl_PointCoord*2.-1.;vec3 grainNormal=vec3(uv,sqrt(max(0.,1.-dot(uv,uv))));
-      float grainLight=.65+.35*max(0.,dot(normalize(grainNormal),normalize(vec3(-.5,.8,1.))));
-      vec3 color=mix(vec3(.016,.024,.055),vec3(.43,.49,.59),light)*grainLight;color=mix(color,vec3(1.4,1.8,2.5),glow);
-      color+=vec3(.45,.7,1.)*energy*energy*(.5+seed);
-      gl_FragColor=vec4(color,circle*reveal*opacity);
-    }`,{glow:{value:1},reveal:{value:0},forming:{value:1},pixelRatio:{value:1},socialWeights:{value:new THREE.Vector4(1,0,0,0)},particlePositions:{value:null},simulationMix:{value:0},socialView:{value:0}})
+      grainNormal.y=1.-grainNormal.y;
+      float grainLight=max(0.,dot(normalize(grainNormal),normalize(vec3(.75,1.,.1))));
+      vec3 color=mix(colorDark,colorLight,light*grainLight);
+      // The reference blends moving grains toward a bounded pale blue; adding
+      // HDR energy here instead turns an ordinary cursor stroke into bloom.
+      // Simulation stores speed per second. Convert back
+      // to displacement per 60 Hz reference step before applying its falloffs.
+      float speed=energy/60.;
+      float highlight=pow(clamp((speed-.003)/.002,0.,1.),2.);
+      color=mix(color,colorFast,highlight);
+      float motionAlpha=max(glow,pow(clamp((.007-speed)/.005,0.,1.),2.)*.5+.5);
+      color=mix(color,colorInitial,glow);
+      gl_FragColor=vec4(clamp(color,0.,1.),circle*reveal*opacity*motionAlpha);
+    }`,{colorDark:{value:new THREE.Color('#222b42')},colorLight:{value:new THREE.Color('#bdc6d4')},colorFast:{value:new THREE.Color('#d7ebfa')},colorInitial:{value:new THREE.Color('#b5d5ff')},glow:{value:1},reveal:{value:0},forming:{value:1},pixelRatio:{value:1},socialWeights:{value:new THREE.Vector4(1,0,0,0)},particlePositions:{value:null},simulationMix:{value:0},socialView:{value:0}})
   const background = make(`uniform float screenLift;varying vec2 vUv;void main(){vUv=uv;gl_Position=vec4(position.xy,1.,1.);}`,`${common}
     varying vec2 vUv;void main(){float edge=screenLift>0.?smoothstep(0.,.14,vUv.y):1.;gl_FragColor=vec4(sky(vUv),opacity*edge);}`)
   background.depthWrite=false;background.depthTest=false

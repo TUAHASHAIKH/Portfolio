@@ -54,7 +54,10 @@ export class ParticleSimulation {
           v*=exp(-delta*(5.5+seed));
           float maxSpeed=.8;v*=min(1.,maxSpeed/max(length(v),.00001));p+=v*delta;
           p.y=clamp(p.y,-.38,.38);float r=length(p.xz);p.xz*=min(1.,.34/max(r,.00001));
-          nextPosition=vec4(p,clamp(length(v)*4.,0.,1.));nextVelocity=vec4(v,1.);
+          // Preserve physical speed for shading; a clamped glow mask loses the
+          // distinction between moderate motion and the fastest scattered grains.
+          float shadedSpeed=mix(texture(previousPosition,vUv).a,length(v),1.-exp(-2.1376*delta));
+          nextPosition=vec4(p,shadedSpeed);nextVelocity=vec4(v,1.);
         }`,
     })
     this.scene.add(new THREE.Mesh(this.quad,this.material))
