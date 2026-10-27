@@ -8,6 +8,8 @@
     "lint": "eslint .",
     "test:journey": "node --test tests/journey.test.mjs",
     "test:scroll-browser": "node tests/scroll.browser.mjs",
+    "test:audio": "node --test tests/audio.test.mjs",
+    "test:effects-browser": "node tests/effects.browser.mjs",
     "start": "next start"
   },
   "dependencies": {

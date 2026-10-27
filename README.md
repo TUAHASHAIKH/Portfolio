@@ -29,10 +29,20 @@ npm start
 - `components/polar/assets.ts`: worker-based Draco and KTX2 loading and ice mesh separation.
 - `components/polar/materials.ts`: baked surface rendering and frost emission during separation.
 - `public/scene/`: detailed geometry, compressed baked maps, palette LUT, and decoder assets.
-- `public/workers/wind.js`: WAV ambient audio synthesis.
+- `components/polar/audio-engine.ts`: opt-in Web Audio mixer, scene crossfades, and interaction cues.
+- `components/polar/glitch-effects.tsx`: short block reveals for labels and controls.
+- `public/audio/`: the reference's 18 sound recordings and source attribution.
 - `app/globals.css`: theme variables, locally hosted IBM Plex Mono, responsive layout.
 
-The detailed meshes, baked textures, palette LUT, and font builds match the public assets on the supplied reference, https://my-portfolio-mu-vert-67.vercel.app/. Attribution is recorded in `public/scene/NOTICE.md`. Reference application code is not bundled. The scene and interaction are implemented in React. The LUT operates in display space, with bloom in linear light and one final output conversion. IBM Plex uses the included Open Font License. DOM text stays sharp without an MSDF atlas. There are no EXR assets to decode. Ambient audio is synthesized locally.
+The detailed meshes, baked textures, palette LUT, and font builds match the public assets on the supplied reference, https://my-portfolio-mu-vert-67.vercel.app/. Attribution is recorded in `public/scene/NOTICE.md`. Reference application code is not bundled. The scene and interaction are implemented in React. The LUT operates in display space, with bloom in linear light and one final output conversion. IBM Plex uses the included Open Font License. DOM text stays sharp without an MSDF atlas. There are no EXR assets to decode. Reference sound recordings are served locally with attribution in `public/audio/NOTICE.md`.
+
+## Sound and glitch effects
+
+Sound starts off. Enabling it loads the 18 Ogg recordings in batches of three and resumes one AudioContext from the user's gesture. Music and room ambience form the background; wind follows the igloo, portal sound follows ring proximity, and crystal/particle textures respond to pointer movement. Logo, labels, links, social selection, and detail entrance/exit have their matching UI cues. The main and detail sound controls share one mixer. Mute cancels pending cues; hidden tabs suspend playback; failed files can be retried without duplicating loops.
+
+The logo uses its short sliced reveal. Labels, social controls, and detail links use brief block masks and horizontal offsets. Detail transitions use texture-driven block displacement and a small RGB separation inside the existing distortion pass. These effects finish at rest, preserve the grey scene, and turn off with reduced motion. Audio remains an independent preference.
+
+Run `npm run test:audio` to check the local manifest, mix continuity, glitch envelopes, mute/retry behavior, and source cleanup. With a local server running, `npm run test:effects-browser` checks actual decoding of all 18 files, nonzero audio output, UI cues, mute, tab suspension, glitch cleanup, shader errors, and reduced-motion stillness. It accepts the same `PORTFOLIO_URL` and `CHROME_BIN` overrides as the scroll browser checks. Ogg playback was verified in Chromium; physical Safari/Android devices have not been tested.
 
 Set `NEXT_PUBLIC_SITE_URL` to the eventual public origin before deployment so social images resolve to the right domain. An example is in `.env.example`. Next.js provides the route announcer automatically. WebGL2 is required for the scene; descriptive HTML and the sound control remain available when it is unsupported.
 

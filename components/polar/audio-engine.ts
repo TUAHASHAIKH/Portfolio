@@ -42,9 +42,10 @@ export class PortfolioAudio {
       this.master?.gain.setTargetAtTime(1, this.context.currentTime, .12)
       this.loading ||= this.load()
       await this.loading
-      if (generation !== this.generation || !this.state.enabled) return
-      if (!this.tracks.size) throw new Error('No audio tracks could be decoded')
+      if (generation !== this.generation) return
       this.loading = null
+      if (!this.state.enabled) return
+      if (!this.tracks.size) throw new Error('No audio tracks could be decoded')
       this.publish({ enabled: true, loading: false, failed: this.tracks.size < Object.keys(AUDIO_TRACKS).length })
       this.mix()
     } catch {
