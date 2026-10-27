@@ -19,6 +19,7 @@ import { Rings } from './rings'
 import { ringJourney } from './ring-journey'
 import { advanceJourney, forwardAtBoundary, reverseAtBoundary } from './journey-motion'
 import { portfolioAudio } from './audio-engine'
+import { glitchEnvelope } from './glitch-motion'
 import { ease, range, returnProgress, returnChoreography, landscapeTravel, journeyView, crystalJourney, crystalCenter, isCrystalKind, CRYSTAL_KINDS, JOURNEY_END, type Journey } from './journey'
 
 type Motion = { fast: number; slow: number }
@@ -44,6 +45,20 @@ const tuple = (values: number[]) => values as [number, number, number]
 
 function PostProcessing({ assets, journey, reduced }: { assets: PolarAssets; journey: React.RefObject<Journey>; reduced: boolean }) {
   const { gl, scene, camera, size } = useThree()
+  const glitch = useRef({ started: -Infinity, duration: .9, seed: 0 })
+  useEffect(() => {
+    const transition = (event: Event) => {
+      glitch.current = { started: performance.now() / 1000, duration: (event as CustomEvent<{ open: boolean }>).detail?.open ? .9 : .95, seed: Math.random() * 20 }
+    }
+    const stop = () => { glitch.current.started = -Infinity }
+    window.addEventListener('portfolio:crystal-detail', transition)
+    document.addEventListener('visibilitychange', stop)
+    return () => {
+      window.removeEventListener('portfolio:crystal-detail', transition)
+      document.removeEventListener('visibilitychange', stop)
+    }
+  }, [])
+  useEffect(() => { if (reduced) glitch.current.started = -Infinity }, [reduced])
   const pipeline = useMemo(() => {
     const composer = new EffectComposer(gl)
     const render = new RenderPass(scene, camera)
@@ -81,17 +96,20 @@ function PostProcessing({ assets, journey, reduced }: { assets: PolarAssets; jou
     // Grade in display space, bloom in linear light, then convert once for the screen.
     const bloom = new UnrealBloomPass(new THREE.Vector2(size.width, size.height), .14, .55, .9)
     const distortion = new ShaderPass({
-      uniforms: { tDiffuse: { value: null }, amount: { value: 0 }, curtain: { value: 0 }, resolution: { value: new THREE.Vector2() } },
+      uniforms: { tDiffuse: { value: null }, amount: { value: 0 }, curtain: { value: 0 }, blocks: { value: assets.wind }, glitch: { value: 0 }, glitchSeed: { value: 0 } },
       vertexShader: 'varying vec2 vUv;void main(){vUv=uv;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.);}',
-      fragmentShader: `uniform sampler2D tDiffuse;uniform float amount;uniform float curtain;uniform vec2 resolution;varying vec2 vUv;
+      fragmentShader: `uniform sampler2D tDiffuse;uniform sampler2D blocks;uniform float amount;uniform float curtain;uniform float glitch;uniform float glitchSeed;varying vec2 vUv;
         float hash(vec2 p){return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453);}
         void main(){vec2 uv=vUv, direction=uv-vec2(.5,.49);
           float intensity=amount*(curtain>0.?1.-smoothstep(.03,.45,abs(uv.y-curtain)):1.);
           float tile=hash(floor(uv*vec2(140.,85.)));
           uv+=direction*tile*intensity*.018;
+          float block=texture2D(blocks,vUv*vec2(.55,2.2)+vec2(glitchSeed,glitchSeed*.37)).g;
+          float tear=(block*2.-1.)*step(.55,block)*glitch;
+          uv.x+=tear*.009;
           vec3 color=vec3(0.);
           for(int i=0;i<8;i++){vec2 sampleUv=uv-direction*float(i)*intensity*.008;
-            vec2 split=direction*intensity*.008;
+            vec2 split=direction*intensity*.008+vec2(tear*.0012,0.);
             color+=vec3(texture2D(tDiffuse,sampleUv+split).r,texture2D(tDiffuse,sampleUv).g,texture2D(tDiffuse,sampleUv-split).b)/8.;}
           color=mix(color,vec3(.36,.39,.46),intensity*.14);
           gl_FragColor=vec4(color,1.);}`,
@@ -154,9 +172,14 @@ function PostProcessing({ assets, journey, reduced }: { assets: PolarAssets; jou
     if(!reduced)pipeline.frost.uniforms.time.value += Math.min(delta,.1)
     pipeline.frost.uniforms.resolution.value.set(size.width,size.height)
     const strength = journeyView(p).distortion
+    const elapsed = performance.now() / 1000 - glitch.current.started
+    const glitchAmount = reduced ? 0 : glitchEnvelope(elapsed,glitch.current.duration)
+    pipeline.distortion.uniforms.glitch.value = glitchAmount
+    pipeline.distortion.uniforms.glitchSeed.value = glitchAmount > 0 ? glitch.current.seed + Math.floor(elapsed / glitch.current.duration * 3) * .17 : 0
+    pipeline.distortion.uniforms.blocks.value = scene.userData.ringScroll || assets.wind
     pipeline.distortion.uniforms.amount.value = reduced ? 0 : strength
     pipeline.distortion.uniforms.curtain.value = returnProgress(p)
-    pipeline.distortion.enabled = !reduced && strength > .001
+    pipeline.distortion.enabled = !reduced && (strength > .001 || glitchAmount > .001)
     pipeline.composer.render(delta)
   }, 1)
   return null

@@ -39,7 +39,7 @@ export function CrystalReadout({ kind = 'skills' }: { kind?: CrystalKind }) {
     </svg>
     <h2 className="crystal-title">PORTFOLIO_CO_{index}<br />{title.toUpperCase()}</h2>
     <p className="crystal-temperature" aria-hidden="true">TEMP&nbsp;&nbsp; <span ref={temperature}>35.03</span><br />&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; <span ref={celsius}>+01.68</span></p>
-    <button className="crystal-explore" onPointerEnter={center} onFocus={center} onClick={open} onKeyDown={event => { if(event.key==='Enter'||event.key===' '){event.preventDefault();open()} }} aria-haspopup="dialog">{index} / {title.toUpperCase()}<br />CLICK TO EXPLORE</button>
+    <button className="crystal-explore" data-glitch-trigger data-sound="beeps" onPointerEnter={center} onFocus={center} onClick={open} onKeyDown={event => { if(event.key==='Enter'||event.key===' '){event.preventDefault();open()} }} aria-haspopup="dialog">{index} / {title.toUpperCase()}<br />CLICK TO EXPLORE</button>
     <p className="crystal-unavailable" role="status">The crystal could not load. Refresh to try again.</p>
     <CrystalDetail kind={kind} />
   </section>

@@ -10,6 +10,7 @@ import { scrollToJourney, journeyToScroll, reverseScrollTarget } from './scroll-
 import { boundedScrollTarget, ownsNavigationKey, wheelPixels } from './scroll-input'
 import { portfolioAudio } from './audio-engine'
 import { useSoundscape } from './use-soundscape'
+import { GlitchEffects } from './glitch-effects'
 
 const App3D = dynamic(() => import('./scene'), { ssr: false })
 
@@ -192,6 +193,7 @@ export function PolarExperience() {
   }, [])
 
   return <div className="journey-track"><main id="app">
+    <GlitchEffects />
     <div id="webgl" aria-hidden="true">
       {supported === false ? <Fallback /> : supported && <SceneBoundary onFailure={() => setReady(true)}><App3D onReady={() => setReady(true)} reducedMotion={reducedMotion} journey={journey} /></SceneBoundary>}
     </div>
@@ -213,7 +215,7 @@ export function PolarExperience() {
       <nav aria-label="Social links"><a href="https://github.com/TUAHASHAIKH" target="_blank" rel="noreferrer">GitHub ↗</a><a href="https://www.linkedin.com/in/muhammad-tuaha-shaikh" target="_blank" rel="noreferrer">LinkedIn ↗</a></nav>
     </aside>
     <footer className="bottom-bar">
-      <button className="sound-toggle" onClick={() => void portfolioAudio.toggle()} aria-pressed={sound} aria-busy={audioState.loading} aria-label={sound ? 'Mute all sounds' : 'Enable scene sounds and music'} data-sound="short">
+      <button className="sound-toggle" onClick={() => void portfolioAudio.toggle()} aria-pressed={sound} aria-busy={audioState.loading} aria-label={sound ? 'Mute all sounds' : 'Enable scene sounds and music'} data-sound="short" data-glitch-trigger>
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true"><path d="M11 4 5 9H2v6h3l6 5V4Z" />{sound ? <><path d="M15 8c2 2 2 6 0 8M18 5c4 4 4 10 0 14" /></> : <path d="m16 9 6 6m0-6-6 6" />}</svg>
         <span>Sound: {audioState.loading ? 'Loading' : sound ? 'On' : 'Off'}</span>
       </button>

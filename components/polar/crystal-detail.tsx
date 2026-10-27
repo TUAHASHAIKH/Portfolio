@@ -90,8 +90,8 @@ export function CrystalDetail({ kind }: { kind: CrystalKind }) {
     onCancel={event => { event.preventDefault(); close() }}
     onClick={event => { if (event.target === event.currentTarget) close() }}>
     <header className="detail-chrome">
-      <img className="detail-wordmark" src="/images/tuaha-wordmark.svg" alt="Tuaha" width={530} height={88} />
-      <button type="button" className="detail-close" onClick={close} aria-label={`Close ${titles[kind]}`}>Close<span aria-hidden="true" /></button>
+      <img className="detail-wordmark" data-glitch-trigger data-sound="logo" src="/images/tuaha-wordmark.svg" alt="Tuaha" width={530} height={88} />
+      <button type="button" className="detail-close" data-glitch-trigger data-sound="short" onClick={close} aria-label={`Close ${titles[kind]}`}>Close<span aria-hidden="true" /></button>
     </header>
     <article className="detail-content">
       <p className="detail-eyebrow">{kind === 'projects' && gallery ? `PORTFOLIO_CO_${indices[kind]}` : `////// ${kind === 'skills' ? 'Skills' : 'Summary'}`}</p>
@@ -130,7 +130,7 @@ export function CrystalDetail({ kind }: { kind: CrystalKind }) {
         </div>
       </>}
     </article>
-    <button type="button" className="detail-sound" onClick={() => document.querySelector<HTMLButtonElement>('.sound-toggle')?.click()}>Sound: <SoundState /></button>
+    <button type="button" className="detail-sound" data-glitch-trigger data-sound="short" onClick={() => document.querySelector<HTMLButtonElement>('.sound-toggle')?.click()}>Sound: <SoundState /></button>
   </dialog>, document.body)
 }
 

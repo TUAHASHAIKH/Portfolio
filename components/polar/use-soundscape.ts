@@ -11,11 +11,12 @@ export function useSoundscape() {
     const select = () => { portfolioAudio.cue('long'); portfolioAudio.excite('particles', 1) }
     const hover = (event: Event) => {
       if (!(event.target instanceof Element)) return
-      const element = event.target.closest<HTMLElement>('[data-sound]')
+      const element = event.target.closest<HTMLElement>('[data-sound], .detail-content a, .detail-content button')
       if (!element || (event instanceof PointerEvent && event.pointerType === 'touch')) return
       const related = (event as PointerEvent | FocusEvent).relatedTarget
       if (related instanceof Node && element.contains(related)) return
-      if (isSoundName(element.dataset.sound)) portfolioAudio.cue(element.dataset.sound)
+      const sound = element.dataset.sound || 'short'
+      if (isSoundName(sound)) portfolioAudio.cue(sound)
     }
     document.addEventListener('visibilitychange', portfolioAudio.visibility)
     document.addEventListener('pointerover', hover)
