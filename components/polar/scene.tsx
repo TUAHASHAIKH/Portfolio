@@ -18,7 +18,7 @@ import { Crystal } from './crystal'
 import { Rings } from './rings'
 import { ringJourney } from './ring-journey'
 import { advanceJourney, forwardAtBoundary, reverseAtBoundary } from './journey-motion'
-import { ease, range, returnProgress, returnChoreography, landscapeTravel, journeyView, crystalJourney, CRYSTAL_KINDS, JOURNEY_END, type Journey } from './journey'
+import { ease, range, returnProgress, returnChoreography, landscapeTravel, journeyView, crystalJourney, crystalCenter, isCrystalKind, CRYSTAL_KINDS, JOURNEY_END, type Journey } from './journey'
 
 type Motion = { fast: number; slow: number }
 const radians = (degrees: number) => degrees * Math.PI / 180
@@ -422,6 +422,15 @@ function JourneyMotion({ journey, reduced }: { journey: React.RefObject<Journey>
   },[])
   useFrame((_, delta) => {
     const state = journey.current
+    const app = overlay.current ||= gl.domElement.closest('#app') as HTMLElement | null
+    const detail = app?.dataset.detail
+    // Scrolling a gallery or changing focus inside a native modal must never
+    // move the sculpture behind it. The existing spring still eases to center.
+    if (isCrystalKind(detail)) {
+      state.target = crystalCenter(detail)
+      delete state.reverseTarget
+      delete state.forwardTarget
+    }
     // Analytic critically damped spring: continuous velocity even when scrolling reverses.
     // The same trajectory drives retreat, curtain and crystal, without a stage switch.
     advanceJourney(state,motion.current,delta,reduced)
@@ -434,7 +443,6 @@ function JourneyMotion({ journey, reduced }: { journey: React.RefObject<Journey>
       laps.current++
       window.dispatchEvent(new CustomEvent('portfolio:journey-wrapped',{detail:state.target}))
     }
-    const app = overlay.current ||= gl.domElement.closest('#app') as HTMLElement | null
     if (!app) return
     const hero = Math.max(1-ease(range(state.value,.02,.25)),ease(range(state.value,9.1,9.8))).toFixed(4)
     const crystal = (ease(range(state.value,.83,1))*(1-ease(range(state.value,8.8,9.8)))).toFixed(4)
