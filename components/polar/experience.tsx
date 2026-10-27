@@ -33,7 +33,7 @@ export function PolarExperience() {
 
   useEffect(() => {
     const track = document.querySelector<HTMLElement>('.journey-track')
-    let distance = 1
+    let distance = 0
     let centering: number | null = null
     let intentUntil = 0
     const pointer={x:0,y:0},scrollPointer={x:0,y:0}
@@ -132,7 +132,13 @@ export function PolarExperience() {
     }
     const measure = () => {
       cancelCenter()
-      distance = Math.max(1, (track?.offsetHeight || window.innerHeight * (1+2.2*JOURNEY_END)) - window.innerHeight)
+      const nextDistance = Math.max(1, (track?.offsetHeight || window.innerHeight * (1+2.2*JOURNEY_END)) - window.innerHeight)
+      if(distance&&nextDistance!==distance){
+        // A rotation or mobile toolbar resize changes pixels, not the user's
+        // place in the journey. Preserve the destination, including at a seam.
+        window.scrollTo({top:nextDistance*journeyToScroll(journey.current.target)/JOURNEY_END,behavior:'instant'})
+      }
+      distance = nextDistance
       update()
     }
     const observer = new ResizeObserver(measure)

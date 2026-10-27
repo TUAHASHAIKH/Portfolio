@@ -415,10 +415,16 @@ function JourneyMotion({ journey, reduced }: { journey: React.RefObject<Journey>
   const motion = useRef({velocity:0})
   const overlay = useRef<HTMLElement | null>(null)
   const laps=useRef(0)
+  const resumed=useRef(false)
   useEffect(()=>{
     const reset=()=>{motion.current.velocity=0}
+    const visibility=()=>{resumed.current=true;reset()}
     window.addEventListener('portfolio:reset-motion',reset)
-    return()=>window.removeEventListener('portfolio:reset-motion',reset)
+    document.addEventListener('visibilitychange',visibility)
+    return()=>{
+      window.removeEventListener('portfolio:reset-motion',reset)
+      document.removeEventListener('visibilitychange',visibility)
+    }
   },[])
   useFrame((_, delta) => {
     const state = journey.current
@@ -433,7 +439,10 @@ function JourneyMotion({ journey, reduced }: { journey: React.RefObject<Journey>
     }
     // Analytic critically damped spring: continuous velocity even when scrolling reverses.
     // The same trajectory drives retreat, curtain and crystal, without a stage switch.
-    advanceJourney(state,motion.current,delta,reduced)
+    // The canvas pauses in background tabs. Do not integrate the time spent
+    // hidden into a single visible camera step when it resumes.
+    advanceJourney(state,motion.current,resumed.current?0:delta,reduced)
+    resumed.current=false
     if(reverseAtBoundary(state,motion.current)){
       window.dispatchEvent(new CustomEvent('portfolio:journey-reversed',{detail:state.target}))
     }
@@ -446,7 +455,7 @@ function JourneyMotion({ journey, reduced }: { journey: React.RefObject<Journey>
     if (!app) return
     const hero = Math.max(1-ease(range(state.value,.02,.25)),ease(range(state.value,9.1,9.8))).toFixed(4)
     const crystal = (ease(range(state.value,.83,1))*(1-ease(range(state.value,8.8,9.8)))).toFixed(4)
-    app.dataset.journeyLoops=String(laps.current)
+    if(app.dataset.journeyLoops!==String(laps.current))app.dataset.journeyLoops=String(laps.current)
     const shards = crystalJourney(state.value)
     const contact=ringJourney(state.value).contact
     const contactOpacity=contact.toFixed(4),contactInteractive=String(contact>.05)

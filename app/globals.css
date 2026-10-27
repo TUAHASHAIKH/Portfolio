@@ -45,7 +45,7 @@ html{--bgColor:#a0a5b1;--default-font:'IBM Plex Mono','Courier New',monospace;ba
 #app[data-introduced=false] .identity,#app[data-introduced=false] .intro,#app[data-introduced=false] .bottom-bar{opacity:0;transform:translateY(8px);pointer-events:none;visibility:hidden}
 
 /* Native scrolling drives the pinned journey through skills and projects. */
-html{scrollbar-width:none}html::-webkit-scrollbar{display:none}
+html{scrollbar-width:none;scroll-behavior:auto;overscroll-behavior-y:none}html::-webkit-scrollbar{display:none}
 /* Keep scroll distance stable while the scene follows the dynamic viewport. */
 .journey-track{height:2300svh;position:relative}
 #app{position:sticky;top:0;--hero-opacity:1;--crystal-opacity:0;--skills-opacity:0;--projects-opacity:0;--about-opacity:0}

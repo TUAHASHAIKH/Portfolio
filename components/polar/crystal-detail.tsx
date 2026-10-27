@@ -51,12 +51,13 @@ export function CrystalDetail({ kind }: { kind: CrystalKind }) {
       if (!element || document.querySelector('dialog[open]')) return
       opener.current = document.activeElement instanceof HTMLElement ? document.activeElement : null
       window.dispatchEvent(new CustomEvent('portfolio:center-crystal', { detail: { kind, explicit: true } }))
-      const scroll = window.scrollY
+      const progress = window.scrollY / Math.max(1, document.documentElement.scrollHeight - window.innerHeight)
       const overflow = document.documentElement.style.overflow
       document.documentElement.style.overflow = 'hidden'
       restore.current = () => {
         document.documentElement.style.overflow = overflow
-        window.scrollTo({ top: scroll, behavior: 'instant' })
+        const distance = document.documentElement.scrollHeight - window.innerHeight
+        window.scrollTo({ top: progress * distance, behavior: 'instant' })
       }
       document.querySelector('#app')?.setAttribute('data-detail', kind)
       element.dataset.phase = 'opening'
