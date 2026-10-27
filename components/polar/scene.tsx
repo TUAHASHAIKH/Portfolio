@@ -18,6 +18,7 @@ import { Crystal } from './crystal'
 import { Rings } from './rings'
 import { ringJourney } from './ring-journey'
 import { advanceJourney, forwardAtBoundary, reverseAtBoundary } from './journey-motion'
+import { portfolioAudio } from './audio-engine'
 import { ease, range, returnProgress, returnChoreography, landscapeTravel, journeyView, crystalJourney, crystalCenter, isCrystalKind, CRYSTAL_KINDS, JOURNEY_END, type Journey } from './journey'
 
 type Motion = { fast: number; slow: number }
@@ -452,6 +453,7 @@ function JourneyMotion({ journey, reduced }: { journey: React.RefObject<Journey>
       laps.current++
       window.dispatchEvent(new CustomEvent('portfolio:journey-wrapped',{detail:state.target}))
     }
+    portfolioAudio.update(state.value,delta)
     if (!app) return
     const hero = Math.max(1-ease(range(state.value,.02,.25)),ease(range(state.value,9.1,9.8))).toFixed(4)
     const crystal = (ease(range(state.value,.83,1))*(1-ease(range(state.value,8.8,9.8)))).toFixed(4)

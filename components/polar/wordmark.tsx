@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
+import { portfolioAudio } from './audio-engine'
 
 export function Wordmark({ reducedMotion = false }: { reducedMotion?: boolean }) {
   const [sequence, setSequence] = useState(0)
@@ -9,6 +10,8 @@ export function Wordmark({ reducedMotion = false }: { reducedMotion?: boolean })
   useEffect(() => () => { if (timer.current) clearTimeout(timer.current) }, [])
 
   function replay() {
+    portfolioAudio.cue('logo')
+    portfolioAudio.excite('brand', 1)
     if (reducedMotion) return
     if (timer.current) clearTimeout(timer.current)
     setSequence(value => value + 1)

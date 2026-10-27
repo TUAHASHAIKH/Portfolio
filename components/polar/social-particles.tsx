@@ -7,6 +7,7 @@ import type { Journey } from './journey'
 import { ringJourney } from './ring-journey'
 import { ParticleSimulation } from './particle-simulation'
 import { SOCIAL_LINKS,socialIndex } from './social-links'
+import { portfolioAudio } from './audio-engine'
 
 export function SocialParticles({core,geometry,material,journey,reduced,virtual}:{core:React.RefObject<THREE.Points|null>;geometry:THREE.BufferGeometry;material:THREE.ShaderMaterial;journey:React.RefObject<Journey>;reduced:boolean;virtual:THREE.PerspectiveCamera}){
   const {gl}=useThree()
@@ -58,6 +59,7 @@ export function SocialParticles({core,geometry,material,journey,reduced,virtual}
       view.matrix.multiply(view.rotation);view.basis.setFromMatrix4(view.matrix)
       field.orient(view.basis,virtual.position.distanceTo(view.center))
       pointer.velocity.subVectors(pointer.brush,pointer.last).divideScalar(Math.max(dt,.001)).clampLength(0,4)
+      if(active.current&&enabled)portfolioAudio.excite('particles',pointer.velocity.length()*.3)
       field.update(gl,dt,weights,pointer.brush,pointer.last,pointer.velocity,active.current&&enabled)
       pointer.last.copy(pointer.brush)
     }else field.clear()

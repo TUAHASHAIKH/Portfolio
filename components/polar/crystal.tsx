@@ -10,6 +10,7 @@ import { useCrystalFrost, type CrystalInteraction } from './crystal-frost'
 import { CrystalPlexus } from './crystal-plexus'
 import { CrystalAnnotations } from './crystal-annotations'
 import { detailPose } from './detail-motion'
+import { portfolioAudio } from './audio-engine'
 
 function CrystalView({ assets, noise, journey, reduced }: { assets: CrystalAssets; noise: THREE.Texture; journey: RefObject<Journey>; reduced: boolean }) {
   const rig = useRef<THREE.Group>(null), crystals = useRef<THREE.Group>(null)
@@ -45,6 +46,7 @@ function CrystalView({ assets, noise, journey, reduced }: { assets: CrystalAsset
     event.stopPropagation()
     const state=interactions[index].current
     const entering=!state.active
+    if(event.uv1)portfolioAudio.excite('shard',entering?.15:state.uv.distanceTo(event.uv1)*12)
     if (event.uv1 && event.object === iceMeshes[index].current) state.uv.copy(event.uv1)
     state.active = true
     gl.domElement.style.cursor = 'pointer'

@@ -8,6 +8,8 @@ import { CrystalReadout } from './crystal-readout'
 import { SocialControls } from './social-controls'
 import { scrollToJourney, journeyToScroll, reverseScrollTarget } from './scroll-path'
 import { boundedScrollTarget, ownsNavigationKey, wheelPixels } from './scroll-input'
+import { portfolioAudio } from './audio-engine'
+import { useSoundscape } from './use-soundscape'
 
 const App3D = dynamic(() => import('./scene'), { ssr: false })
 
@@ -25,10 +27,9 @@ class SceneBoundary extends Component<{ children: ReactNode; onFailure: () => vo
 export function PolarExperience() {
   const [ready, setReady] = useState(false)
   const [supported, setSupported] = useState<boolean | null>(null)
-  const [sound, setSound] = useState(false)
-  const [audioReady, setAudioReady] = useState(false)
+  const audioState = useSoundscape()
+  const sound = audioState.enabled
   const [reducedMotion, setReducedMotion] = useState(false)
-  const audio = useRef<HTMLAudioElement>(null)
   const journey = useRef<Journey>({ target: 0, value: 0 })
 
   useEffect(() => {
@@ -187,23 +188,8 @@ export function PolarExperience() {
     const sync = () => setReducedMotion(preference.matches)
     sync()
     preference.addEventListener('change', sync)
-    const worker = new Worker('/workers/wind.js')
-    let url: string | undefined
-    worker.onmessage = ({ data }: MessageEvent<ArrayBuffer>) => {
-      url = URL.createObjectURL(new Blob([data], { type: 'audio/wav' }))
-      if (audio.current) { audio.current.src = url; audio.current.volume = .55; setAudioReady(true) }
-    }
-    worker.postMessage(null)
-    return () => { worker.terminate(); if (url) URL.revokeObjectURL(url); preference.removeEventListener('change', sync) }
+    return () => preference.removeEventListener('change', sync)
   }, [])
-
-  async function toggleSound() {
-    if (!audio.current || !audioReady) return
-    if (sound) { audio.current.pause(); setSound(false) }
-    else {
-      try { await audio.current.play(); setSound(true) } catch { setSound(false) }
-    }
-  }
 
   return <div className="journey-track"><main id="app">
     <div id="webgl" aria-hidden="true">
@@ -227,12 +213,12 @@ export function PolarExperience() {
       <nav aria-label="Social links"><a href="https://github.com/TUAHASHAIKH" target="_blank" rel="noreferrer">GitHub ↗</a><a href="https://www.linkedin.com/in/muhammad-tuaha-shaikh" target="_blank" rel="noreferrer">LinkedIn ↗</a></nav>
     </aside>
     <footer className="bottom-bar">
-      <button className="sound-toggle" onClick={toggleSound} aria-pressed={sound} disabled={!audioReady} aria-label={sound ? 'Mute ambient wind' : 'Play ambient wind'}>
+      <button className="sound-toggle" onClick={() => void portfolioAudio.toggle()} aria-pressed={sound} aria-busy={audioState.loading} aria-label={sound ? 'Mute all sounds' : 'Enable scene sounds and music'} data-sound="short">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true"><path d="M11 4 5 9H2v6h3l6 5V4Z" />{sound ? <><path d="M15 8c2 2 2 6 0 8M18 5c4 4 4 10 0 14" /></> : <path d="m16 9 6 6m0-6-6 6" />}</svg>
-        <span>Sound: {sound ? 'On' : 'Off'}</span>
+        <span>Sound: {audioState.loading ? 'Loading' : sound ? 'On' : 'Off'}</span>
       </button>
     </footer>
-    <audio className="audio-output" ref={audio} loop preload="none" onPause={() => setSound(false)} />
+    <span className="sr-only" role="status">{audioState.failed ? 'Some sounds could not load. Toggle sound to retry.' : ''}</span>
     <div id="loader" data-ready={ready} role="status" aria-live="polite" aria-label={ready ? 'Scene ready' : 'Preparing the landscape'}>
       <span className="loader-name">TUAHA SHAIKH</span><span className="ascii" aria-hidden="true">---===+++===---</span><span className="loader-caption">ASSEMBLING A SMALL WORLD</span>
     </div>
