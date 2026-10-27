@@ -3,6 +3,7 @@
 .crystal-detail{position:fixed;inset:0;width:100%;height:100vh;height:100dvh;max-width:none;max-height:none;margin:0;border:0;padding:0;overflow-y:auto;overscroll-behavior:contain;color:#c7cdd5;background:transparent;font:500 clamp(12px,1vw,18px)/1.45 var(--default-font);scrollbar-width:thin;scrollbar-color:#8893a3 #10151b;pointer-events:auto}
 .crystal-detail::backdrop{background:linear-gradient(115deg,#080f19ed,#162131d9 58%,#313d4bd9);animation:detail-atmosphere-in 900ms ease both}
 .crystal-detail[data-phase=closing]::backdrop{animation:detail-atmosphere-out 950ms ease both}
+.crystal-detail{scroll-behavior:auto;touch-action:pan-y pinch-zoom;overflow-x:hidden}
 .detail-chrome{position:fixed;inset:0 0 auto;z-index:2;display:flex;justify-content:space-between;align-items:flex-start;padding:3.1% 3.4%;pointer-events:none}
 .detail-wordmark{width:clamp(155px,10.8vw,244px);height:auto;filter:drop-shadow(0 0 12px #ffffff40)}
 .detail-close{position:relative;min-width:90px;min-height:44px;background:transparent;border:0;color:inherit;font:inherit;cursor:pointer;pointer-events:auto;text-shadow:0 0 7px #ffffff50}

@@ -5,6 +5,7 @@ import { createPortal } from 'react-dom'
 import { portfolioProjects, portfolioSkills } from './portfolio-content'
 import { SOCIAL_LINKS } from './social-links'
 import type { CrystalKind } from './journey'
+import { smoothDetailScroll } from './detail-scroll'
 import './crystal-detail.css'
 
 const titles = { skills: 'Skills', projects: 'Selected Projects', about: 'About Me' }
@@ -44,6 +45,9 @@ export function CrystalDetail({ kind }: { kind: CrystalKind }) {
   }, [finish, kind])
 
   useEffect(() => { setMounted(true) }, [])
+  useEffect(() => {
+    if (mounted && dialog.current) return smoothDetailScroll(dialog.current)
+  }, [mounted])
   useEffect(() => {
     const open = () => {
       const element = dialog.current
