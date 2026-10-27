@@ -46,16 +46,27 @@ Ice emission is bounded and bloom is reduced to preserve the textured faces duri
 
 The opening sequence assembles numeric particles, cage geometry and ice outlines before revealing the ice and terrain, with a descending camera over roughly eight seconds. The interface appears at 4.5 seconds. Temporary assembly draw calls are removed after the reveal. Reduced-motion mode skips this sequence. Foreground wind adds depth-tested wisps between the camera and igloo, alongside the world-space snow particles.
 
-## First crystal journey
+## Scroll journey
 
-Scroll down through the pinned 3.2-viewport section. Native page scrolling (wheel, touch, Page Down and keyboard scrolling) drives damped progress, camera retreat, radial blur/chromatic displacement, mist and the first skills crystal. Scrolling up restores the hero. The identity mark and sound control persist, while the introductory copy fades away.
+Scroll through the pinned 23-viewport track, from the igloo through skills, projects, about, the rings, and the contact chamber, then back to the igloo. Page position drives one damped camera path. Wheel input is normalized and bounded relative to the visible scene; touch and keyboard retain browser scrolling. The identity mark and sound control persist, while the introductory copy fades away.
 
 `components/polar/crystal.tsx` renders the detailed ice shard with an HDR reflection environment, surface normal and roughness maps, a textured inner form and an animated 18-point 3D plexus. Its assets load independently of the hero through `crystal-assets.ts`. `crystal-readout.tsx` supplies sharp HTML annotations and a native modal dialog populated from the existing portfolio skills. The temperature readout is decorative reference-style telemetry, not a live sensor.
 
-Reduced motion removes the radial distortion, camera interpolation and idle crystal/plexus movement. The skills dialog supports Escape, keyboard focus containment and a close control. The present journey stops at this first crystal; further crystals are not implemented.
+Reduced motion removes the radial distortion, camera interpolation and idle crystal/plexus movement. Each crystal opens a native dialog with Escape, keyboard focus containment and a close control. Skills and about show their content; projects opens the six-project gallery.
 
 Crystal rendering uses paired half-float rear/front refraction buffers, the reference's crystal LUT, smoothly filtered Perlin mist and eight transmission samples. The hero retains its original grade. One shared scroll trajectory overlaps camera retreat, bottom-to-top mist, upward landscape movement and the crystal rise; the retreat keeps moving throughout the handoff.
 
 The entire crystal supports pointer/touch activation through geometry raycasting; the HTML explore control supports keyboard access. Pointer movement paints the secondary UV atlas into a 512-pixel GPU feedback simulation. Advecting frost changes surface roughness and normals, while its advancing rim illuminates the triangle pattern. The field persists and fades after the pointer moves away. Fahrenheit and signed Celsius values drift together using the reference's slow sinusoidal temperature pattern; reduced-motion mode fixes the values. These remain decorative telemetry.
 
 The crystal line field uses 18 independently moving points, at most three neighbors per point, and 350 ms connection fades. Label leaders project from the rotating surface each frame and freeze with reduced motion. A small right-side recess is filled at load time while retaining the original UVs and texture maps; refraction also falls back safely when a ray misses its buffer.
+
+## Scroll input and regression checks
+
+The supplied Harry reference uses eased scroll targets with a bounded distance ahead of the camera. V2 applies that behavior to its existing camera path without bundling the reference application code. The grey scene, crystal spacing, and reduced-motion poses are preserved.
+
+- Wheel targets stay within 90% of a viewport ahead of the visible scene. Large bursts cannot accumulate seconds of unwanted travel, and reversal cancels queued input in the previous direction. Fractional trackpad pixels accumulate instead of being rounded away.
+- The scene owns wheel easing; browser wheel animation is prevented for handled vertical gestures. Pinch zoom and horizontal gestures remain available. Touch scrolling keeps browser inertia, and navigation keys belong to focused controls or open dialogs.
+- Both loop seams retain overshoot. Viewport changes preserve the journey destination, and closing a detail after rotation restores normalized progress rather than stale pixels. Resuming a hidden tab does not advance the camera by the entire paused interval.
+- Detail panels ease wheel input only while moving. Keyboard, touch, scrollbar dragging, and direct scrolling cancel pending wheel animation. Reduced motion uses native panel scrolling. Modal gestures cannot move the background journey.
+
+Run `npm run test:journey` for motion/path tests and `npm run build` for the production build. With a server running, `npm run test:scroll-browser` checks real Chromium wheel input, subpixel input, reversal, loop seams, focused controls, detail scrolling, mobile rotation, touch, reduced-motion stillness, and runtime errors. It also reports frame timings and saves `.preview/scroll-verified.png`. Set `PORTFOLIO_URL` to test a different local server and `CHROME_BIN` if Chrome is not in a standard location. Browser tests use an isolated profile under the ignored `.preview/` directory. Emulated mobile checks do not replace physical Safari/Android testing; frame timings depend on the GPU and display.
