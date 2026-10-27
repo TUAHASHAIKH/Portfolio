@@ -1,0 +1,50 @@
+/* A transparent native top layer lets the existing crystal become the backdrop.
+   Only opacity and transforms animate: no per-frame DOM layout or blur filter. */
+.crystal-detail{position:fixed;inset:0;width:100%;height:100vh;height:100dvh;max-width:none;max-height:none;margin:0;border:0;padding:0;overflow-y:auto;overscroll-behavior:contain;color:#c7cdd5;background:transparent;font:500 clamp(12px,1vw,18px)/1.45 var(--default-font);scrollbar-width:thin;scrollbar-color:#8893a3 #10151b;pointer-events:auto}
+.crystal-detail::backdrop{background:linear-gradient(115deg,#080f19ed,#162131d9 58%,#313d4bd9);animation:detail-atmosphere-in 900ms ease both}
+.crystal-detail[data-phase=closing]::backdrop{animation:detail-atmosphere-out 950ms ease both}
+.detail-chrome{position:fixed;inset:0 0 auto;z-index:2;display:flex;justify-content:space-between;align-items:flex-start;padding:3.1% 3.4%;pointer-events:none}
+.detail-wordmark{width:clamp(155px,10.8vw,244px);height:auto;filter:drop-shadow(0 0 12px #ffffff40)}
+.detail-close{position:relative;min-width:90px;min-height:44px;background:transparent;border:0;color:inherit;font:inherit;cursor:pointer;pointer-events:auto;text-shadow:0 0 7px #ffffff50}
+/* Four corner brackets echo the crystal's existing explore affordance. */
+.detail-close::before,.detail-close::after,.detail-close span::before,.detail-close span::after{content:'';position:absolute;width:7px;height:7px;border:solid #c7cdd5;border-width:1px 0 0 1px;left:0;top:0}
+.detail-close::after{left:auto;right:0;transform:rotate(90deg)}
+.detail-close span::before{top:auto;bottom:0;transform:rotate(-90deg)}
+.detail-close span::after{top:auto;bottom:0;left:auto;right:0;transform:rotate(180deg)}
+.detail-close:hover{color:white;text-shadow:0 0 12px white}
+.detail-content{position:relative;width:min(640px,calc(100% - 48px));margin:0 auto;padding:26vh 0 120px;animation:detail-copy-in 1000ms cubic-bezier(.2,.7,.2,1) both}
+.detail-content p{margin:0 0 24px}.detail-content h2:focus{outline:0}
+.detail-content .detail-eyebrow{color:#8c96a5;margin:0 0 34px;font-size:inherit;font-weight:500}
+.detail-content .detail-links+.detail-eyebrow{margin-top:36px}
+.detail-skills{margin:0}.detail-skills>div{margin-bottom:24px}.detail-skills dt{font-weight:500}.detail-skills dd{margin:0;color:#b6bfcc}
+.detail-links{display:flex;gap:24px;flex-wrap:wrap}.detail-links a{transition:color .2s,text-shadow .2s}.detail-links a:hover{color:#fff;text-shadow:0 0 10px #ffffff70}
+.detail-gallery-toggle{border:0;padding:0;background:none;font:inherit;color:inherit;cursor:pointer;text-align:left}.detail-gallery-toggle:hover{color:white}
+.detail-gallery-back{position:absolute;right:38px;top:34px;padding:10px 14px;border:1px solid #ffffff25;background:#ffffff05;font:11px var(--default-font);color:inherit;cursor:pointer}
+.detail-gallery-back:hover{background:#ffffff10}
+@media(max-width:1050px){.detail-gallery-back{position:static;margin:0 0 24px}}
+.detail-sound{position:fixed;left:3.4%;bottom:max(5.1%,env(safe-area-inset-bottom));z-index:2;padding:8px 0;border:0;background:none;color:inherit;font:11px var(--default-font);cursor:pointer}
+.crystal-detail[data-phase=closing] .detail-content{animation:detail-copy-out 450ms ease both}
+/* Projects use the reference's wide independent gallery, with the owner's real
+   application screenshots. Contain preserves interfaces instead of cropping. */
+.detail-projects .detail-content{width:min(1440px,80%);margin:0 auto;min-height:100%;padding:38px;background:#10151bf7;border-inline:1px solid #ffffff15}
+.detail-projects .detail-chrome{z-index:3}.detail-projects .detail-close{background:#10151be8}.detail-projects .detail-wordmark{width:clamp(90px,6vw,140px)}
+.detail-heading{margin:0 0 10px;font-size:clamp(28px,2.7vw,44px);letter-spacing:.02em;line-height:1.2;color:#e0e6ec;font-weight:500}
+.detail-projects .detail-eyebrow{font-size:12px;letter-spacing:.12em;margin-bottom:15px}
+.detail-project-intro{max-width:620px;color:#8d98a5;padding-bottom:24px}
+.detail-project-grid{border-top:1px solid #ffffff20;padding-top:32px;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:22px}
+.detail-project{border:1px solid #ffffff20;background:#11161e;min-width:0}
+.detail-project-image{position:relative;display:block;aspect-ratio:1.6;background:#1b222b;overflow:hidden}
+.detail-project-image img{display:block;width:100%;height:100%;object-fit:contain;transition:transform .45s ease}
+.detail-project-image:hover img{transform:scale(1.035)}
+.detail-project-image>span{position:absolute;left:12px;top:12px;padding:6px 9px;background:#0b1019de;border:1px solid #ffffff25;text-transform:uppercase;font-size:10px;letter-spacing:.1em;color:#dce3ed}
+.detail-project-copy{padding:17px}.detail-project-copy h3{font-size:14px;margin:0 0 12px;font-weight:500;color:#e0e6ec}.detail-project-copy h3 a{display:flex;justify-content:space-between;gap:12px}.detail-project-copy p{font-size:12px;color:#9ba7b6;margin-bottom:14px}.detail-project-copy .detail-project-tags{font-size:10px;color:#738195}.detail-project-copy .detail-links{font-size:11px;gap:16px}
+/* Hide labels while the selected sculpture opens; the modal owns its own chrome. */
+#app[data-detail] .identity,#app[data-detail] .bottom-bar,#app[data-detail] .crystal-readout,#app[data-detail] .crystal-atmosphere{opacity:0;visibility:hidden;transition:none}
+#app[data-detail] .crystal-explore{visibility:hidden!important}
+@keyframes detail-atmosphere-in{from{opacity:0}to{opacity:1}}
+@keyframes detail-atmosphere-out{from{opacity:1}to{opacity:0}}
+@keyframes detail-copy-in{0%,25%{opacity:0;transform:translateY(24px)}100%{opacity:1;transform:none}}
+@keyframes detail-copy-out{to{opacity:0;transform:translateY(12px)}}
+@media(max-width:1050px){.detail-project-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.detail-projects .detail-content{width:88%;padding:90px 24px 75px}.detail-projects .detail-chrome{background:linear-gradient(#10151b,transparent);padding-bottom:25px}}
+@media(max-width:640px){.detail-chrome{padding:25px 6%}.detail-wordmark{width:140px}.detail-close{min-width:75px}.detail-content{padding-top:150px;padding-bottom:100px;width:calc(100% - 48px);font-size:13px;line-height:1.6}.detail-content .detail-eyebrow{margin-bottom:26px}.detail-sound{left:6%;bottom:max(24px,env(safe-area-inset-bottom));background:#101722c9;padding:8px}.detail-projects .detail-content{width:100%;padding:105px 20px 95px}.detail-project-grid{grid-template-columns:1fr;gap:20px;padding-top:24px}.detail-project-copy h3{font-size:16px}.detail-project-copy p{font-size:13px}}
+@media(prefers-reduced-motion:reduce){.crystal-detail::backdrop,.crystal-detail[data-phase=closing]::backdrop,.detail-content,.crystal-detail[data-phase=closing] .detail-content{animation:none}.detail-project-image img{transition:none}}

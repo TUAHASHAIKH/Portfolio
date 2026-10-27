@@ -88,7 +88,8 @@ export function PolarExperience() {
       cancelCenter();window.scrollTo({top:distance*journeyToScroll(target)/JOURNEY_END,behavior:'instant'})
     }
     const navigationKey = (event: KeyboardEvent) => {
-      if(event.defaultPrevented)return
+      // Page and arrow keys belong to the detail's scroll container while open.
+      if(event.defaultPrevented||document.querySelector('dialog[open]'))return
       if(event.key==='Home')delete journey.current.forwardTarget
       if (['ArrowUp','ArrowDown','PageUp','PageDown','Home','End',' '].includes(event.key)) cancelCenter()
       if(['ArrowUp','PageUp'].includes(event.key)||(event.key===' '&&event.shiftKey)){delete journey.current.forwardTarget;reverseLoop(event.key==='ArrowUp'?40:window.innerHeight*.9)}

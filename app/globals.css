@@ -63,11 +63,7 @@ html{scrollbar-width:none}html::-webkit-scrollbar{display:none}
 .crystal-explore:hover{text-shadow:0 0 8px white}
 .crystal-unavailable{display:none;position:absolute;inset:45% 20%;text-align:center;font-size:12px}
 #app[data-crystal-error=true] .crystal-unavailable{display:block}
-.skills-dialog{pointer-events:auto;border:1px solid #d9dfe980;border-radius:0;padding:36px;max-width:560px;width:calc(100% - 40px);color:#f5f7fb;background:#626a79ed;font:13px/1.7 var(--default-font);box-shadow:0 20px 100px #20273350}
-.skills-dialog::backdrop{background:#31384788;backdrop-filter:blur(12px)}
-.skills-dialog form{text-align:right}.skills-dialog button{border:0;background:none;cursor:pointer;font-size:11px;padding:8px}
-.skills-dialog h2{font-size:30px;font-weight:500}.skills-dialog dt{color:#d4dbe9;margin-top:18px}.skills-dialog dd{margin:4px 0 0}
-@media(max-width:640px){.crystal-title{left:12%;top:24%;font-size:13px}.crystal-temperature{left:67%;top:35%;font-size:10px}.crystal-explore{left:auto;right:10%;top:66%;font-size:12px}.skills-dialog{padding:22px}}
+@media(max-width:640px){.crystal-title{left:12%;top:24%;font-size:13px}.crystal-temperature{left:67%;top:35%;font-size:10px}.crystal-explore{left:auto;right:10%;top:66%;font-size:12px}}
 .crystal-atmosphere{position:absolute;inset:0;z-index:2;overflow:hidden;pointer-events:none;opacity:var(--crystal-opacity)}
 .crystal-atmosphere span{position:absolute;left:-5%;top:55%;font-size:clamp(20px,3vw,60px);white-space:nowrap;filter:blur(7px);opacity:.18;letter-spacing:.1em}
 .crystal-atmosphere span+span{left:auto;right:-6%;top:32%;filter:blur(11px);opacity:.1}

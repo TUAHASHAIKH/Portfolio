@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef } from 'react'
 import type { CrystalKind } from './journey'
+import { CrystalDetail } from './crystal-detail'
 
 const readouts = {
   skills: { title:'Skills', index:'01', temperature:0, phase:1 },
@@ -10,26 +11,13 @@ const readouts = {
 }
 
 export function CrystalReadout({ kind = 'skills' }: { kind?: CrystalKind }) {
-  const projects = kind === 'projects'
   const {title,index,temperature:baseTemperature,phase}=readouts[kind]
-  const dialog = useRef<HTMLDialogElement>(null)
-  const heading = useRef<HTMLHeadingElement>(null)
   const temperature = useRef<HTMLSpanElement>(null)
   const celsius = useRef<HTMLSpanElement>(null)
   const center = useCallback(() => {
     window.dispatchEvent(new CustomEvent('portfolio:center-crystal',{detail:kind}))
   },[kind])
-  const open = useCallback(() => {
-    if (dialog.current?.open) return
-    center()
-    dialog.current?.showModal()
-    heading.current?.focus()
-  }, [center])
-  useEffect(() => {
-    const event = `portfolio:open-${kind}`
-    window.addEventListener(event, open)
-    return () => window.removeEventListener(event, open)
-  }, [open,kind])
+  const open = useCallback(() => { window.dispatchEvent(new Event(`portfolio:open-${kind}`)) }, [kind])
   useEffect(() => {
     const preference = window.matchMedia('(prefers-reduced-motion: reduce)')
     const started = performance.now()
@@ -53,19 +41,6 @@ export function CrystalReadout({ kind = 'skills' }: { kind?: CrystalKind }) {
     <p className="crystal-temperature" aria-hidden="true">TEMP&nbsp;&nbsp; <span ref={temperature}>35.03</span><br />&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; <span ref={celsius}>+01.68</span></p>
     <button className="crystal-explore" onPointerEnter={center} onFocus={center} onClick={open} onKeyDown={event => { if(event.key==='Enter'||event.key===' '){event.preventDefault();open()} }} aria-haspopup="dialog">{index} / {title.toUpperCase()}<br />CLICK TO EXPLORE</button>
     <p className="crystal-unavailable" role="status">The crystal could not load. Refresh to try again.</p>
-    <dialog ref={dialog} className="skills-dialog" aria-labelledby={`${kind}-heading`} onClick={event => { if(event.target === event.currentTarget) dialog.current?.close() }}>
-      <form method="dialog"><button aria-label={`Close ${kind}`}>[ CLOSE ]</button></form>
-      <p>PORTFOLIO_CO_{index}</p><h2 id={`${kind}-heading`} ref={heading} tabIndex={-1}>{title}</h2>
-      {kind==='about' ? <>
-        <p>I’m Tuaha Shaikh, a software engineer exploring the space between thoughtful design and intelligent systems.</p>
-        <p>I build full stack applications and experiment with AI, turning ideas into working software.</p>
-        <p><a href="https://github.com/TUAHASHAIKH" target="_blank" rel="noreferrer">GITHUB ↗</a> / <a href="https://www.linkedin.com/in/muhammad-tuaha-shaikh" target="_blank" rel="noreferrer">LINKEDIN ↗</a></p>
-      </> : projects ? <><p>Explore my repositories, experiments, and work in progress.</p><a href="https://github.com/TUAHASHAIKH?tab=repositories" target="_blank" rel="noreferrer">VIEW PROJECTS ON GITHUB ↗</a></> : <dl>
-        <dt>Languages</dt><dd>C / C++ / Java / Python / PHP / JavaScript</dd>
-        <dt>Web</dt><dd>React / Node.js / Express / Django / HTML / CSS</dd>
-        <dt>Data</dt><dd>MySQL / MongoDB / PL/SQL / pandas / NumPy / scikit-learn</dd>
-        <dt>Practice</dt><dd>Problem solving / Cryptography / Data visualization</dd>
-      </dl>}
-    </dialog>
+    <CrystalDetail kind={kind} />
   </section>
 }
