@@ -27,6 +27,10 @@ const radians = (degrees: number) => degrees * Math.PI / 180
 // Convert the reference's 60 Hz interpolation coefficients into per-second rates.
 const pointerResponse = -60 * Math.log(1 - .05)
 const blockResponse = -60 * Math.log(1 - .06)
+// The reference settles at .495 of its 21-second landscape timeline. Its
+// constructor camera (-14, 4, 14) is only a starting pose, not the resting view.
+const heroPosition = [-13.4852, 2.6537, 14.4261] as const
+const heroTargetY = 1.239
 const mountains = [
   { position: [59.53,-1,-11.84], scale: [4,3.14,4], rotation: [4.1,-42.8,5] },
   { position: [1,-2.21,-23], scale: [2,2,2], rotation: [3.5,30,0] },
@@ -256,7 +260,7 @@ function World({ assets, onReady, reduced, journey }: { assets: PolarAssets; onR
   const rayPointer = useMemo(()=>new THREE.Vector2(),[])
   const retreat = useMemo(() => new THREE.Vector3(), [])
   const orbit = useRef({ yaw: 0, pitch: 0 })
-  const cameraTarget = useMemo(() => new THREE.Vector3(0, 1.6, 0), [])
+  const cameraTarget = useMemo(() => new THREE.Vector3(0, heroTargetY, 0), [])
   const cameraOffset = useMemo(() => new THREE.Vector3(), [])
   const cameraRight = useMemo(() => new THREE.Vector3(), [])
   const cameraUp = useMemo(() => new THREE.Vector3(), [])
@@ -352,7 +356,7 @@ function World({ assets, onReady, reduced, journey }: { assets: PolarAssets; onR
     const orbitResponse = -60 * Math.log(1 - .035)
     orbit.current.yaw = reduced?0:THREE.MathUtils.damp(orbit.current.yaw, pointer.x * Math.PI / 2 * .07, orbitResponse, delta)
     orbit.current.pitch = reduced?0:THREE.MathUtils.damp(orbit.current.pitch, -pointer.y * Math.PI / 2 * .025, orbitResponse, delta)
-    cameraOffset.set(-14 * distance, 4 * distance, 14 * distance).sub(cameraTarget)
+    cameraOffset.set(...heroPosition).multiplyScalar(distance).sub(cameraTarget)
     normal.copy(cameraOffset).normalize()
     cameraRight.crossVectors(worldUp, normal).normalize()
     cameraUp.crossVectors(normal, cameraRight).normalize()
@@ -434,7 +438,7 @@ export default function App3D({ onReady, reducedMotion, journey }: { onReady: ()
     document.addEventListener('visibilitychange', update)
     return () => document.removeEventListener('visibilitychange', update)
   }, [])
-  return <Canvas dpr={[1,1.5]} camera={{ position: [-14,4,14], fov: 30, near: .1, far: 1000 }} gl={{ antialias: true, alpha: false, outputColorSpace: THREE.SRGBColorSpace, toneMapping: THREE.NoToneMapping, powerPreference: 'high-performance' }} frameloop={visible ? 'always' : 'never'}>
+  return <Canvas dpr={[1,1.5]} camera={{ position: [...heroPosition], fov: 30, near: .1, far: 1000 }} gl={{ antialias: true, alpha: false, outputColorSpace: THREE.SRGBColorSpace, toneMapping: THREE.NoToneMapping, powerPreference: 'high-performance' }} frameloop={visible ? 'always' : 'never'}>
     <JourneyMotion journey={journey} reduced={reducedMotion} />
     <SceneController onReady={onReady} reduced={reducedMotion} journey={journey} />
   </Canvas>
