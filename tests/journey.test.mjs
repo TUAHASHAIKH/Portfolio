@@ -61,6 +61,34 @@ const {scrollToJourney,journeyToScroll,reverseScrollTarget}=await import(`data:t
 const motionSource=await readFile(new URL('../components/polar/journey-motion.ts',import.meta.url),'utf8')
 const motionCode=ts.transpileModule(motionSource,{compilerOptions:{module:ts.ModuleKind.ESNext}}).outputText.replace("'./journey'",JSON.stringify(journeyUrl))
 const {advanceJourney,loopSettled,reverseAtBoundary,forwardAtBoundary}=await import(`data:text/javascript;base64,${Buffer.from(motionCode).toString('base64')}`)
+const inputSource=await readFile(new URL('../components/polar/scroll-input.ts',import.meta.url),'utf8')
+const inputCode=ts.transpileModule(inputSource,{compilerOptions:{module:ts.ModuleKind.ESNext}}).outputText
+const {boundedScrollTarget,wheelPixels}=await import(`data:text/javascript;base64,${Buffer.from(inputCode).toString('base64')}`)
+
+test('wheel units agree across pixel, line, and page devices',()=>{
+  assert.equal(wheelPixels(160,0,800),160)
+  assert.equal(wheelPixels(10,1,800),160)
+  assert.equal(wheelPixels(.2,2,800),160)
+  assert.equal(wheelPixels(-10,1,800),-160)
+})
+
+test('wheel bursts cannot queue multiple sections and reversing discards stale intent',()=>{
+  let target=5000
+  for(let i=0;i<100;i++)target=boundedScrollTarget(target,5000,1200,720)
+  assert.equal(target,5720)
+  assert.equal(boundedScrollTarget(target,5000,-120,720),4880)
+  assert.equal(boundedScrollTarget(4280,5000,120,720),5120)
+  assert.equal(boundedScrollTarget(0,0,-120,720),-120,'Backward input can cross the loop seam')
+})
+
+test('a capped wheel burst settles promptly without sacrificing bounded camera speed',()=>{
+  for(const fps of [30,60,120]){
+    const target=boundedScrollTarget(0,0,12000,720)/1760
+    const state={value:0,target},motion={velocity:0}
+    for(let i=0;i<fps;i++)advanceJourney(state,motion,1/fps,false)
+    assert(Math.abs(state.value-target)<.001,'Wheel motion should finish within one second')
+  }
+})
 
 test('reverse input retains boundary overshoot and queued distance past the contact section',()=>{
   assert.equal(reverseScrollTarget(undefined,40,60,1000),undefined)

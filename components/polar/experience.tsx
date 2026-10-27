@@ -7,6 +7,7 @@ import { crystalCenter, isCrystalKind, JOURNEY_END, type Journey } from './journ
 import { CrystalReadout } from './crystal-readout'
 import { SocialControls } from './social-controls'
 import { scrollToJourney, journeyToScroll, reverseScrollTarget } from './scroll-path'
+import { boundedScrollTarget, ownsNavigationKey, wheelPixels } from './scroll-input'
 
 const App3D = dynamic(() => import('./scene'), { ssr: false })
 
@@ -62,25 +63,45 @@ export function PolarExperience() {
       window.scrollTo({top:distance*journeyToScroll(target)/JOURNEY_END,behavior:'instant'})
     }
     const wheel=(event:WheelEvent)=>{
-      if(event.ctrlKey||document.querySelector('dialog[open]'))return
+      if(event.defaultPrevented||!event.cancelable||event.ctrlKey||event.metaKey||document.querySelector('dialog[open]'))return
+      if(Math.abs(event.deltaX)>Math.abs(event.deltaY)||!event.deltaY)return
+      // Native wheel animation and the scene spring used to ease the same
+      // gesture twice. Sample wheel intent once; the scene owns its easing.
+      event.preventDefault()
       cancelCenter()
-      const pixels=event.deltaY*(event.deltaMode===1?16:event.deltaMode===2?window.innerHeight:1)
-      if(pixels<0){delete journey.current.forwardTarget;reverseLoop(-pixels)}
-      else if(pixels>0){delete journey.current.reverseTarget;forwardLoop(pixels)}
+      const state=journey.current
+      const toPixels=(value:number)=>distance*journeyToScroll(value)/JOURNEY_END
+      const current=state.forwardTarget!==undefined?distance+toPixels(state.forwardTarget-JOURNEY_END)
+        :state.reverseTarget!==undefined?toPixels(state.reverseTarget)-distance:toPixels(state.target)
+      const pixels=wheelPixels(event.deltaY,event.deltaMode,window.innerHeight)
+      const target=boundedScrollTarget(current,toPixels(state.value),pixels,window.innerHeight*.9)
+      delete state.forwardTarget
+      delete state.reverseTarget
+      window.scrollTo({top:Math.max(0,Math.min(distance,target)),behavior:'instant'})
+      update()
+      if(target<0)state.reverseTarget=scrollToJourney(JOURNEY_END*(1+target/distance))
+      else if(target>distance)state.forwardTarget=JOURNEY_END+scrollToJourney(JOURNEY_END*(target/distance-1))
     }
     const forwardLoop=(pixels:number)=>{
       const excess=Math.max(0,pixels-(distance-window.scrollY))
       if(!excess)return
       journey.current.forwardTarget=Math.min(JOURNEY_END*2-.001,(journey.current.forwardTarget??JOURNEY_END)+excess/distance*JOURNEY_END)
     }
-    let touchStart=0
-    const touch=(event:TouchEvent)=>{cancelCenter();touchStart=event.touches[0]?.clientY||0}
+    let touchStart:number|null=null
+    const touch=(event:TouchEvent)=>{
+      touchStart=null
+      if(event.touches.length!==1||document.querySelector('dialog[open]'))return
+      cancelCenter();touchStart=event.touches[0].clientY
+    }
     const drag=(event:TouchEvent)=>{
-      const next=event.touches[0]?.clientY||0,delta=next-touchStart
+      if(touchStart===null||event.touches.length!==1||document.querySelector('dialog[open]')){touchStart=null;return}
+      cancelCenter()
+      const next=event.touches[0].clientY,delta=next-touchStart
       if(delta>0){delete journey.current.forwardTarget;reverseLoop(delta)}
       else if(delta<0){delete journey.current.reverseTarget;forwardLoop(-delta)}
       touchStart=next
     }
+    const endTouch=()=>{touchStart=null}
     const wrapped=(event:Event)=>{
       // Keep native input flowing into the next lap. The bounded scene spring
       // controls speed; a wheel-event guard must never hold the hero in place.
@@ -89,7 +110,7 @@ export function PolarExperience() {
     }
     const navigationKey = (event: KeyboardEvent) => {
       // Page and arrow keys belong to the detail's scroll container while open.
-      if(event.defaultPrevented||document.querySelector('dialog[open]'))return
+      if(event.defaultPrevented||event.ctrlKey||event.metaKey||event.altKey||ownsNavigationKey(event.target)||document.querySelector('dialog[open]'))return
       if(event.key==='Home')delete journey.current.forwardTarget
       if (['ArrowUp','ArrowDown','PageUp','PageDown','Home','End',' '].includes(event.key)) cancelCenter()
       if(['ArrowUp','PageUp'].includes(event.key)||(event.key===' '&&event.shiftKey)){delete journey.current.forwardTarget;reverseLoop(event.key==='ArrowUp'?40:window.innerHeight*.9)}
@@ -120,9 +141,11 @@ export function PolarExperience() {
     window.addEventListener('scroll', update, { passive: true })
     window.addEventListener('resize', measure)
     window.addEventListener('portfolio:center-crystal',centerCrystal)
-    window.addEventListener('wheel',wheel,{passive:true})
+    window.addEventListener('wheel',wheel,{passive:false})
     window.addEventListener('touchstart',touch,{passive:true})
     window.addEventListener('touchmove',drag,{passive:true})
+    window.addEventListener('touchend',endTouch,{passive:true})
+    window.addEventListener('touchcancel',endTouch,{passive:true})
     window.addEventListener('portfolio:journey-wrapped',wrapped)
     window.addEventListener('portfolio:journey-reversed',reversed)
     window.addEventListener('pointermove',point,{capture:true,passive:true})
@@ -133,6 +156,7 @@ export function PolarExperience() {
       window.removeEventListener('portfolio:center-crystal',centerCrystal)
       window.removeEventListener('wheel',wheel);window.removeEventListener('touchstart',touch)
       window.removeEventListener('touchmove',drag);window.removeEventListener('portfolio:journey-wrapped',wrapped)
+      window.removeEventListener('touchend',endTouch);window.removeEventListener('touchcancel',endTouch)
       window.removeEventListener('portfolio:journey-reversed',reversed)
       window.removeEventListener('pointermove',point,true)
       window.removeEventListener('keydown',navigationKey)
