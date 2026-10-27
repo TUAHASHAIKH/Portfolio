@@ -191,8 +191,7 @@ function Ice({ assets, cursor, engaged, reduced, intro, journey, lift }: { asset
   const meshes = useRef<(THREE.Mesh | null)[]>([])
   const resources = useMemo(() => assets.pieces.map(piece => {
     const material = makeIceMaterial(assets)
-    material.uniforms.center.value.copy(piece.center)
-    return { ...piece, material, motion: { fast: 0, slow: 0 } as Motion, point: piece.center.clone() }
+    return { ...piece, material, motion: { fast: 0, slow: 0 } as Motion, bounce: { fast: 0, slow: 0 } as Motion, point: piece.center.clone() }
   }), [assets])
   useEffect(() => () => { resources.forEach(piece => piece.material.dispose()) }, [resources])
   useFrame((_, frameDelta) => {
@@ -209,12 +208,16 @@ function Ice({ assets, cursor, engaged, reduced, intro, journey, lift }: { asset
       const distance = piece.center.distanceTo(cursor)
       const influence = 1 - THREE.MathUtils.smoothstep(distance, 1, 3)
       const anchored = THREE.MathUtils.smoothstep(piece.center.y, .45, .7)
-      // The visible hero always breathes open, including a fresh load with no
-      // wheel or pointer input. Hover adds a local response to that idle motion.
-      const front=THREE.MathUtils.smoothstep(piece.center.z-piece.center.x,-2,2)
-      const breathing=.16*(.7+.3*Math.sin(idle.current*.85+piece.seed.y*2.))*(.35+.65*front)
-      const hover=engaged.current?influence*.54:0
-      const target = reduced?0:Math.max(breathing,hover)*anchored*hero*arrival
+      // Reference motion: two intersecting waves open individual blocks, while
+      // the cursor's local opening varies with each block's original random seed.
+      const time=idle.current
+      const breathing=.2*(Math.sin(-time*2+piece.center.x)*.5+.5)*(Math.cos(-time)*.5+.5)*THREE.MathUtils.lerp(.5,2,piece.seed.z)
+      const hover=engaged.current?influence*(.5+.3*Math.sin(time+piece.seed.x*12.342)*piece.seed.y):0
+      const opening=reduced?0:Math.max(breathing,hover)*hero*arrival
+      const target=opening*anchored
+      // Ground bounce follows the opening even on anchored bottom blocks.
+      piece.bounce.fast=reduced?0:THREE.MathUtils.damp(piece.bounce.fast,opening,pointerResponse,delta)
+      piece.bounce.slow=reduced?0:THREE.MathUtils.damp(piece.bounce.slow,piece.bounce.fast,pointerResponse,delta)
       // Preserve the reference's two-stage easing without the previous extra slowdown.
       piece.motion.fast = reduced?0:THREE.MathUtils.damp(piece.motion.fast, target, blockResponse, delta)
       piece.motion.slow = reduced?0:THREE.MathUtils.damp(piece.motion.slow, piece.motion.fast, blockResponse, delta)
@@ -227,9 +230,12 @@ function Ice({ assets, cursor, engaged, reduced, intro, journey, lift }: { asset
         Math.cos(piece.seed.y * 30 + amount * 2) * amount * .5,
         Math.cos(piece.seed.z * 30 + amount * 2) * amount * .5,
         Math.cos(piece.seed.x * 30 + amount * 2) * amount * .5,
+        'YZX',
       )
       piece.material.uniforms.materialize.value = reduced ? 1 : smooth(progress(intro.current, 1.1, 2.25))
       piece.material.uniforms.separation.value = amount
+      piece.material.uniforms.bounce.value = piece.bounce.slow
+      piece.material.uniforms.time.value = time
       piece.point.copy(mesh.position)
     })
   })

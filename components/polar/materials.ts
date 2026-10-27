@@ -107,7 +107,7 @@ export function makeTerrainMaterial(map: THREE.Texture, options: { mountain?: bo
 export function makeIceMaterial(assets: PolarAssets) {
   return new THREE.ShaderMaterial({
     transparent: true,
-    uniforms: { materialize: { value: 1 }, closed: { value: assets.closed }, opened: { value: assets.opened }, separation: { value: 0 }, center: { value: new THREE.Vector3() } },
+    uniforms: { materialize: { value: 1 }, closed: { value: assets.closed }, opened: { value: assets.opened }, triangles: { value: assets.iceTriangles }, separation: { value: 0 }, bounce: { value: 0 }, time: { value: 0 } },
     vertexShader: `
       attribute float emission;
       varying vec2 surfaceUv;
@@ -116,7 +116,7 @@ export function makeIceMaterial(assets: PolarAssets) {
       void main() {
         surfaceUv = uv;
         iceLight = emission;
-        localPoint = position;
+        localPoint = (modelMatrix * vec4(position, 1.)).xyz;
         gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.);
       }
     `,
@@ -124,23 +124,35 @@ export function makeIceMaterial(assets: PolarAssets) {
       uniform float materialize;
       uniform sampler2D closed;
       uniform sampler2D opened;
+      uniform sampler2D triangles;
       uniform float separation;
-      uniform vec3 center;
+      uniform float bounce;
+      uniform float time;
       varying vec2 surfaceUv;
       varying float iceLight;
       varying vec3 localPoint;
       void main() {
         vec3 a = texture2D(closed, surfaceUv).rgb;
-        vec3 b = min(texture2D(opened, surfaceUv).rgb + .035, vec3(.92));
+        vec3 b = texture2D(opened, surfaceUv).rgb + .05;
         vec3 color = mix(a, b, clamp(separation * 5., 0., 1.));
-        vec3 point = localPoint + center;
-        if (point.y < (1. - materialize) * 5. - .7) discard;
-        float rim = clamp(iceLight, 0., 1.06);
-        float frost = rim * rim;
-        color += frost * separation * vec3(.5,.7,1.) * .75;
-        color += pow(rim, 8.) * vec3(.5,.7,1.) * .09;
+        vec3 point = localPoint;
+        vec3 blue = vec3(.5,.7,1.);
+        if (materialize < 1.) {
+          float edge = mix(5.45, -.4, materialize);
+          float reveal = 1. - smoothstep(edge - 1.5, edge, point.y);
+          if (reveal > .9999) discard;
+          reveal += clamp(reveal * texture2D(triangles, surfaceUv * 5.).r * 13., 0., 1.);
+          color += reveal * blue;
+        }
+        float rim = max(0., iceLight);
+        color += rim * rim * clamp(separation, 0., 1.) * blue;
+        vec3 idleGlow = pow(rim, 8.) * blue * .5;
+        color += idleGlow * (sin(point.x - time + 3.2) * .5 + .5);
+        color += smoothstep(0., 2., point.x * .5 - point.z * .5) * idleGlow;
         color += (point.x * .1 + .4) * .15 * min(point.y + .5, 1.);
-        gl_FragColor = vec4(clamp(color, 0., 1.), 1.);
+        color = clamp(color, 0., 1.);
+        color += (1. - smoothstep(-1.5, 1., point.y)) * bounce * vec3(.8,.9,1.) * .25;
+        gl_FragColor = vec4(color, 1.);
       }
     `,
   })
