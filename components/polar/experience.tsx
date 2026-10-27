@@ -36,6 +36,7 @@ export function PolarExperience() {
     let distance = 0
     let centering: number | null = null
     let intentUntil = 0
+    let wheelRemainder = 0
     const pointer={x:0,y:0},scrollPointer={x:0,y:0}
     const point=(event:PointerEvent)=>{pointer.x=event.clientX;pointer.y=event.clientY}
     // Scroll events only sample position; layout is measured when the track resizes.
@@ -45,7 +46,8 @@ export function PolarExperience() {
       if(window.scrollY<distance-1)delete journey.current.forwardTarget
       if (centering !== null && Math.abs(window.scrollY-centering)<1) centering=null
     }
-    const cancelCenter = () => {
+    const cancelCenter = (preserveWheelFraction = false) => {
+      if(!preserveWheelFraction)wheelRemainder=0
       centering=null
       intentUntil=performance.now()+350
       scrollPointer.x=pointer.x;scrollPointer.y=pointer.y
@@ -68,16 +70,19 @@ export function PolarExperience() {
       // Native wheel animation and the scene spring used to ease the same
       // gesture twice. Sample wheel intent once; the scene owns its easing.
       event.preventDefault()
-      cancelCenter()
+      cancelCenter(true)
       const state=journey.current
       const toPixels=(value:number)=>distance*journeyToScroll(value)/JOURNEY_END
       const current=state.forwardTarget!==undefined?distance+toPixels(state.forwardTarget-JOURNEY_END)
         :state.reverseTarget!==undefined?toPixels(state.reverseTarget)-distance:toPixels(state.target)
       const pixels=wheelPixels(event.deltaY,event.deltaMode,window.innerHeight)
-      const target=boundedScrollTarget(current,toPixels(state.value),pixels,window.innerHeight*.9)
+      const target=boundedScrollTarget(current,toPixels(state.value),pixels,window.innerHeight*.9)+wheelRemainder
       delete state.forwardTarget
       delete state.reverseTarget
       window.scrollTo({top:Math.max(0,Math.min(distance,target)),behavior:'instant'})
+      // CSSOM may round scrollY to device pixels. Retain fractional trackpad
+      // deltas so slow gestures do not disappear between wheel events.
+      wheelRemainder=Math.max(0,Math.min(distance,target))-window.scrollY
       update()
       if(target<0)state.reverseTarget=scrollToJourney(JOURNEY_END*(1+target/distance))
       else if(target>distance)state.forwardTarget=JOURNEY_END+scrollToJourney(JOURNEY_END*(target/distance-1))
@@ -111,7 +116,10 @@ export function PolarExperience() {
     const navigationKey = (event: KeyboardEvent) => {
       // Page and arrow keys belong to the detail's scroll container while open.
       if(event.defaultPrevented||event.ctrlKey||event.metaKey||event.altKey||ownsNavigationKey(event.target)||document.querySelector('dialog[open]'))return
-      if(event.key==='Home')delete journey.current.forwardTarget
+      if(event.key==='Home'||event.key==='End'){
+        delete journey.current.forwardTarget
+        delete journey.current.reverseTarget
+      }
       if (['ArrowUp','ArrowDown','PageUp','PageDown','Home','End',' '].includes(event.key)) cancelCenter()
       if(['ArrowUp','PageUp'].includes(event.key)||(event.key===' '&&event.shiftKey)){delete journey.current.forwardTarget;reverseLoop(event.key==='ArrowUp'?40:window.innerHeight*.9)}
       if(['ArrowDown','PageDown'].includes(event.key)||(event.key===' '&&!event.shiftKey))forwardLoop(event.key==='ArrowDown'?40:window.innerHeight*.9)

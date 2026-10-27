@@ -37,7 +37,11 @@ export function smoothDetailScroll(element: HTMLDialogElement) {
       !event.deltaY || Math.abs(event.deltaX) > Math.abs(event.deltaY)) return
     if (!limit) return
     event.preventDefault()
-    if (!frame) value = target = written = element.scrollTop
+    if (!frame && Math.abs(element.scrollTop - written) > 1) {
+      value = target = written = element.scrollTop
+    }
+    // Keep the floating-point playhead between frames. Reading rounded
+    // scrollTop back into it would lose slow, subpixel trackpad movement.
     target = Math.max(0, Math.min(limit, boundedScrollTarget(target, value,
       wheelPixels(event.deltaY, event.deltaMode, element.clientHeight), element.clientHeight * .9)))
     if (!frame) { lastTime = performance.now(); frame = requestAnimationFrame(tick) }
