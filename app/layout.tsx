@@ -2,8 +2,8 @@ import type { Metadata, Viewport } from 'next'
 import './globals.css'
 export const metadata: Metadata = {
  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'),
- icons: { icon: '/icon.svg' },
- title: 'Tuaha Shaikh — Software Engineer',
+ icons: { icon: [{ url: '/icon.svg', type: 'image/svg+xml' }, { url: '/icon-dark-32x32.png', sizes: '32x32', type: 'image/png' }], apple: '/apple-icon.png' },
+ title: 'Tuaha Shaikh',
  description: 'Tuaha Shaikh. Software engineering, full-stack development, and artificial intelligence. An interactive exploration.',
  appleWebApp: { capable: true, statusBarStyle: 'black-translucent' },
  other: { 'mobile-web-app-capable': 'yes' },
