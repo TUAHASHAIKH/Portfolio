@@ -72,6 +72,10 @@ The crystal line field uses 18 independently moving points, at most three neighb
 
 ## Scroll input and regression checks
 
+The landing uses the reference's separate timing curves for the outline, cage, top-down ice reveal, outward terrain scan, mountain fade, and camera descent. The sequence settles after 8.2 seconds of animation time; loading stalls and hidden-tab gaps cannot skip stages. Intro geometry renders as line segments, and the terrain's triangle pattern is kept off the igloo surface. Reduced motion immediately shows the completed landscape.
+
+Run `npm run test:landing` for reveal ordering, curve continuity, timing limits, and reduced-motion completion. With a local server running, `npm run test:landing-browser` observes the actual WebGL draw modes and reveal uniforms, checks desktop staging and mobile reduced-motion stillness, and saves preview screenshots under `.preview/`. It accepts `PORTFOLIO_URL` and `CHROME_BIN` overrides.
+
 The supplied Harry reference uses eased scroll targets with a bounded distance ahead of the camera. V2 applies that behavior to its existing camera path without bundling the reference application code. The grey scene, crystal spacing, and reduced-motion poses are preserved.
 
 - Wheel targets stay within 90% of a viewport ahead of the visible scene. Large bursts cannot accumulate seconds of unwanted travel, and reversal cancels queued input in the previous direction. Fractional trackpad pixels accumulate instead of being rounded away.
