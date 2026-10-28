@@ -174,6 +174,9 @@ function CrystalView({ assets, noise, journey, reduced }: { assets: CrystalAsset
     savedResolution.copy(materials.background.uniforms.resolution.value)
     const visible=landscape?.visible
     iceMeshes.forEach(mesh=>{if(mesh.current)mesh.current.visible=false})
+    // The embedded logo extends beyond concave parts of the source shell.
+    // Include it in refraction, never as an exposed opaque face on closed ice.
+    coreMeshes.forEach(mesh=>{if(mesh.current)mesh.current.visible=true})
     if(landscape) landscape.visible=false
     materials.background.uniforms.alpha.value=1
     materials.background.uniforms.resolution.value.set(buffer.width,buffer.height)
@@ -183,6 +186,7 @@ function CrystalView({ assets, noise, journey, reduced }: { assets: CrystalAsset
       gl.setRenderTarget(buffer);gl.clear();gl.render(scene,camera)
     } finally {
       rearMeshes.forEach(mesh=>{if(mesh.current)mesh.current.visible=false})
+      coreMeshes.forEach((mesh,index)=>{if(mesh.current)mesh.current.visible=detail.current.index===index&&detailPose(detail.current.progress).shell>0})
       gl.setRenderTarget(previous);materials.background.uniforms.alpha.value=alpha
       materials.background.uniforms.resolution.value.copy(savedResolution)
       iceMeshes.forEach((mesh,index)=>{if(mesh.current)mesh.current.visible=detailPose(detail.current.index===index?detail.current.progress:0).shell<.999})
@@ -222,7 +226,8 @@ function CrystalView({ assets, noise, journey, reduced }: { assets: CrystalAsset
         const material = mesh.material as THREE.MeshPhysicalMaterial
         material.opacity = 1-expanded.shell
       }
-      coreMeshes[index].current?.scale.setScalar(expanded.coreScale)
+      const core=coreMeshes[index].current
+      if(core){core.scale.setScalar(expanded.coreScale);core.visible=expanded.shell>0}
       shard.position.y=pose.y
       // The reference rotates all three axes with distance from the resting
       // position. Scroll reversal follows this exact pose back, without tweens.
