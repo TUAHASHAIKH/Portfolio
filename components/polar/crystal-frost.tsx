@@ -29,9 +29,10 @@ export function useCrystalFrost(assets: CrystalAssets, interaction: RefObject<Cr
           next=min((next+splat)*pow(.985,step),1.);
           gl_FragColor=vec4(next,max(next-old,0.),0.,1.);}`,
     })
-    return { first,second,current:first,material,quad:new FullScreenQuad(material),field:{value:first.texture} }
+    return { first,second,current:first,material,quad:new FullScreenQuad(material),field:{value:first.texture},users:0 }
   }, [assets])
   useEffect(() => {
+    simulation.users++
     const previous=gl.getRenderTarget(), clear=gl.getClearColor(new THREE.Color()), alpha=gl.getClearAlpha()
     gl.setClearColor(0,0)
     for(const target of [simulation.first,simulation.second]){gl.setRenderTarget(target);gl.clear()}
@@ -43,13 +44,19 @@ export function useCrystalFrost(assets: CrystalAssets, interaction: RefObject<Cr
     const target=new THREE.WebGLRenderTarget(1,1,{type:THREE.HalfFloatType,depthBuffer:false})
     scene.add(new THREE.Mesh(geometry,simulation.material))
     let cancelled=false
-    void gl.compileAsync(scene,camera).then(()=>{
+    const preparation=gl.compileAsync(scene,camera).then(()=>{
       if(cancelled)return
       const saved=gl.getRenderTarget()
       try{gl.setRenderTarget(target);simulation.quad.render(gl)}
       finally{gl.setRenderTarget(saved);geometry.dispose();target.dispose()}
     }).catch(error=>{if(!cancelled)console.error('Crystal hover preparation:',error)})
-    return () => { cancelled=true;geometry.dispose();target.dispose();simulation.first.dispose();simulation.second.dispose();simulation.material.dispose();simulation.quad.dispose() }
+    return () => {
+      cancelled=true;simulation.users--
+      void preparation.then(()=>{
+        geometry.dispose();target.dispose()
+        if(simulation.users===0){simulation.first.dispose();simulation.second.dispose();simulation.material.dispose();simulation.quad.dispose()}
+      })
+    }
   }, [gl,simulation])
   useFrame((_,delta) => {
     const state=interaction.current, movement=motion.current

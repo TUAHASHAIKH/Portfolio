@@ -138,6 +138,7 @@ function PostProcessing({ assets, journey, reduced }: { assets: PolarAssets; jou
     composer.addPass(render); composer.addPass(grade); composer.addPass(bloom); composer.addPass(distortion); composer.addPass(frost); composer.addPass(output)
     return { composer, render, grade, bloom, distortion, frost, output }
   }, [gl, scene, camera, assets.grade])
+  const pipelineLifetime=useMemo(()=>({users:0,preparation:Promise.resolve()}),[pipeline])
   useEffect(() => { pipeline.composer.setSize(size.width, size.height) }, [pipeline, size])
   useEffect(() => {
     // This pass starts disabled. Prepare it now instead of compiling at the
@@ -149,7 +150,7 @@ function PostProcessing({ assets, journey, reduced }: { assets: PolarAssets; jou
     let cancelled = false
     warmScene.add(new THREE.Mesh(geometry, pipeline.distortion.material))
     warmScene.add(new THREE.Mesh(geometry, pipeline.frost.material))
-    void gl.compileAsync(warmScene, camera).then(() => {
+    pipelineLifetime.preparation=gl.compileAsync(warmScene, camera).then(() => {
       if (cancelled) return
       const previous = gl.getRenderTarget()
       try { gl.setRenderTarget(target); gl.render(warmScene, camera) }
@@ -157,8 +158,14 @@ function PostProcessing({ assets, journey, reduced }: { assets: PolarAssets; jou
     })
       .catch(error => console.error('Transition shader preparation:', error))
     return () => { cancelled = true; geometry.dispose(); target.dispose() }
-  }, [gl, pipeline])
-  useEffect(() => () => { pipeline.render.dispose(); pipeline.grade.dispose(); pipeline.bloom.dispose(); pipeline.distortion.dispose(); pipeline.frost.dispose(); pipeline.output.dispose(); pipeline.composer.dispose() }, [pipeline])
+  }, [gl, pipeline,pipelineLifetime])
+  useEffect(() => {
+    pipelineLifetime.users++
+    return()=>{pipelineLifetime.users--;void pipelineLifetime.preparation.then(()=>{
+      if(pipelineLifetime.users!==0)return
+      pipeline.render.dispose();pipeline.grade.dispose();pipeline.bloom.dispose();pipeline.distortion.dispose();pipeline.frost.dispose();pipeline.output.dispose();pipeline.composer.dispose()
+    })}
+  }, [pipeline,pipelineLifetime])
   useFrame((_, delta) => {
     const p = journey.current.value
     pipeline.grade.uniforms.crystalGrade.value = scene.userData.crystalGrade || assets.grade

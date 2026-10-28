@@ -128,6 +128,7 @@ function CrystalView({ assets, noise, journey, reduced }: { assets: CrystalAsset
     })
     return { core, background }
   }, [assets, noise])
+  const materialLifetime=useMemo(()=>({users:0,preparation:Promise.resolve()}),[materials])
   useEffect(() => { scene.userData.crystalGrade = assets.grade; return () => { delete scene.userData.crystalGrade } }, [scene, assets])
   useEffect(() => {
     if(!crystals.current)return
@@ -145,7 +146,7 @@ function CrystalView({ assets, noise, journey, reduced }: { assets: CrystalAsset
     const target=new THREE.WebGLRenderTarget(16,16,{type:THREE.HalfFloatType})
     // Compile both permanent face variants before either is needed on scroll.
     // A tiny offscreen draw also uploads their textures and initializes the buffers.
-    void gl.compileAsync(warmScene,warmCamera).then(()=>{
+    materialLifetime.preparation=gl.compileAsync(warmScene,warmCamera).then(()=>{
       if(cancelled)return
       const previous=gl.getRenderTarget()
       try{
@@ -154,7 +155,7 @@ function CrystalView({ assets, noise, journey, reduced }: { assets: CrystalAsset
       }finally{gl.setRenderTarget(previous);target.dispose();plane.dispose()}
     }).catch(error=>{if(!cancelled)console.error('Crystal shader preparation:',error)})
     return ()=>{cancelled=true;target.dispose();plane.dispose()}
-  },[gl,assets,buffer,backBuffer,materials])
+  },[gl,assets,buffer,backBuffer,materials,materialLifetime])
   useFrame(({ gl, scene, camera }) => {
     camera.updateMatrixWorld()
     capture.frustum.setFromProjectionMatrix(capture.projection.multiplyMatrices(camera.projectionMatrix,camera.matrixWorldInverse))
@@ -193,7 +194,10 @@ function CrystalView({ assets, noise, journey, reduced }: { assets: CrystalAsset
       if(landscape) landscape.visible=Boolean(visible)
     }
   }, .2)
-  useEffect(() => () => Object.values(materials).forEach(material => material.dispose()), [materials])
+  useEffect(() => {
+    materialLifetime.users++
+    return()=>{materialLifetime.users--;void materialLifetime.preparation.then(()=>{if(materialLifetime.users===0)Object.values(materials).forEach(material=>material.dispose())})}
+  }, [materials,materialLifetime])
   useFrame(({ camera, size, gl }, delta) => {
     interactions.forEach((state,index)=>{if(!interactive(index)&&state.current.active)leave(index)})
     const p = journey.current.value, travel = journeyView(p)
