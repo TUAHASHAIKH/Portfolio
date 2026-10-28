@@ -82,6 +82,19 @@ try {
   await send('Page.navigate', { url })
   await until('document.querySelector("#app")?.dataset.crystalReady === "true" && document.querySelector("#loader")?.dataset.ready === "true"', 'Scene did not load')
 
+  // Browser scroll restoration used to reopen the crystals after a reload.
+  for (const progress of [.1, .36, .72]) {
+    await go(progress)
+    assert((await evaluate('scrollY')) > 0)
+    await send('Page.reload', { ignoreCache: false })
+    await until('document.querySelector("#app")?.dataset.crystalReady === "true" && document.querySelector("#loader")?.dataset.ready === "true"', 'Reloaded scene did not load')
+    await wait(500)
+    assert.equal(await evaluate('scrollY'), 0, 'Reload must start at the landing scene')
+    assert.equal(await evaluate('history.scrollRestoration'), 'manual')
+    assert.equal(await evaluate('document.querySelector(".sound-toggle").getAttribute("aria-pressed")'), 'true', 'Every reload defaults sound to On')
+  }
+  console.log('PASS reload from crystals and contact always returns to landing with sound enabled')
+
   await go(.1)
   const preciseStart=await evaluate('scrollY')
   await evaluate('for(let i=0;i<20;i++)window.dispatchEvent(new WheelEvent("wheel",{deltaY:.2,cancelable:true}))')
