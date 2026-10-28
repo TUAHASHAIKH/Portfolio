@@ -2,7 +2,7 @@ import { AUDIO_TRACKS, type SoundName } from './audio-manifest'
 import { audioMix } from './audio-mix'
 
 type Track = { buffer: AudioBuffer; gain: GainNode; source?: AudioBufferSourceNode }
-const initialState = { enabled: false, loading: false, failed: false }
+const initialState = { enabled: true, loading: false, failed: false }
 
 export class PortfolioAudio {
   private context: AudioContext | null = null
@@ -26,10 +26,22 @@ export class PortfolioAudio {
 
   async toggle() {
     if (this.state.enabled) { this.mute(); return }
+    await this.enable()
+  }
+
+  // Autoplay may stay suspended until a trusted gesture. Loading must not wait
+  // on resume(), whose promise can remain pending under browser autoplay rules.
+  unlock = () => {
+    if (this.state.enabled && this.context && !document.hidden && this.context.state !== 'running') {
+      void this.context.resume().catch(() => {})
+    }
+  }
+
+  async enable() {
     const generation = this.generation
     try {
-      // Construct and resume synchronously inside the user's click. Loading
-      // buffers later must never require a second autoplay permission gesture.
+      // Mount starts loading immediately. A trusted gesture can resume this
+      // same context while buffers are still decoding.
       if (!this.context) {
         this.context = new AudioContext()
         this.master = this.context.createGain()
@@ -37,7 +49,7 @@ export class PortfolioAudio {
         this.master.connect(this.context.destination)
       }
       this.publish({ enabled: true, loading: true, failed: false })
-      await this.context.resume()
+      this.unlock()
       if (generation !== this.generation || !this.state.enabled) return
       this.master?.gain.setTargetAtTime(1, this.context.currentTime, .12)
       this.loading ||= this.load()
@@ -60,7 +72,7 @@ export class PortfolioAudio {
     const context = this.context!, master = this.master!, generation = this.generation
     const controller = this.controller = new AbortController()
     const names = Object.keys(AUDIO_TRACKS) as SoundName[]
-    // Bound decode concurrency so opting into audio does not stall scrolling.
+    // Bound decode concurrency so decoding audio does not stall scrolling.
     for (let offset = 0; offset < names.length; offset += 3) {
       if (controller.signal.aborted) return
       await Promise.allSettled(names.slice(offset, offset + 3).map(async name => {
@@ -154,7 +166,7 @@ export class PortfolioAudio {
     if (!this.context) return
     this.cancelTimers(); this.stopCues()
     if (document.hidden) void this.context.suspend().catch(() => {})
-    else if (this.state.enabled) void this.context.resume().catch(() => this.mute())
+    else this.unlock()
   }
 
   dispose() {
@@ -170,5 +182,5 @@ export class PortfolioAudio {
   }
 }
 
-// No AudioContext, fetch, or timer exists until a visitor enables sound.
+// Construction is side-effect free; the mounted soundscape enables playback.
 export const portfolioAudio = new PortfolioAudio()

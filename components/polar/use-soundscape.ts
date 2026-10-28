@@ -7,6 +7,10 @@ import { isSoundName } from './audio-manifest'
 export function useSoundscape() {
   const state = useSyncExternalStore(portfolioAudio.subscribe, portfolioAudio.snapshot, portfolioAudio.serverSnapshot)
   useEffect(() => {
+    void portfolioAudio.enable()
+    document.addEventListener('pointerdown', portfolioAudio.unlock)
+    document.addEventListener('keydown', portfolioAudio.unlock)
+    document.addEventListener('touchend', portfolioAudio.unlock)
     const detail = (event: Event) => portfolioAudio.detail(Boolean((event as CustomEvent<{ open: boolean }>).detail?.open))
     const select = () => { portfolioAudio.cue('long'); portfolioAudio.excite('particles', 1) }
     const hover = (event: Event) => {
@@ -24,6 +28,9 @@ export function useSoundscape() {
     window.addEventListener('portfolio:crystal-detail', detail)
     window.addEventListener('portfolio:social-select', select)
     return () => {
+      document.removeEventListener('pointerdown', portfolioAudio.unlock)
+      document.removeEventListener('keydown', portfolioAudio.unlock)
+      document.removeEventListener('touchend', portfolioAudio.unlock)
       document.removeEventListener('visibilitychange', portfolioAudio.visibility)
       document.removeEventListener('pointerover', hover)
       document.removeEventListener('focusin', hover)

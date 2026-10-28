@@ -51,10 +51,10 @@ test('detail glitch bursts start and finish quietly and cannot remain active', (
   }
 })
 
-test('audio is opt-in, reuses loops, throttles beeps, mutes cues, and retries missing files', async () => {
+test('audio defaults on, reuses loops, throttles beeps, mutes cues, and retries missing files', async () => {
   const originalFetch = globalThis.fetch, originalContext = globalThis.AudioContext, originalDocument = globalThis.document
   const contexts = [], requests = []
-  let fail = true
+  let fail = true, autoplayBlocked = true
   class FakeContext {
     currentTime = 1
     state = 'suspended'
@@ -66,7 +66,7 @@ test('audio is opt-in, reuses loops, throttles beeps, mutes cues, and retries mi
       const source = { loop: false, connect() {}, disconnect() {}, start() { this.started = true }, stop() { this.stopped = true } }
       this.sources.push(source); return source
     }
-    async resume() { this.state = 'running' }
+    resume() { if (autoplayBlocked) return new Promise(() => {}); this.state = 'running'; return Promise.resolve() }
     async suspend() { this.state = 'suspended' }
     async close() { this.state = 'closed' }
     async decodeAudioData() { return {} }
@@ -78,15 +78,22 @@ test('audio is opt-in, reuses loops, throttles beeps, mutes cues, and retries mi
   try {
     audio.cue('logo'); audio.update(2, 1 / 60)
     assert.equal(contexts.length, 0); assert.equal(requests.length, 0)
-    await audio.toggle()
+    assert.equal(audio.snapshot().enabled,true)
+    await Promise.race([audio.enable(), new Promise((_,reject)=>setTimeout(()=>reject(new Error('Loading waited for autoplay permission')),2000))])
     assert.equal(audio.snapshot().failed, true)
     const context = contexts[0]
+    assert.equal(context.state, 'suspended', 'Blocked autoplay must not prevent decoding')
+    assert.equal(audio.snapshot().loading, false)
+    autoplayBlocked = false; audio.unlock()
+    assert.equal(context.state, 'running', 'A normal gesture resumes the existing context')
     assert.equal(context.sources.filter(source => source.loop).length, 7)
     const count = context.sources.length
     audio.cue('beeps'); audio.cue('beeps2')
     assert.equal(context.sources.length, count + 1, 'All beep variants share one cooldown')
     audio.detail(true)
     await audio.toggle()
+    context.state = 'suspended'; audio.unlock()
+    assert.equal(context.state, 'suspended', 'A gesture cannot undo an explicit mute')
     const muted = context.sources.length
     audio.cue('long')
     await new Promise(resolve => setTimeout(resolve, 800))

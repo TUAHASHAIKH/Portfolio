@@ -11,7 +11,7 @@ npm ci
 npm run dev
 ```
 
-Open http://localhost:3000. Move over the igloo to separate nearby blocks and reveal the measurement annotations. Sound is off until the sound button is pressed. Narrow screens get a wider camera view; reduced-motion preferences disable block movement and snow particles.
+Open http://localhost:3000. Move over the igloo to separate nearby blocks and reveal the measurement annotations. Sound defaults to On and starts automatically when allowed; otherwise the first click, tap, or keypress unlocks playback. Narrow screens get a wider camera view; reduced-motion preferences disable block movement and snow particles.
 
 ```sh
 npx tsc --noEmit
@@ -29,7 +29,7 @@ npm start
 - `components/polar/assets.ts`: worker-based Draco and KTX2 loading and ice mesh separation.
 - `components/polar/materials.ts`: baked surface rendering and frost emission during separation.
 - `public/scene/`: detailed geometry, compressed baked maps, palette LUT, and decoder assets.
-- `components/polar/audio-engine.ts`: opt-in Web Audio mixer, scene crossfades, and interaction cues.
+- `components/polar/audio-engine.ts`: default-on Web Audio mixer, scene crossfades, and interaction cues.
 - `components/polar/glitch-effects.tsx`: short block reveals for labels and controls.
 - `public/audio/`: the reference's 18 sound recordings and source attribution.
 - `app/globals.css`: theme variables, locally hosted IBM Plex Mono, responsive layout.
@@ -38,7 +38,7 @@ The detailed meshes, baked textures, palette LUT, and font builds match the publ
 
 ## Sound and glitch effects
 
-Sound starts off. Enabling it loads the 18 Ogg recordings in batches of three and resumes one AudioContext from the user's gesture. Music and room ambience form the background; wind follows the igloo, portal sound follows ring proximity, and crystal/particle textures respond to pointer movement. Logo, labels, links, social selection, and detail entrance/exit have their matching UI cues. The main and detail sound controls share one mixer. Mute cancels pending cues; hidden tabs suspend playback; failed files can be retried without duplicating loops.
+Sound defaults to On. Mounting loads the 18 Ogg recordings in batches of three. When the browser blocks autoplay, the first click, tap, or keypress resumes the same AudioContext; loading never waits for autoplay permission. Muting before that gesture keeps sound off. Music and room ambience form the background; wind follows the igloo, portal sound follows ring proximity, and crystal/particle textures respond to pointer movement. Logo, labels, links, social selection, and detail entrance/exit have their matching UI cues. The main and detail sound controls share one mixer. Mute cancels pending cues; hidden tabs suspend playback; failed files can be retried without duplicating loops.
 
 The logo uses its short sliced reveal. Labels, social controls, and detail links use brief block masks and horizontal offsets. Detail transitions use texture-driven block displacement and a small RGB separation inside the existing distortion pass. These effects finish at rest, preserve the grey scene, and turn off with reduced motion. Audio remains an independent preference.
 
