@@ -10,6 +10,7 @@
     "test:landing": "node --test tests/landing.test.mjs",
     "test:landing-browser": "node tests/landing.browser.mjs",
     "test:scroll-browser": "node tests/scroll.browser.mjs",
+    "test:particles-browser": "node tests/particles.browser.mjs",
     "test:audio": "node --test tests/audio.test.mjs",
     "test:effects-browser": "node tests/effects.browser.mjs",
     "start": "next start"

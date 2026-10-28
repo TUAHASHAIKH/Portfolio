@@ -91,21 +91,25 @@ export function makeRingMaterials(assets: RingAssets, wind: THREE.Texture) {
       gl_FragColor=vec4(color,alpha*opacity);
     }`,{map:{value:assets.floorMap},reveal:{value:0},glowFactor:{value:1},chamber:{value:0},motion:{value:1}})
   floor.depthWrite=true;floor.side=THREE.FrontSide
-  const core = make(`${common}
+  const core = make(`precision highp sampler3D;${common}
     attribute vec3 socialPosition1;attribute vec3 socialPosition2;attribute vec3 socialPosition3;attribute vec3 socialNormal1;attribute vec3 socialNormal2;attribute vec3 socialNormal3;
-    attribute vec2 particleUv;uniform vec4 socialWeights;uniform sampler2D particlePositions;uniform float simulationMix;uniform float socialView;
+    uniform sampler3D particleVolume;uniform float volumeRotation;uniform float volumeDistanceScale;attribute vec2 particleUv;uniform vec4 socialWeights;uniform sampler2D particlePositions;uniform float simulationMix;uniform float socialView;
     uniform float forming;uniform float pixelRatio;varying float light;varying float seed;varying float energy;
     void main(){seed=fract(sin(dot(position,vec3(127.1,311.7,74.7)))*43758.5453);
       vec3 shapeNormal=normalize(normal*socialWeights.x+socialNormal1*socialWeights.y+socialNormal2*socialWeights.z+socialNormal3*socialWeights.w+vec3(.00001));
       vec3 pos=position*socialWeights.x+socialPosition1*socialWeights.y+socialPosition2*socialWeights.z+socialPosition3*socialWeights.w;
       vec4 simulated=texture2D(particlePositions,particleUv);energy=simulated.a*simulationMix;
       pos=mix(pos,simulated.xyz,simulationMix);
-      pos+=shapeNormal*sin(time+seed*30.)*.0015;
-      pos+=shapeNormal*forming*.018*sin(seed*94.+time*.7);
+      float c=cos(volumeRotation),s=sin(volumeRotation);
+      mat3 rotation=mat3(c,0.,-s,0.,1.,0.,s,0.,c);
+      vec4 sdf=texture(particleVolume,rotation*pos/.65*1.2+.5);
+      vec3 volumeNormal=normalize(sdf.rgb*2.-1.+vec3(.000001))*rotation;
+      shapeNormal=normalize(mix(shapeNormal,volumeNormal,simulationMix));
       float diffuse=dot(shapeNormal,normalize(vec3(-.75,1.,-.1)));
       light=max(0.,(diffuse+.25)/1.25)+max(0.,-diffuse)*.1;
+      light*=mix(1.,mix(.2,1.,smoothstep(-.05,-.001,(sdf.a*2.-1.)*volumeDistanceScale)),simulationMix);
       vec4 mv=modelViewMatrix*vec4(pos,1.);gl_Position=projectionMatrix*mv;
-      gl_PointSize=clamp(mix(5.,8.,socialView)/length(mv.xyz)*(resolution.y/1300.),.75,6.*pixelRatio);
+      gl_PointSize=10./length(mv.xyz)*(resolution.y/1300.);
     }`,`${common}
     uniform float glow;uniform float reveal;uniform vec3 colorDark;uniform vec3 colorLight;uniform vec3 colorFast;uniform vec3 colorInitial;
     varying float light;varying float seed;varying float energy;
@@ -124,7 +128,11 @@ export function makeRingMaterials(assets: RingAssets, wind: THREE.Texture) {
       float motionAlpha=max(glow,pow(clamp((.007-speed)/.005,0.,1.),2.)*.5+.5);
       color=mix(color,colorInitial,glow);
       gl_FragColor=vec4(clamp(color,0.,1.),circle*reveal*opacity*motionAlpha);
-    }`,{colorDark:{value:new THREE.Color('#222b42')},colorLight:{value:new THREE.Color('#bdc6d4')},colorFast:{value:new THREE.Color('#d7ebfa')},colorInitial:{value:new THREE.Color('#b5d5ff')},glow:{value:1},reveal:{value:0},forming:{value:1},pixelRatio:{value:1},socialWeights:{value:new THREE.Vector4(1,0,0,0)},particlePositions:{value:null},simulationMix:{value:0},socialView:{value:0}})
+    }`,{colorDark:{value:new THREE.Color('#222b42')},colorLight:{value:new THREE.Color('#bdc6d4')},colorFast:{value:new THREE.Color('#d7ebfa')},colorInitial:{value:new THREE.Color('#b5d5ff')},glow:{value:1},reveal:{value:0},forming:{value:1},pixelRatio:{value:1},socialWeights:{value:new THREE.Vector4(1,0,0,0)},particleVolume:{value:assets.volume},volumeDistanceScale:{value:2},volumeRotation:{value:0},particlePositions:{value:null},simulationMix:{value:0},socialView:{value:0}})
+  core.blending=THREE.CustomBlending
+  core.blendSrc=THREE.SrcAlphaFactor
+  core.blendDst=THREE.SrcColorFactor
+  core.blendEquation=THREE.AddEquation
   const background = make(`uniform float screenLift;varying vec2 vUv;void main(){vUv=uv;gl_Position=vec4(position.xy,1.,1.);}`,`${common}
     varying vec2 vUv;void main(){float edge=screenLift>0.?smoothstep(0.,.14,vUv.y):1.;gl_FragColor=vec4(sky(vUv),opacity*edge);}`)
   background.depthWrite=false;background.depthTest=false

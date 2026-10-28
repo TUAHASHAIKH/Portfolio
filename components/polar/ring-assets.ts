@@ -45,6 +45,7 @@ export async function loadRingAssets(renderer: THREE.WebGLRenderer) {
     const image = volume.image as { data: Uint8Array; width: number; height: number; depth: number }
     const data = image.data.slice()
     const masks = socialMasks()
+    const volumes: THREE.Texture[] = [volume]
     worker = new Worker('/workers/ring-core.js')
     const core = await new Promise<THREE.BufferGeometry>((resolve, reject) => {
       worker!.onerror = event => reject(new Error(event.message))
@@ -53,8 +54,14 @@ export async function loadRingAssets(renderer: THREE.WebGLRenderer) {
         result.setAttribute('position', new THREE.BufferAttribute(event.data.positions, 3))
         result.setAttribute('normal', new THREE.BufferAttribute(event.data.normals, 3))
         for(let index=0;index<masks.length;index++){
-          result.setAttribute(`socialPosition${index+1}`,new THREE.BufferAttribute(event.data.social[index].positions,3))
-          result.setAttribute(`socialNormal${index+1}`,new THREE.BufferAttribute(event.data.social[index].normals,3))
+          const social=event.data.social[index]
+          result.setAttribute(`socialPosition${index+1}`,new THREE.BufferAttribute(social.positions,3))
+          result.setAttribute(`socialNormal${index+1}`,new THREE.BufferAttribute(social.normals,3))
+          const texture=new THREE.Data3DTexture(social.volume,social.volumeSize,social.volumeSize,social.volumeSize)
+          texture.format=THREE.RGBAFormat;texture.type=THREE.UnsignedByteType
+          texture.minFilter=texture.magFilter=THREE.LinearFilter
+          texture.userData.distanceScale=social.distanceScale
+          texture.needsUpdate=true;volumes.push(texture);resources.push(texture)
         }
         result.computeBoundingSphere(); resources.push(result)
         resolve(result)
@@ -63,6 +70,6 @@ export async function loadRingAssets(renderer: THREE.WebGLRenderer) {
     })
     worker.terminate(); worker = undefined
     draco.dispose(); ktx.dispose()
-    return { outer, inner, plasma, floor, outerMap, outerGlow, innerMap, innerGlow, floorMap, clouds, triangles, core, blue, scroll, dispose }
+    return { outer, inner, plasma, floor, outerMap, outerGlow, innerMap, innerGlow, floorMap, clouds, triangles, core, volume, volumes, blue, scroll, dispose }
   } catch (error) { dispose(); throw error }
 }

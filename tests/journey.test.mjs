@@ -364,7 +364,7 @@ test('the worker creates complete, finite particle targets for all three social 
   }
   for(let y=32;y<224;y++)for(let x=32;x<224;x++)mask[y*256+x]=255
   let result
-  const context=vm.createContext({self:{postMessage:value=>{result=value}}})
+  const context=vm.createContext({Math,self:{postMessage:value=>{result=value}}})
   vm.runInContext(source,context)
   context.self.onmessage({data:{data,size,masks:[mask,mask,mask]}})
   assert(result.positions.length>0)
@@ -375,5 +375,18 @@ test('the worker creates complete, finite particle targets for all three social 
     assert(target.positions.every(Number.isFinite))
     assert(target.normals.every(Number.isFinite))
     assert(target.positions.every(position=>Math.abs(position)<.3))
+    assert.equal(target.volume.length,target.volumeSize**3*4)
+    const voxel=(x,y,z)=>{
+      const size=target.volumeSize,grid=value=>Math.max(0,Math.min(size-1,Math.floor((value/(.65/1.2)+.5)*size)))
+      const index=((grid(z)*size+grid(y))*size+grid(x))*4
+      return target.volume.slice(index,index+4)
+    }
+    assert(voxel(0,0,0)[3]<128,'The extruded icon has a negative interior distance')
+    assert(voxel(.24,0,0)[3]>128,'The outside of the silhouette has a positive distance')
+    assert(voxel(0,0,.07)[2]>250,'Front-face attraction uses an outward depth gradient')
   }
+  const hollow=new Uint8Array(256**2)
+  for(let y=32;y<224;y++)for(let x=32;x<224;x++)if(x<64||x>=192||y<64||y>=192)hollow[y*256+x]=255
+  const field=context.socialVolume(hollow),center=((64*128+64)*128+64)*4
+  assert(field.volume[center+3]>128,'A hollow icon must keep its center empty in the distance volume')
 })
