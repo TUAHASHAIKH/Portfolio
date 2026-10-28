@@ -12,5 +12,5 @@ export const metadata: Metadata = {
 }
 export const viewport: Viewport = { width: 'device-width', initialScale: 1, viewportFit: 'cover', themeColor: '#a0a5b1' }
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
- return <html lang="en"><body>{children}</body></html>
+ return <html lang="en"><head><script dangerouslySetInnerHTML={{ __html: `history.scrollRestoration='manual';window.scrollTo(0,0);window.addEventListener('pageshow',function(){window.scrollTo({top:0,left:0,behavior:'instant'})},{once:true});` }} /></head><body>{children}</body></html>
 }
