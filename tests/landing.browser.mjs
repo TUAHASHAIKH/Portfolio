@@ -18,7 +18,7 @@ try {
             const source=this.getAttachedShaders(program).map(s=>this.getShaderSource(s)).join('\\n');
             const type=source.includes('uniform float materialize;')?'ice'
               :source.includes('uniform float fillReveal;')&&source.includes('#define GROUND_GLOW 1')?'ground'
-              :source.includes('varying vec3 point;')&&!source.includes('gl_PointSize')?'line':'';
+              :source.includes('varying vec3 point;')&&source.includes('uniform float progress;')&&!source.includes('gl_PointSize')?'line':'';
             info={type,last:-Infinity,locations:{}};
             const names=type==='ice'?['materialize']:type==='ground'?['reveal','fillReveal','introAlpha']:[];
             for(const name of names)info.locations[name]=this.getUniformLocation(program,name);

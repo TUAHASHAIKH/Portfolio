@@ -25,7 +25,7 @@ npm start
 - `components/polar/scene.tsx`: scene controller, reference-rate block motion, cursor orbit, haze, bloom, and color grading.
 - `components/polar/wordmark.tsx`: accessible geometric name mark with a 250 ms hover/focus glitch and reduced-motion support.
 - `components/polar/measurements.tsx`: five-point displacement readout with crosshair anchors, outward labels, and animated proximity connections.
-- `components/polar/wind.tsx`: 1,200 GPU-animated snow particles traveling continuously left to right.
+- `components/polar/wind.tsx`: 1,200 rotating snow flakes with accumulated wind velocity, drag, and continuous volume wrapping.
 - `components/polar/assets.ts`: worker-based Draco and KTX2 loading and ice mesh separation.
 - `components/polar/materials.ts`: baked surface rendering and frost emission during separation.
 - `public/scene/`: detailed geometry, compressed baked maps, palette LUT, and decoder assets.
@@ -54,7 +54,7 @@ The measurement overlay selects up to five displaced pieces within two world uni
 
 Ice emission is bounded and bloom is reduced to preserve the textured faces during opening. Wind combines directional snow, faster drifting valley wisps, and an animated ground-snow layer. Wind does not require audio or cursor movement. Reduced-motion mode removes the particles, freezes haze and ground flow, and clears the measurements as the blocks close.
 
-The opening sequence assembles numeric particles, cage geometry and ice outlines before revealing the ice and terrain, with a descending camera over roughly eight seconds. The interface appears at 4.5 seconds. Temporary assembly draw calls are removed after the reveal. Reduced-motion mode skips this sequence. Foreground wind adds depth-tested wisps between the camera and igloo, alongside the world-space snow particles.
+The opening sequence assembles numeric particles, cage geometry and ice outlines before revealing the ice and terrain, with a descending camera over roughly eight seconds. The interface appears at 4.5 seconds. Temporary assembly draw calls are removed after the reveal. Reduced-motion mode skips this sequence. Snow uses rotating instanced flakes and the reference acceleration/friction at a fixed 60 Hz; the scene retains its world-space valley haze.
 
 ## Scroll journey
 

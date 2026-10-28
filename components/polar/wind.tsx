@@ -1,96 +1,53 @@
 'use client'
 
 import { useFrame } from '@react-three/fiber'
-import { useEffect, useMemo, useRef, type RefObject } from 'react'
+import { useEffect, useMemo, type RefObject } from 'react'
 import * as THREE from 'three'
 import { landingPose } from './landing-motion'
+import { stepWind, WIND_COUNT } from './wind-motion'
 
 export function Wind({ intro }: { intro: RefObject<number> }) {
   const resources = useMemo(() => {
-    const count = 1200, geometry = new THREE.BufferGeometry()
-    const positions = new Float32Array(count * 3), seeds = new Float32Array(count)
-    // Reproducible distribution; motion is calculated entirely on the GPU.
-    const random = (index: number) => THREE.MathUtils.euclideanModulo(Math.sin(index * 127.1 + 19.7) * 43758.5453, 1)
-    for (let index = 0; index < count; index++) {
-      positions[index * 3] = random(index * 4) * 50 - 25
-      positions[index * 3 + 1] = random(index * 4 + 1) * 20 - 10
-      positions[index * 3 + 2] = random(index * 4 + 2) * 50 - 25
-      seeds[index] = random(index * 4 + 3)
+    const plane=new THREE.PlaneGeometry(.075,.15)
+    const geometry=new THREE.InstancedBufferGeometry()
+    geometry.setIndex(plane.index!.clone())
+    for(const [name,attribute] of Object.entries(plane.attributes))geometry.setAttribute(name,attribute.clone())
+    plane.dispose();geometry.instanceCount=WIND_COUNT
+    const positions=new Float32Array(WIND_COUNT*3),velocities=new Float32Array(WIND_COUNT*3),seeds=new Float32Array(WIND_COUNT),randoms=new Float32Array(WIND_COUNT*4)
+    const random=(i:number)=>THREE.MathUtils.euclideanModulo(Math.sin(i*127.1+19.7)*43758.5453,1)
+    for(let i=0;i<WIND_COUNT;i++){
+      positions.set([random(i*8)*50-25,random(i*8+1)*20-10,random(i*8+2)*50-25],i*3)
+      seeds[i]=random(i*8+3)
+      for(let k=0;k<4;k++)randoms[i*4+k]=random(i*8+4+k)
     }
-    geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3))
-    geometry.setAttribute('seed', new THREE.BufferAttribute(seeds, 1))
-    const material = new THREE.ShaderMaterial({
-      transparent: true, depthWrite: false,
-      uniforms: { time: { value: 0 }, pixelRatio: { value: 1 }, introAlpha: { value: 0 } },
-      vertexShader: `
-        uniform float time;
-        uniform float pixelRatio;
-        attribute float seed;
-        varying float opacity;
-        void main(){
-          float speed=mix(.85,1.35,seed);
-          // Positive world X and Z both project toward screen-right from this camera.
-          vec3 travel=vec3(1.4,-.27,1.4)*time*speed;
-          vec3 p=mod(position+travel+vec3(25.,10.,25.),vec3(50.,20.,50.))-vec3(25.,10.,25.);
-          p.y+=sin(time*.45+seed*40.)*.08;
-          vec4 viewPoint=modelViewMatrix*vec4(p,1.);
-          float bounds=(1.-abs(p.x)/25.)*(1.-abs(p.z)/25.);
-          float ground=smoothstep(0.,2.,p.y);
-          float shelter=mix(.45,1.,smoothstep(2.,5.,length(p)));
-          float pulse=.6+.4*sin(time*.7+seed*30.);
-          opacity=bounds*ground*shelter*pulse*.65;
-          opacity*=smoothstep(.5,2.,-viewPoint.z)*(1.-smoothstep(30.,55.,-viewPoint.z));
-          gl_Position=projectionMatrix*viewPoint;
-          gl_PointSize=clamp((2.+seed*2.)*pixelRatio*18./max(8.,-viewPoint.z),1.,5.*pixelRatio);
-        }
-      `,
-      fragmentShader: `
-        varying float opacity;
-        uniform float introAlpha;
-        void main(){
-          vec2 shape=(gl_PointCoord-.5)*vec2(1.2,2.7);
-          float alpha=(1.-smoothstep(.12,.5,length(shape)))*opacity;
-          gl_FragColor=vec4(vec3(.92,.94,.98),alpha*introAlpha);
-        }
-      `,
+    const offset=new THREE.InstancedBufferAttribute(positions,3).setUsage(THREE.DynamicDrawUsage)
+    geometry.setAttribute('offset',offset);geometry.setAttribute('random',new THREE.InstancedBufferAttribute(randoms,4))
+    const material=new THREE.ShaderMaterial({
+      transparent:true,depthWrite:false,
+      uniforms:{time:{value:0},introAlpha:{value:0}},
+      vertexShader:`uniform float time;attribute vec3 offset;attribute vec4 random;varying vec2 vUv;varying vec3 point;varying float depth;
+        mat2 turn(float a){return mat2(cos(a),sin(a),-sin(a),cos(a));}
+        void main(){vUv=uv;vec3 p=position*mix(.85,1.15,step(random.x,.5));
+          p.xy=turn(time*mix(.75,1.25,random.z)+random.z*6.28318)*p.xy;
+          p.zx=turn((random.x+random.y+random.z)*6.28318)*p.zx;
+          p.yz=turn(random.x*6.28318)*p.yz;
+          point=p+offset;vec4 view=modelViewMatrix*vec4(point,1.);depth=length(view.xyz);
+          gl_Position=projectionMatrix*view;}`,
+      fragmentShader:`uniform float introAlpha;varying vec2 vUv;varying vec3 point;varying float depth;
+        void main(){float radius=length(point);float alpha=(1.-min(25.,abs(point.x))/25.)*(1.-min(10.,abs(point.y))/10.)*(1.-min(25.,abs(point.z))/25.);
+          alpha*=smoothstep(.5,1.,depth)*smoothstep(0.,2.,point.y)*smoothstep(.5,1.,min(6.,radius)/6.);
+          alpha*=max(0.,1.-length(vUv-.5)*2.)*introAlpha;
+          gl_FragColor=vec4(vec3(mix(.75,1.,1.-min(10.,radius)/10.)),clamp(alpha,0.,1.));}`,
     })
-    return { geometry, material }
+    return {geometry,material,positions,velocities,seeds,offset,time:0,accumulator:0}
   }, [])
-  useEffect(() => () => { resources.geometry.dispose(); resources.material.dispose() }, [resources])
-  useFrame(({ gl }, delta) => {
-    resources.material.uniforms.time.value += Math.min(delta, .25)
-    resources.material.uniforms.pixelRatio.value = gl.getPixelRatio()
-    resources.material.uniforms.introAlpha.value = landingPose(intro.current).snow
+  useEffect(()=>()=>{resources.geometry.dispose();resources.material.dispose()},[resources])
+  useFrame((_,delta)=>{
+    resources.accumulator+=Math.min(delta,.05)
+    while(resources.accumulator>=1/60){resources.time+=1/60;stepWind(resources.positions,resources.velocities,resources.seeds,resources.time);resources.accumulator-=1/60}
+    resources.offset.needsUpdate=true
+    resources.material.uniforms.time.value=resources.time
+    resources.material.uniforms.introAlpha.value=landingPose(intro.current).snow
   })
-  return <points name="directional-wind" geometry={resources.geometry} material={resources.material} frustumCulled={false} renderOrder={5} />
-}
-
-/** Camera-facing drifting snow sits between the viewer and the ice, with depth intact. */
-export function ForegroundWind({ noise, intro }: { noise: THREE.Texture; intro: RefObject<number> }) {
-  const group = useRef<THREE.Group>(null)
-  const material = useMemo(() => new THREE.ShaderMaterial({
-    transparent: true, depthWrite: false,
-    uniforms: { noise: { value: noise }, time: { value: 0 }, alpha: { value: 0 } },
-    vertexShader: `varying vec2 surfaceUv;void main(){surfaceUv=uv;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.);}`,
-    fragmentShader: `uniform sampler2D noise;uniform float time;uniform float alpha;varying vec2 surfaceUv;
-      void main(){vec2 uv=surfaceUv;
-        vec2 drift=vec2(-time*.12,time*.025);
-        float wisp=texture2D(noise,uv*vec2(2.5,1.4)+drift).r;
-        wisp*=texture2D(noise,uv*vec2(4.,2.)+drift*1.3+vec2(.4,.7)).r;
-        wisp*=texture2D(noise,uv*vec2(1.5,.8)+drift*.7).r;
-        float edge=smoothstep(0.,.15,uv.x)*(1.-smoothstep(.8,1.,uv.x));
-        edge*=smoothstep(0.,.25,uv.y)*(1.-smoothstep(.65,1.,uv.y));
-        gl_FragColor=vec4(.86,.88,.92,min(wisp*2.4,.18)*edge*alpha);}`,
-  }), [noise])
-  useEffect(() => () => material.dispose(), [material])
-  useFrame(({ camera }, delta) => {
-    group.current?.position.copy(camera.position)
-    group.current?.quaternion.copy(camera.quaternion)
-    material.uniforms.time.value += Math.min(delta, .25)
-    material.uniforms.alpha.value = landingPose(intro.current).mist
-  })
-  return <group ref={group} name="foreground-snow-drift">
-    <mesh position={[0,-.9,-10]} material={material} renderOrder={6}><planeGeometry args={[15,3.5]} /></mesh>
-    <mesh position={[2,-2,-14]} material={material} renderOrder={6}><planeGeometry args={[20,3]} /></mesh>
-  </group>
+  return <mesh name="directional-wind" geometry={resources.geometry} material={resources.material} frustumCulled={false} renderOrder={5}/>
 }

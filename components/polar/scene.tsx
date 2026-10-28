@@ -12,7 +12,7 @@ import { OutputPass } from 'three/addons/postprocessing/OutputPass.js'
 import { loadPolarAssets, type PolarAssets } from './assets'
 import { liftLandscape, makeIceMaterial, makeTerrainMaterial, surfaceVertex } from './materials'
 import { Measurements } from './measurements'
-import { Wind, ForegroundWind } from './wind'
+import { Wind } from './wind'
 import { Assembly } from './assembly'
 import { advanceLanding, landingPose } from './landing-motion'
 import { Crystal } from './crystal'
@@ -414,7 +414,6 @@ function World({ assets, onReady, reduced, journey }: { assets: PolarAssets; onR
     <Ice assets={assets} cursor={cursor} engaged={engaged} reduced={reduced} intro={introTime} journey={journey} lift={lift} />
     {!reduced && assembling && <Assembly assets={assets} time={introTime} />}
     {!reduced && <Wind intro={introTime} />}
-    {!reduced && <ForegroundWind noise={assets.wind} intro={introTime} />}
     </group>
     <Crystal noise={assets.wind} journey={journey} reduced={reduced} />
     <Rings noise={assets.wind} journey={journey} reduced={reduced} />
