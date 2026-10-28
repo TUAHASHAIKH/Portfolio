@@ -68,7 +68,8 @@ export function SocialParticles({core,geometry,volumes,material,journey,reduced,
     for(let index=0;index<SOCIAL_LINKS.length;index++)weights.setComponent(index,reduced?Number(index===shape):THREE.MathUtils.damp(weights.getComponent(index),Number(index===shape),9,dt))
     material.uniforms.socialWeights.value.copy(weights)
     if(wasReduced.current!==reduced){field.clear();wasReduced.current=reduced;active.current=false}
-    const simulating=!reduced&&journey.current.value>5.9&&journey.current.value<9.8
+    // Form the sculpture before its first visible grain in the ring passage.
+    const simulating=!reduced&&journey.current.value>3.25&&journey.current.value<9.8
     if(simulating){
       view.matrix.makeRotationFromQuaternion(virtual.quaternion).invert()
       if(core.current)view.rotation.makeRotationFromQuaternion(core.current.quaternion)
@@ -80,7 +81,7 @@ export function SocialParticles({core,geometry,volumes,material,journey,reduced,
       pointer.velocity.subVectors(pointer.brush,pointer.last).divideScalar(Math.max(dt,.001)).clampLength(0,4)
       if(active.current&&enabled)portfolioAudio.excite('particles',pointer.velocity.length()*.3)
       const interaction=THREE.MathUtils.smoothstep(travel.progress,.45,.65)*(1-THREE.MathUtils.smoothstep(travel.progress,.8,.93))
-      field.update(gl,dt,weights,pointer.brush,pointer.last,active.current&&enabled,interaction,shape)
+      field.update(gl,dt,weights,pointer.brush,pointer.last,active.current&&enabled,interaction,shape,travel.forming)
       pointer.last.copy(pointer.brush)
     }else field.clear()
     material.uniforms.particlePositions.value=field.position

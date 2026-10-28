@@ -84,12 +84,12 @@ export class ParticleSimulation {
     this.material.uniforms.viewBasis.value.copy(basis);this.material.uniforms.projection.value.copy(projection)
     this.material.uniforms.screenLift.value=lift;this.aspect=aspect
   }
-  update(renderer:THREE.WebGLRenderer,dt:number,weights:THREE.Vector4,brush:THREE.Vector2,last:THREE.Vector2,on:boolean,interaction=1,shape=0){
+  update(renderer:THREE.WebGLRenderer,dt:number,weights:THREE.Vector4,brush:THREE.Vector2,last:THREE.Vector2,on:boolean,interaction=1,shape=0,forming=0){
     this.flow.update(renderer,dt,brush,last,on,this.aspect)
     const u=this.material.uniforms
     this.transitionTime=Math.max(0,this.transitionTime-dt)
     const progress=1-this.transitionTime/.5
-    u.additionalNoise.value=progress<.5?1-4*progress**3:4*(1-progress)**3
+    u.additionalNoise.value=Math.max(forming,progress<.5?1-4*progress**3:4*(1-progress)**3)
     u.interaction.value=interaction
     u.volume.value=this.volumes[shape]
     u.distanceScale.value=this.volumes[shape].userData.distanceScale??2

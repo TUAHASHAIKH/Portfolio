@@ -94,7 +94,9 @@ function PostProcessing({ assets, journey, reduced }: { assets: PolarAssets; jou
           color = mix(color*12.92,1.055*pow(color,vec3(1./2.4))-.055,step(vec3(.0031308),color));
           color = interpolateGrade(color);
           color = mix(color/12.92,pow((color+.055)/1.055,vec3(2.4)),step(vec3(.04045),color));
-          gl_FragColor=vec4(mix(color,original,ringMix),1.);
+          // Bound ring highlights before bloom, as the reference LUT does,
+          // while preserving the established grey ring palette.
+          gl_FragColor=vec4(mix(color,clamp(original,0.,1.),ringMix),1.);
         }
       `,
     })
@@ -173,9 +175,11 @@ function PostProcessing({ assets, journey, reduced }: { assets: PolarAssets; jou
     const rings = Number(scene.userData.ringOpacity || 0)
     const ringTone=rings*(1-ease(range(p,8.6,9.6)))
     pipeline.grade.uniforms.ringMix.value = ringTone
-    pipeline.bloom.strength = THREE.MathUtils.lerp(.14,.7,ringTone)
-    pipeline.bloom.threshold = THREE.MathUtils.lerp(.9,.65,ringTone)
-    pipeline.bloom.radius = THREE.MathUtils.lerp(.55,.85,ringTone)
+    // Keep the distant grains distinct. Broad, low-threshold bloom turns the
+    // whole forming sculpture into a light source during the ring approach.
+    pipeline.bloom.strength = THREE.MathUtils.lerp(.14,.18,ringTone)
+    pipeline.bloom.threshold = .9
+    pipeline.bloom.radius = .55
     pipeline.frost.enabled = rings > .001
     pipeline.frost.uniforms.amount.value = reduced ? 0 : Number(scene.userData.ringProximity || 0)
     pipeline.frost.uniforms.opacity.value = rings

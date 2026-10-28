@@ -126,7 +126,10 @@ export function makeRingMaterials(assets: RingAssets, wind: THREE.Texture) {
       float highlight=pow(clamp((speed-.003)/.002,0.,1.),2.);
       color=mix(color,colorFast,highlight);
       float motionAlpha=max(glow,pow(clamp((.007-speed)/.005,0.,1.),2.)*.5+.5);
-      color=mix(color,colorInitial,glow);
+      // SrcColor destination blending needs white at zero alpha, otherwise
+      // invisible grains multiply the background blue before they appear.
+      vec3 fadeInColor=mix(vec3(1.),colorInitial,clamp(reveal,0.,1.));
+      color=mix(color,fadeInColor,glow);
       gl_FragColor=vec4(clamp(color,0.,1.),circle*reveal*opacity*motionAlpha);
     }`,{colorDark:{value:new THREE.Color('#222b42')},colorLight:{value:new THREE.Color('#bdc6d4')},colorFast:{value:new THREE.Color('#d7ebfa')},colorInitial:{value:new THREE.Color('#b5d5ff')},glow:{value:1},reveal:{value:0},forming:{value:1},pixelRatio:{value:1},socialWeights:{value:new THREE.Vector4(1,0,0,0)},particleVolume:{value:assets.volume},volumeDistanceScale:{value:2},volumeRotation:{value:0},particlePositions:{value:null},simulationMix:{value:0},socialView:{value:0}})
   core.blending=THREE.CustomBlending
