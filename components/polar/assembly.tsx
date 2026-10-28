@@ -20,7 +20,6 @@ export function Assembly({ assets, time }: { assets: PolarAssets; time: RefObjec
           gl_FragColor=vec4(.65,.70,.84,alpha*scan*flicker);}`,
     })
     const cage = wire.clone()
-    cage.wireframe = true
     cage.vertexShader = `attribute vec3 centr;varying vec3 point;void main(){point=centr;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.);}`
     cage.fragmentShader = `uniform float progress;uniform float alpha;uniform float time;varying vec3 point;
       void main(){float wave=1.-smoothstep(1.,5.,abs(length(point)-progress*25.));
@@ -53,8 +52,9 @@ export function Assembly({ assets, time }: { assets: PolarAssets; time: RefObjec
     materials.particles.uniforms.height.value = size.height * gl.getPixelRatio()
   })
   return <group name="assembly-introduction">
-    <mesh geometry={assets.introCage} material={materials.cage} renderOrder={999} />
-    <mesh geometry={assets.introOutline} material={materials.wire} renderOrder={999} />
+    {/* These Draco assets store pairs of line endpoints, not triangle faces. */}
+    <lineSegments geometry={assets.introCage} material={materials.cage} renderOrder={999} />
+    <lineSegments geometry={assets.introOutline} material={materials.wire} renderOrder={999} />
     <points geometry={assets.introParticles} material={materials.particles} renderOrder={1000} />
   </group>
 }

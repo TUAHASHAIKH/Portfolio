@@ -107,7 +107,7 @@ export function makeTerrainMaterial(map: THREE.Texture, options: { mountain?: bo
 export function makeIceMaterial(assets: PolarAssets) {
   return new THREE.ShaderMaterial({
     transparent: true,
-    uniforms: { materialize: { value: 1 }, closed: { value: assets.closed }, opened: { value: assets.opened }, triangles: { value: assets.iceTriangles }, separation: { value: 0 }, bounce: { value: 0 }, time: { value: 0 } },
+    uniforms: { materialize: { value: 1 }, closed: { value: assets.closed }, opened: { value: assets.opened }, separation: { value: 0 }, bounce: { value: 0 }, time: { value: 0 } },
     vertexShader: `
       attribute float emission;
       varying vec2 surfaceUv;
@@ -124,7 +124,6 @@ export function makeIceMaterial(assets: PolarAssets) {
       uniform float materialize;
       uniform sampler2D closed;
       uniform sampler2D opened;
-      uniform sampler2D triangles;
       uniform float separation;
       uniform float bounce;
       uniform float time;
@@ -141,7 +140,8 @@ export function makeIceMaterial(assets: PolarAssets) {
           float edge = mix(5.45, -.4, materialize);
           float reveal = 1. - smoothstep(edge - 1.5, edge, point.y);
           if (reveal > .9999) discard;
-          reveal += clamp(reveal * texture2D(triangles, surfaceUv * 5.).r * 13., 0., 1.);
+          // Keep the ice reveal smooth. The terrain scan owns the triangle
+          // pattern; projecting it onto ice made it look like a crystal skin.
           color += reveal * blue;
         }
         float rim = max(0., iceLight);

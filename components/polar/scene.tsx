@@ -191,7 +191,7 @@ function PostProcessing({ assets, journey, reduced }: { assets: PolarAssets; jou
 
 function Ice({ assets, cursor, engaged, reduced, intro, journey, lift }: { assets: PolarAssets; cursor: THREE.Vector3; engaged: React.RefObject<boolean>; reduced: boolean; intro: React.RefObject<number>; journey: React.RefObject<Journey>; lift: { value: number } }) {
   const idle=useRef(0)
-  const outline=useRef<THREE.MeshBasicMaterial>(null)
+  const outline=useRef<THREE.LineBasicMaterial>(null)
   const meshes = useRef<(THREE.Mesh | null)[]>([])
   const resources = useMemo(() => assets.pieces.map(piece => {
     const material = makeIceMaterial(assets)
@@ -244,9 +244,9 @@ function Ice({ assets, cursor, engaged, reduced, intro, journey, lift }: { asset
     })
   })
   return <group name="living-igloo">
-    <mesh geometry={assets.introOutline} renderOrder={5} raycast={()=>{}}>
-      <meshBasicMaterial ref={outline} transparent opacity={0} color="#dceaff" depthWrite={false} blending={THREE.AdditiveBlending} />
-    </mesh>
+    <lineSegments geometry={assets.introOutline} renderOrder={5} raycast={()=>{}}>
+      <lineBasicMaterial ref={outline} transparent opacity={0} color="#dceaff" depthWrite={false} blending={THREE.AdditiveBlending} />
+    </lineSegments>
     {resources.map((piece, index) => <mesh key={index} ref={mesh => { meshes.current[index] = mesh }} geometry={piece.geometry} material={piece.material} position={piece.center} renderOrder={4} />)}
     <Measurements pieces={resources} cursor={cursor} reduced={reduced} lift={lift} />
   </group>
