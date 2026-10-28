@@ -3,8 +3,9 @@
 import { useFrame } from '@react-three/fiber'
 import { useEffect, useMemo, useRef, type RefObject } from 'react'
 import * as THREE from 'three'
+import { landingPose } from './landing-motion'
 
-export function Wind() {
+export function Wind({ intro }: { intro: RefObject<number> }) {
   const resources = useMemo(() => {
     const count = 1200, geometry = new THREE.BufferGeometry()
     const positions = new Float32Array(count * 3), seeds = new Float32Array(count)
@@ -20,7 +21,7 @@ export function Wind() {
     geometry.setAttribute('seed', new THREE.BufferAttribute(seeds, 1))
     const material = new THREE.ShaderMaterial({
       transparent: true, depthWrite: false,
-      uniforms: { time: { value: 0 }, pixelRatio: { value: 1 } },
+      uniforms: { time: { value: 0 }, pixelRatio: { value: 1 }, introAlpha: { value: 0 } },
       vertexShader: `
         uniform float time;
         uniform float pixelRatio;
@@ -45,10 +46,11 @@ export function Wind() {
       `,
       fragmentShader: `
         varying float opacity;
+        uniform float introAlpha;
         void main(){
           vec2 shape=(gl_PointCoord-.5)*vec2(1.2,2.7);
           float alpha=(1.-smoothstep(.12,.5,length(shape)))*opacity;
-          gl_FragColor=vec4(vec3(.92,.94,.98),alpha);
+          gl_FragColor=vec4(vec3(.92,.94,.98),alpha*introAlpha);
         }
       `,
     })
@@ -58,6 +60,7 @@ export function Wind() {
   useFrame(({ gl }, delta) => {
     resources.material.uniforms.time.value += Math.min(delta, .25)
     resources.material.uniforms.pixelRatio.value = gl.getPixelRatio()
+    resources.material.uniforms.introAlpha.value = landingPose(intro.current).snow
   })
   return <points name="directional-wind" geometry={resources.geometry} material={resources.material} frustumCulled={false} renderOrder={5} />
 }
@@ -84,7 +87,7 @@ export function ForegroundWind({ noise, intro }: { noise: THREE.Texture; intro: 
     group.current?.position.copy(camera.position)
     group.current?.quaternion.copy(camera.quaternion)
     material.uniforms.time.value += Math.min(delta, .25)
-    material.uniforms.alpha.value = THREE.MathUtils.smoothstep(intro.current, 2, 5)
+    material.uniforms.alpha.value = landingPose(intro.current).mist
   })
   return <group ref={group} name="foreground-snow-drift">
     <mesh position={[0,-.9,-10]} material={material} renderOrder={6}><planeGeometry args={[15,3.5]} /></mesh>

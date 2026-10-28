@@ -13,7 +13,8 @@ import { loadPolarAssets, type PolarAssets } from './assets'
 import { liftLandscape, makeIceMaterial, makeTerrainMaterial, surfaceVertex } from './materials'
 import { Measurements } from './measurements'
 import { Wind, ForegroundWind } from './wind'
-import { Assembly, progress, smooth } from './assembly'
+import { Assembly } from './assembly'
+import { advanceLanding, landingPose } from './landing-motion'
 import { Crystal } from './crystal'
 import { Rings } from './rings'
 import { ringJourney } from './ring-journey'
@@ -204,11 +205,13 @@ function Ice({ assets, cursor, engaged, reduced, intro, journey, lift }: { asset
     const p=journey.current.value
     const returning=returnChoreography(p)
     const hero=p>8.6?returnProgress(p):1-ease(range(p,.03,.65))
-    const arrival=ease(range(intro.current,1.7,3.3))
+    const landing=landingPose(intro.current,reduced)
+    const arrival=landing.breathing
     if(outline.current)outline.current.opacity=p>8.6&&!reduced?returning.scatter*returning.arrival*.32:0
     resources.forEach((piece, index) => {
       const mesh = meshes.current[index]
       if (!mesh) return
+      mesh.visible=landing.iceVisible
       const distance = piece.center.distanceTo(cursor)
       const influence = 1 - THREE.MathUtils.smoothstep(distance, 1, 3)
       const anchored = THREE.MathUtils.smoothstep(piece.center.y, .45, .7)
@@ -236,7 +239,7 @@ function Ice({ assets, cursor, engaged, reduced, intro, journey, lift }: { asset
         Math.cos(piece.seed.x * 30 + amount * 2) * amount * .5,
         'YZX',
       )
-      piece.material.uniforms.materialize.value = reduced ? 1 : smooth(progress(intro.current, 1.1, 2.25))
+      piece.material.uniforms.materialize.value = landing.iceReveal
       piece.material.uniforms.separation.value = amount
       piece.material.uniforms.bounce.value = piece.bounce.slow
       piece.material.uniforms.time.value = time
@@ -277,17 +280,18 @@ function World({ assets, onReady, reduced, journey }: { assets: PolarAssets; onR
   const normal = useMemo(() => new THREE.Vector3(), [])
   const ray = useMemo(() => new THREE.Raycaster(), [])
   const surfaces = useMemo(() => ({
-    ground: makeTerrainMaterial(assets.groundMap, { glow: assets.glow, wind: assets.wind }),
-    mountain: makeTerrainMaterial(assets.mountainMap, { mountain: true }),
-    terrain: makeTerrainMaterial(assets.terrainMap, { wind: assets.wind }),
-    patch: makeTerrainMaterial(assets.terrainMap, { patch: true, wind: assets.wind }),
+    ground: makeTerrainMaterial(assets.groundMap, { glow: assets.glow, wind: assets.wind, intro: assets }),
+    mountain: makeTerrainMaterial(assets.mountainMap, { mountain: true, intro: assets }),
+    terrain: makeTerrainMaterial(assets.terrainMap, { wind: assets.wind, intro: assets }),
+    patch: makeTerrainMaterial(assets.terrainMap, { patch: true, wind: assets.wind, intro: assets }),
     haze: new THREE.ShaderMaterial({
       transparent: true, depthWrite: false,
-      uniforms: { noise: { value: assets.wind }, time: { value: 0 } },
+      uniforms: { noise: { value: assets.wind }, time: { value: 0 }, introAlpha: { value: 0 } },
       vertexShader: surfaceVertex,
       fragmentShader: `
         uniform sampler2D noise;
         uniform float time;
+        uniform float introAlpha;
         varying vec2 surfaceUv;
         varying vec3 worldPoint;
         void main(){
@@ -298,15 +302,15 @@ function World({ assets, onReady, reduced, journey }: { assets: PolarAssets; onR
           wisps*=texture2D(noise,uv*.5+vec2(drift.x,-time*.0525)).r;
           float edge=smoothstep(0.,.5,surfaceUv.x)*(1.-smoothstep(.8,1.,surfaceUv.x));
           float veil=wisps*edge*smoothstep(0.,.1,surfaceUv.y)*(1.-surfaceUv.y)*6.;
-          gl_FragColor=vec4(vec3(.86,.88,.92),min(veil,.45));
+          gl_FragColor=vec4(vec3(.86,.88,.92),min(veil,.45)*introAlpha);
         }
       `,
     }),
     sky: new THREE.ShaderMaterial({
       side: THREE.BackSide, depthWrite: false,
-      uniforms: { resolution: { value: new THREE.Vector2(size.width, size.height) } },
+      uniforms: { resolution: { value: new THREE.Vector2(size.width, size.height) }, reveal: { value: 0 }, loadingColor: { value: new THREE.Color('#b3bac9') } },
       vertexShader: surfaceVertex,
-      fragmentShader: 'uniform vec2 resolution;void main(){vec2 uv=gl_FragCoord.xy/resolution;float t=pow((uv.x+uv.y)*.5,2.);gl_FragColor=vec4(mix(vec3(.4287,.4678,.5711),vec3(.6376,.6724,.7682),t),1.);}',
+      fragmentShader: 'uniform vec2 resolution;uniform float reveal;uniform vec3 loadingColor;void main(){vec2 uv=gl_FragCoord.xy/resolution;float t=pow((uv.x+uv.y)*.5,2.);vec3 sky=mix(vec3(.4287,.4678,.5711),vec3(.6376,.6724,.7682),t);gl_FragColor=vec4(mix(loadingColor,sky,reveal),1.);}',
     }),
   }), [assets])
   useEffect(()=>{
@@ -352,18 +356,19 @@ function World({ assets, onReady, reduced, journey }: { assets: PolarAssets; onR
       landscape.current.position.y = 0
     }
     const distance = mobile ? 1.65 : 1
+    introTime.current = advanceLanding(introTime.current,frameDelta,reduced)
+    const landing=landingPose(introTime.current,reduced)
     // Reference: ±pi/2 pointer mapping, .07/.025 angular gain and .035/frame easing.
     const orbitResponse = -60 * Math.log(1 - .035)
-    orbit.current.yaw = reduced?0:THREE.MathUtils.damp(orbit.current.yaw, pointer.x * Math.PI / 2 * .07, orbitResponse, delta)
-    orbit.current.pitch = reduced?0:THREE.MathUtils.damp(orbit.current.pitch, -pointer.y * Math.PI / 2 * .025, orbitResponse, delta)
+    orbit.current.yaw = reduced?0:THREE.MathUtils.damp(orbit.current.yaw, pointer.x * Math.PI / 2 * .07 * landing.pointer, orbitResponse, delta)
+    orbit.current.pitch = reduced?0:THREE.MathUtils.damp(orbit.current.pitch, -pointer.y * Math.PI / 2 * .025 * landing.pointer, orbitResponse, delta)
     cameraOffset.set(...heroPosition).multiplyScalar(distance).sub(cameraTarget)
     normal.copy(cameraOffset).normalize()
     cameraRight.crossVectors(worldUp, normal).normalize()
     cameraUp.crossVectors(normal, cameraRight).normalize()
     cameraOffset.applyAxisAngle(cameraRight, orbit.current.pitch).applyAxisAngle(cameraUp, orbit.current.yaw)
-    introTime.current = reduced ? 9 : Math.min(9, introTime.current + frameDelta)
     if (assembling && introTime.current >= 5.2) setAssembling(false)
-    const arrival = smooth(progress(introTime.current, 2, 5.5))
+    const arrival = landing.camera
     introCamera.set(-14 * distance, 21 * distance, 14 * distance)
     camera.position.copy(cameraTarget).add(cameraOffset).lerp(introCamera, 1 - arrival)
     introTarget.set(0, .5, 0).lerp(cameraTarget, arrival)
@@ -371,9 +376,13 @@ function World({ assets, onReady, reduced, journey }: { assets: PolarAssets; onR
     camera.position.lerp(retreat, journeyView(p).zoom)
     camera.lookAt(introTarget)
     for (const material of [surfaces.ground, surfaces.terrain, surfaces.patch, surfaces.mountain]) {
-      material.uniforms.reveal.value = reduced ? 1 : smooth(progress(introTime.current, .7, 7.5))
+      material.uniforms.reveal.value = landing.terrainScan
+      material.uniforms.fillReveal.value = landing.terrainFill
+      material.uniforms.introAlpha.value = material===surfaces.mountain?landing.mountainAlpha:landing.terrainAlpha
     }
-    const app = gl.domElement.closest('#app'), introduced = String(introTime.current >= 4.5)
+    surfaces.haze.uniforms.introAlpha.value=landing.mist
+    surfaces.sky.uniforms.reveal.value=landing.sky
+    const app = gl.domElement.closest('#app'), introduced = String(landing.introduced)
     if (app?.getAttribute('data-introduced') !== introduced) app?.setAttribute('data-introduced', introduced)
     camera.getWorldDirection(normal)
     target.copy(camera.position).addScaledVector(normal, mobile ? 31.8 : 19.25)
@@ -404,7 +413,7 @@ function World({ assets, onReady, reduced, journey }: { assets: PolarAssets; onR
     <mesh material={surfaces.haze} position={[13.45,3,-4]} rotation={[0,radians(-10),0]} renderOrder={3}><planeGeometry args={[20,5]} /></mesh>
     <Ice assets={assets} cursor={cursor} engaged={engaged} reduced={reduced} intro={introTime} journey={journey} lift={lift} />
     {!reduced && assembling && <Assembly assets={assets} time={introTime} />}
-    {!reduced && <Wind />}
+    {!reduced && <Wind intro={introTime} />}
     {!reduced && <ForegroundWind noise={assets.wind} intro={introTime} />}
     </group>
     <Crystal noise={assets.wind} journey={journey} reduced={reduced} />

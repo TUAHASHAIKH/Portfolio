@@ -14,6 +14,8 @@ The Draco and Basis decoder files are distributed with Three.js and retain their
 
 The introduction also uses the reference's public cage, outline, particle geometry and number atlas. Its animation and shaders are implemented locally in React Three Fiber.
 
+The landscape reveal uses the reference's public `/assets/images/mosaic.ktx2`, stored as `textures/intro_mosaic.ktx2`. The reference's igloo and crystal triangle atlases are identical; the existing `crystal_triangles.ktx2` is reused for the terrain scan, without projecting that pattern onto the igloo. The cage and outline assets contain line segments, not triangle faces.
+
 The first portfolio crystal uses the reference's cube3 and abstractlogo meshes, normal and roughness maps, core color texture and cubes_env reflection environment. These are third-party assets. The native scroll controller, transition post-processing, React crystal scene and accessible skills panel are implemented separately.
 
 Crystal refinement also uses the reference's cube_scene color LUT, perlin-datatexture and triangles_tiling textures for the palette, mist and hover grid.

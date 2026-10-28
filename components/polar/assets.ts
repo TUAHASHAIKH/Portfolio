@@ -78,23 +78,27 @@ export async function loadPolarAssets(renderer: THREE.WebGLRenderer) {
   }
   const dispose = () => { geometries.forEach(item => item.dispose()); textures.forEach(item => item.dispose()); draco.dispose(); ktx.dispose() }
   try {
-    const [ice, ground, mountain, patch, closed, opened, groundMap, glow, terrainMap, mountainMap, grade, wind, introCage, introOutline, introParticles, numbers, iceTriangles] = await Promise.all([
+    const [ice, ground, mountain, patch, closed, opened, groundMap, glow, terrainMap, mountainMap, grade, wind, introCage, introOutline, introParticles, numbers, introTriangles, introMosaic] = await Promise.all([
       geometry('igloo', true), geometry('ground'), geometry('mountain'), geometry('patch'),
       texture('igloo_color'), texture('igloo_exploded_color'), texture('ground_color'), texture('ground_glow'),
       texture('terrain_color'), texture('mountain_color'), texture('grade', true), texture('wind_noise'),
       geometry('intro-cage', false, ['position', 'color', 'centr']),
       geometry('intro-outline', false, ['position', 'color']),
       geometry('intro-particles', false, ['position', 'color']), texture('numbers', true),
-      texture('crystal_triangles'),
+      // The reference uses the same triangle atlas for crystals and terrain.
+      texture('crystal_triangles'), texture('intro_mosaic'),
     ])
     const pieces = separateIce(ice)
     pieces.forEach(piece => geometries.push(piece.geometry))
     wind.wrapS = wind.wrapT = THREE.RepeatWrapping
     wind.needsUpdate = true
-    iceTriangles.wrapS = iceTriangles.wrapT = THREE.RepeatWrapping
-    iceTriangles.needsUpdate = true
+    for (const map of [introTriangles, introMosaic, numbers]) {
+      map.wrapS = map.wrapT = THREE.RepeatWrapping
+      map.needsUpdate = true
+    }
+    introMosaic.magFilter = introMosaic.minFilter = THREE.NearestFilter
     // Decoders are only needed during the initial load.
     draco.dispose(); ktx.dispose()
-    return { pieces, ground, mountain, patch, closed, opened, groundMap, glow, terrainMap, mountainMap, grade, wind, introCage, introOutline, introParticles, numbers, iceTriangles, dispose }
+    return { pieces, ground, mountain, patch, closed, opened, groundMap, glow, terrainMap, mountainMap, grade, wind, introCage, introOutline, introParticles, numbers, introTriangles, introMosaic, dispose }
   } catch (error) { dispose(); throw error }
 }

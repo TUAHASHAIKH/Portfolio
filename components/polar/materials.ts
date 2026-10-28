@@ -47,15 +47,19 @@ export const surfaceVertex = `
   }
 `
 
-export function makeTerrainMaterial(map: THREE.Texture, options: { mountain?: boolean; patch?: boolean; glow?: THREE.Texture; wind?: THREE.Texture } = {}) {
+export function makeTerrainMaterial(map: THREE.Texture, options: { mountain?: boolean; patch?: boolean; glow?: THREE.Texture; wind?: THREE.Texture; intro?: Pick<PolarAssets, 'introTriangles' | 'introMosaic'> } = {}) {
   return new THREE.ShaderMaterial({
     transparent: true,
     depthWrite: true,
-    uniforms: { reveal: { value: 1 }, surface: { value: map }, glow: { value: options.glow || map }, windTexture: { value: options.wind || map }, time: { value: 0 }, groundLight: { value: 0 }, cursor: { value: new THREE.Vector3(0, -10, 0) }, resolution: { value: new THREE.Vector2(1440, 900) } },
+    uniforms: { reveal: { value: 1 }, fillReveal: { value: 1 }, introAlpha: { value: 1 }, introTriangles: { value: options.intro?.introTriangles || map }, introMosaic: { value: options.intro?.introMosaic || map }, surface: { value: map }, glow: { value: options.glow || map }, windTexture: { value: options.wind || map }, time: { value: 0 }, groundLight: { value: 0 }, cursor: { value: new THREE.Vector3(0, -10, 0) }, resolution: { value: new THREE.Vector2(1440, 900) } },
     defines: { MOUNTAIN: options.mountain ? 1 : 0, PATCH: options.patch ? 1 : 0, GROUND_GLOW: options.glow ? 1 : 0, GROUND_WIND: options.wind ? 1 : 0 },
     vertexShader: surfaceVertex,
     fragmentShader: `
       uniform float reveal;
+      uniform float fillReveal;
+      uniform float introAlpha;
+      uniform sampler2D introTriangles;
+      uniform sampler2D introMosaic;
       uniform sampler2D surface;
       uniform sampler2D glow;
       uniform sampler2D windTexture;
@@ -67,6 +71,15 @@ export function makeTerrainMaterial(map: THREE.Texture, options: { mountain?: bo
       varying vec3 localPoint;
       varying vec3 worldPoint;
       varying float viewDepth;
+      // Explicitly support descending edges; reversed GLSL smoothstep edges
+      // are undefined on some mobile drivers.
+      float scan(float x,float start,float end,float width,float p){
+        float margin=width*sign(end-start);float edge=mix(start-margin,end,p);
+        return clamp((x-edge-margin)/(-margin),0.,1.);
+      }
+      float softScan(float x,float start,float end,float width,float p){
+        float t=scan(x,start,end,width,p);return t*t*(3.-2.*t);
+      }
       void main() {
         vec3 color = texture2D(surface, surfaceUv).rgb;
         // Unpainted atlas padding must reveal the snowy underlay, not black polygons.
@@ -97,7 +110,30 @@ export function makeTerrainMaterial(map: THREE.Texture, options: { mountain?: bo
           float lowGround=1.-smoothstep(-1.3,.5,worldPoint.y);
           color=mix(color,vec3(.9,.93,.98),clamp(snow*lowGround*.42,0.,.2));
         #endif
-        float assembly = reveal >= .999 ? 1. : 1. - smoothstep(reveal * 180. - 8., reveal * 180., length(worldPoint.xz));
+        float assembly = 1.;
+        if (fillReveal < 1.) {
+          float radius = length(worldPoint.xz) + texture2D(introMosaic, worldPoint.xz * .07).r * 3.5;
+          float triangles = texture2D(introTriangles, worldPoint.xz * .25).r;
+          // A narrow leading grid and a separate trailing fill build the
+          // landscape outward over 32 world units, instead of fading all of it.
+          float filled = scan(radius, -.1, 31.9, .1, fillReveal);
+          float grid = scan(radius, 1., 33., .1, reveal) * (1.-softScan(radius, 0., 32., 10., reveal)) * triangles;
+          vec3 blue = vec3(.3,.45,1.);
+          vec3 edge = ((1.-softScan(radius,0.,32.,8.,fillReveal))*triangles*3.
+            + (1.-softScan(radius,0.,32.,3.,fillReveal))) * blue;
+          assembly = filled + grid * (1.-filled);
+          float foreground = 1.;
+          #if MOUNTAIN == 1
+            // Distant mountains fade in behind the growing foreground.
+            foreground = 1.-smoothstep(32.,36.,radius);
+            assembly = mix(introAlpha, assembly, foreground);
+          #endif
+          color += (edge + blue * (1.-filled)) * foreground * (1.-smoothstep(.8,1.,fillReveal));
+          color = clamp(color, 0., 1.);
+        }
+        #if MOUNTAIN == 0
+          assembly *= introAlpha;
+        #endif
         gl_FragColor = vec4(color, alpha * painted * assembly);
       }
     `,
