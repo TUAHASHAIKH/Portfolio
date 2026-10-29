@@ -12,6 +12,8 @@
     "test:particles-browser": "node tests/particles.browser.mjs",
     "test:ring-reveal": "node tests/ring-reveal.browser.mjs",
     "test:audio": "node --test tests/audio.test.mjs",
+    "test:sky-browser": "node tests/sky.browser.mjs",
+    "test:theme-browser": "node tests/theme.browser.mjs",
     "test:effects-browser": "node tests/effects.browser.mjs",
     "start": "next start"
   },
