@@ -4,6 +4,17 @@ const b=await browser()
 const detailWidths=[]
 const media=async(theme,motion='reduce')=>b.send('Emulation.setEmulatedMedia',{features:[{name:'prefers-color-scheme',value:theme},{name:'prefers-reduced-motion',value:motion}]})
 const ready=async()=>{for(let i=0;i<240;i++){if(await b.evaluate('document.querySelector("#app")?.dataset.ringsReady')==='true')return;await wait(250)}throw Error('Scene did not become ready')}
+const reload=async()=>{
+ const previous=await b.evaluate('performance.timeOrigin')
+ await b.send('Page.reload')
+ let replaced=false
+ for(let i=0;i<120;i++){
+  try{if(await b.evaluate('performance.timeOrigin')!==previous){replaced=true;break}}catch{}
+  await wait(100)
+ }
+ assert(replaced,'Reload replaces the previous document before checking preferences')
+ await ready()
+}
 const travel=async p=>{await b.evaluate(`scrollTo(0,(document.documentElement.scrollHeight-innerHeight)*${p})`);await wait(900)}
 const auditProjects=async()=>{
  assert.equal(await b.evaluate('document.querySelectorAll("dialog[open] .detail-project").length'),12,'All twelve projects appear inline')
@@ -22,8 +33,15 @@ const auditProjects=async()=>{
 try{
  await media('dark')
  await b.send('Page.navigate',{url:process.env.PORTFOLIO_URL||'http://localhost:3000'});await ready()
- await b.evaluate('localStorage.removeItem("portfolio-theme")');await b.send('Page.reload');await ready();await wait(1000)
- assert.equal(await b.evaluate('document.documentElement.dataset.theme'),'dark')
+ await b.evaluate('localStorage.removeItem("portfolio-theme")');await reload();await wait(1000)
+ assert.equal(await b.evaluate('document.documentElement.dataset.theme'),'light','A fresh device starts in light mode even when its system prefers dark')
+ await media('light');await media('dark');await wait(150)
+ assert.equal(await b.evaluate('document.documentElement.dataset.theme'),'light','System changes do not override the light-first default')
+ await b.capture('theme-first-visit-light')
+ await b.evaluate('document.querySelector(".theme-toggle").click()')
+ assert.equal(await b.evaluate('localStorage.getItem("portfolio-theme")'),'dark')
+ await reload();await wait(500)
+ assert.equal(await b.evaluate('document.documentElement.dataset.theme'),'dark','A saved dark preference is restored on the next visit')
  await b.capture('theme-dark-hero')
  for(const [name,p] of [['skills',.1],['projects',.2],['about',.3],['rings',.4],['contact',.78]]){
   await travel(p);await b.capture('theme-dark-'+name)
@@ -48,7 +66,7 @@ try{
  await b.evaluate("window.dispatchEvent(new Event('portfolio:open-projects'))");await wait(500)
  await auditProjects();await b.capture('theme-light-projects-detail')
  await b.evaluate('document.querySelector("dialog[open] .detail-close").click()')
- await b.send('Page.reload');await ready()
+ await reload()
  assert.equal(await b.evaluate('document.documentElement.dataset.theme'),'light','Manual choice persists over system dark')
  await b.evaluate('document.querySelector(".theme-toggle").click()')
  await media('light')
@@ -61,5 +79,5 @@ try{
  await media('dark','no-preference');await travel(0);await wait(1500)
  await b.capture('theme-animated-hero')
  assert.deepEqual(b.errors,[],'No browser or WebGL shader errors')
- console.log('PASS twelve centered project covers, Pulse first, inline layout, system theme, persistence, both scenes, mobile, reduced motion, and shader compilation')
+ console.log('PASS twelve centered project covers, Pulse first, inline layout, light-first default, saved theme persistence, both scenes, mobile, reduced motion, and shader compilation')
 }finally{await b.close()}

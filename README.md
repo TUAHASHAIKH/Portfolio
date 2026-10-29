@@ -98,11 +98,11 @@ The particle simulation now starts before the ring reveal, with the reference's 
 
 ### Daylight / Nightfall
 
-The lower-right theme control switches between the original grey ice scene and a midnight expedition. The first visit follows the system color scheme; a manual choice is saved as `portfolio-theme` in local storage. System changes continue to apply until a manual choice is made. Storage-disabled browsers still support switching for the current visit.
+The lower-right theme control switches between the original grey ice scene and a midnight expedition. Fresh visits always start in light mode, regardless of the device color scheme. A manual choice is saved as `portfolio-theme` in local storage and restored on later visits. Storage-disabled browsers still support switching for the current visit.
 
 Nightfall uses procedural star fields and layered auroral curtains in the existing sky and crystal transmission shaders, moonlit terrain and ice, spectral ring illumination, and an accretion halo. Mountain geometry stays identical in both themes; switching changes lighting and colors without resizing the landscape. Theme uniforms interpolate without rebuilding the scene or moving the scroll playhead. Reduced motion freezes ambient animation and applies theme changes immediately. No new runtime dependencies, textures, render targets, or postprocessing passes were added.
 
-Run `npm run test:theme-browser` against the development server to verify system preference, persistence, scroll preservation, crystal dialogs, mobile layouts, reduced motion, and WebGL compilation. Review the desktop and mobile captures under `.preview/theme-*.png`. The existing journey, landing, audio, and interaction checks remain available.
+Run `npm run test:theme-browser` against the development server to verify the light-first default, saved preference persistence, scroll preservation, crystal dialogs, mobile layouts, reduced motion, and WebGL compilation. Review the desktop and mobile captures under `.preview/theme-*.png`. The existing journey, landing, audio, and interaction checks remain available.
 
 
 The night sky uses a shared visible-tab animation clock across all three environments. Forward scrolling moves the stars upward at different depths; reversing retraces their positions, including through the journey loop. Auroral folds continue flowing while idle, and occasional seeded shooting stars appear with short fading trails. Reduced motion freezes the sky and disables shooting stars. The igloo retains the daylight seam illumination, opening glow, and reflected light on the snow, combined with the detailed night ice shading.

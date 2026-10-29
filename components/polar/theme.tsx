@@ -25,7 +25,6 @@ export function ThemeLighting({ reduced }: { reduced: boolean }) {
 export function ThemeToggle() {
   const [dark, setDark] = useState(false)
   useEffect(() => {
-    const media = matchMedia('(prefers-color-scheme: dark)')
     const apply = (value: boolean) => {
       document.documentElement.dataset.theme = value ? 'dark' : 'light'
       document.querySelector('meta[name="theme-color"]')?.setAttribute('content', value ? '#060d19' : '#a0a5b1')
@@ -36,19 +35,13 @@ export function ThemeToggle() {
       setDark(value)
       document.querySelector('meta[name="theme-color"]')?.setAttribute('content', value ? '#060d19' : '#a0a5b1')
     }
-    const system = () => {
-      let saved: string | null = null
-      try { saved = localStorage.getItem('portfolio-theme') } catch {}
-      if (saved !== 'light' && saved !== 'dark') apply(media.matches)
-    }
     const storage = (event: StorageEvent) => {
-      if (event.key === 'portfolio-theme' || event.key === null) apply(event.newValue === 'dark' || (event.newValue !== 'light' && media.matches))
+      if (event.key === 'portfolio-theme' || event.key === null) apply(event.newValue === 'dark')
     }
     sync()
     window.addEventListener('portfolio:theme', sync)
     window.addEventListener('storage', storage)
-    media.addEventListener('change', system)
-    return () => { window.removeEventListener('portfolio:theme', sync); window.removeEventListener('storage', storage); media.removeEventListener('change', system) }
+    return () => { window.removeEventListener('portfolio:theme', sync); window.removeEventListener('storage', storage) }
   }, [])
   const toggle = () => {
     const next = !dark
