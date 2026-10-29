@@ -9,14 +9,12 @@ import { smoothDetailScroll } from './detail-scroll'
 import './crystal-detail.css'
 
 const titles = { skills: 'Skills', projects: 'Selected Projects', about: 'About Me' }
-const indices = { skills: '01', projects: '02', about: '03' }
 
 // The detail layer is a native modal rather than another scroll destination.
 // Its portal escapes readout opacity, keeps focus trapped, and leaves the live
 // WebGL sculpture visible beneath the dark atmosphere.
 export function CrystalDetail({ kind }: { kind: CrystalKind }) {
   const [mounted, setMounted] = useState(false)
-  const [gallery, setGallery] = useState(true)
   const dialog = useRef<HTMLDialogElement>(null)
   const heading = useRef<HTMLHeadingElement>(null)
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -65,7 +63,6 @@ export function CrystalDetail({ kind }: { kind: CrystalKind }) {
       }
       document.querySelector('#app')?.setAttribute('data-detail', kind)
       element.dataset.phase = 'opening'
-      setGallery(true)
       element.showModal()
       element.scrollTop = 0
       heading.current?.focus({ preventScroll: true })
@@ -86,7 +83,7 @@ export function CrystalDetail({ kind }: { kind: CrystalKind }) {
   }, [kind, mounted])
 
   if (!mounted) return null
-  return createPortal(<dialog ref={dialog} className={`crystal-detail detail-${kind === 'projects' && !gallery ? 'project-summary' : kind}`} aria-labelledby={`${kind}-detail-heading`}
+  return createPortal(<dialog ref={dialog} className={`crystal-detail detail-${kind}`} aria-labelledby={`${kind}-detail-heading`}
     onCancel={event => { event.preventDefault(); close() }}
     onClick={event => { if (event.target === event.currentTarget) close() }}>
     <header className="detail-chrome">
@@ -94,8 +91,8 @@ export function CrystalDetail({ kind }: { kind: CrystalKind }) {
       <button type="button" className="detail-close" data-glitch-trigger data-sound="short" onClick={close} aria-label={`Close ${titles[kind]}`}>Close<span aria-hidden="true" /></button>
     </header>
     <article className="detail-content">
-      <p className="detail-eyebrow">{kind === 'projects' && gallery ? `PORTFOLIO_CO_${indices[kind]}` : `////// ${kind === 'skills' ? 'Skills' : 'Summary'}`}</p>
-      <h2 ref={heading} tabIndex={-1} id={`${kind}-detail-heading`} className={kind === 'projects' && gallery ? 'detail-heading' : 'sr-only'}>{titles[kind]}</h2>
+      <p className="detail-eyebrow">{`////// ${kind === 'skills' ? 'Skills' : kind === 'projects' ? 'Projects' : 'Summary'}`}</p>
+      <h2 ref={heading} tabIndex={-1} id={`${kind}-detail-heading`} className="sr-only">{titles[kind]}</h2>
       {kind === 'skills' ? <dl className="detail-skills">
         {portfolioSkills.map(category => <div key={category.title}><dt>{category.title}</dt><dd>{category.skills.join(', ')}.</dd></div>)}
       </dl> : kind === 'about' ? <>
@@ -105,22 +102,12 @@ export function CrystalDetail({ kind }: { kind: CrystalKind }) {
         <div className="detail-links">{SOCIAL_LINKS.slice(0, 2).map(link => <a key={link.name} href={link.href} target="_blank" rel="noopener noreferrer">[{link.name.toLowerCase()}] ↗</a>)}</div>
         <p className="detail-eyebrow">/// Get in touch</p>
         <div className="detail-links">{SOCIAL_LINKS.slice(2).map(link => <a key={link.name} href={link.href} target={link.name === 'Gmail' ? undefined : '_blank'} rel="noopener noreferrer">[{link.name.toLowerCase()}] ↗</a>)}</div>
-      </> : !gallery ? <>
-        <p>Selected work across machine learning, full-stack applications, security, and intelligent systems. Explore the gallery for application screenshots, source code, and a live demo.</p>
-        <p className="detail-eyebrow">/// Discover</p>
-        <div className="detail-links"><button className="detail-gallery-toggle" onClick={() => { setGallery(true); dialog.current?.scrollTo(0, 0) }}>[Explore all six projects] ↗</button></div>
-        <p className="detail-eyebrow">/// Visit</p>
-        <div className="detail-links"><a href="https://automlnust.streamlit.app/" target="_blank" rel="noopener noreferrer">[AutoML demo] ↗</a><a href="https://github.com/TUAHASHAIKH?tab=repositories" target="_blank" rel="noopener noreferrer">[Repositories] ↗</a></div>
       </> : <>
-        {/* The gallery can return to the project summary without leaving the
-            crystal. The outer close still returns to the scrolling journey. */}
-        <button className="detail-gallery-back" onClick={() => { setGallery(false); dialog.current?.scrollTo(0, 0); heading.current?.focus({ preventScroll: true }) }}>[ CLOSE GALLERY ]</button>
-        <p className="detail-project-intro">Selected work in machine learning, full-stack development, security, and intelligent systems.</p>
-        <div className="detail-project-grid">
+        <p className="detail-project-intro">Selected work in AI tooling, desktop software, computer vision, full-stack development, and systems engineering.</p>
+        <div className="detail-project-grid" aria-label="Selected projects">
           {portfolioProjects.map(project => <section className="detail-project" key={project.id}>
             <a className="detail-project-image" href={project.githubLink} target="_blank" rel="noopener noreferrer" aria-label={`View ${project.title} on GitHub`}>
-              <img src={project.image} alt={`${project.title} application screenshot`} width={720} height={450} loading="lazy" decoding="async" />
-              <span>{project.tags[0]}</span>
+              <img src={project.image} alt={project.imageAlt} width={1600} height={1000} srcSet={`${project.image.replace('.webp', '-800.webp')} 800w, ${project.image} 1600w`} sizes="(max-width: 688px) calc(100vw - 48px), 640px" loading="lazy" decoding="async" />
             </a>
             <div className="detail-project-copy"><h3><a href={project.githubLink} target="_blank" rel="noopener noreferrer">{project.title}<span aria-hidden="true">↗</span></a></h3>
               <p>{project.description}.</p><p className="detail-project-tags">{project.tags.join(' / ')}</p>
