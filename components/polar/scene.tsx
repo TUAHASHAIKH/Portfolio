@@ -1,5 +1,8 @@
 'use client'
 
+import { night, ThemeLighting } from './theme'
+import { celestial } from './celestial'
+import { skyUniforms } from './sky-motion'
 import { Canvas, useFrame, useThree } from '@react-three/fiber'
 import { Html } from '@react-three/drei'
 import { useEffect, useMemo, useRef, useState } from 'react'
@@ -68,12 +71,13 @@ function PostProcessing({ assets, journey, reduced }: { assets: PolarAssets; jou
     const composer = new EffectComposer(gl)
     const render = new RenderPass(scene, camera)
     const grade = new ShaderPass({
-      uniforms: { tDiffuse: { value: null }, grade: { value: assets.grade }, crystalGrade: { value: assets.grade }, crystalMix: { value: 0 }, ringMix: { value: 0 } },
+      uniforms: { night, tDiffuse: { value: null }, grade: { value: assets.grade }, crystalGrade: { value: assets.grade }, crystalMix: { value: 0 }, ringMix: { value: 0 } },
       vertexShader: 'varying vec2 vUv;void main(){vUv=uv;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.);}',
       fragmentShader: `
         uniform sampler2D tDiffuse;
         uniform highp sampler3D grade;
         uniform highp sampler3D crystalGrade;
+        uniform float night;
         uniform float crystalMix;
         uniform float ringMix;
         varying vec2 vUv;
@@ -96,7 +100,7 @@ function PostProcessing({ assets, journey, reduced }: { assets: PolarAssets; jou
           color = mix(color/12.92,pow((color+.055)/1.055,vec3(2.4)),step(vec3(.04045),color));
           // Bound ring highlights before bloom, as the reference LUT does,
           // while preserving the established grey ring palette.
-          gl_FragColor=vec4(mix(color,clamp(original,0.,1.),ringMix),1.);
+          gl_FragColor=vec4(mix(mix(color,clamp(original,0.,1.),ringMix),original,night),1.);
         }
       `,
     })
@@ -170,6 +174,7 @@ function PostProcessing({ assets, journey, reduced }: { assets: PolarAssets; jou
   }, [pipeline,pipelineLifetime])
   useFrame((_, delta) => {
     const p = journey.current.value
+    pipeline.grade.uniforms.night.value = night.value
     pipeline.grade.uniforms.crystalGrade.value = scene.userData.crystalGrade || assets.grade
     pipeline.grade.uniforms.crystalMix.value = ease(range(p, .4, .9))*(1-ease(range(p,8.6,9.8)))
     const rings = Number(scene.userData.ringOpacity || 0)
@@ -295,14 +300,33 @@ function World({ assets, onReady, reduced, journey }: { assets: PolarAssets; onR
     mountain: makeTerrainMaterial(assets.mountainMap, { mountain: true, intro: assets }),
     terrain: makeTerrainMaterial(assets.terrainMap, { wind: assets.wind, intro: assets }),
     patch: makeTerrainMaterial(assets.terrainMap, { patch: true, wind: assets.wind, intro: assets }),
+    // The individual terrain tiles feather to transparent at their edges.
+    // A continuous snow bed closes those seams without changing the skyline.
+    snowBed: new THREE.ShaderMaterial({
+      transparent: true, depthWrite: false,
+      uniforms: { night, noise: { value: assets.wind }, introAlpha: { value: 0 } },
+      vertexShader: surfaceVertex,
+      fragmentShader: `uniform float night;uniform float introAlpha;uniform sampler2D noise;
+        varying vec3 worldPoint;varying float viewDepth;
+        void main(){
+          if(night<.001)discard;
+          float grain=texture2D(noise,worldPoint.xz*.035).r;
+          float detail=texture2D(noise,worldPoint.xz*.19).r;
+          vec3 snow=vec3(.024,.034,.052)*( .86+grain*.2+detail*.08);
+          vec3 horizon=vec3(.026,.036,.052);
+          snow=mix(snow,horizon,smoothstep(20.,140.,viewDepth));
+          gl_FragColor=vec4(snow,night*introAlpha);
+        }`,
+    }),
     haze: new THREE.ShaderMaterial({
       transparent: true, depthWrite: false,
-      uniforms: { noise: { value: assets.wind }, time: { value: 0 }, introAlpha: { value: 0 } },
+      uniforms: { night, noise: { value: assets.wind }, time: { value: 0 }, introAlpha: { value: 0 } },
       vertexShader: surfaceVertex,
       fragmentShader: `
         uniform sampler2D noise;
         uniform float time;
         uniform float introAlpha;
+        uniform float night;
         varying vec2 surfaceUv;
         varying vec3 worldPoint;
         void main(){
@@ -313,15 +337,15 @@ function World({ assets, onReady, reduced, journey }: { assets: PolarAssets; onR
           wisps*=texture2D(noise,uv*.5+vec2(drift.x,-time*.0525)).r;
           float edge=smoothstep(0.,.5,surfaceUv.x)*(1.-smoothstep(.8,1.,surfaceUv.x));
           float veil=wisps*edge*smoothstep(0.,.1,surfaceUv.y)*(1.-surfaceUv.y)*6.;
-          gl_FragColor=vec4(vec3(.86,.88,.92),min(veil,.45)*introAlpha);
+          gl_FragColor=vec4(mix(vec3(.86,.88,.92),vec3(.06,.14,.22),night),min(veil,.45)*introAlpha);
         }
       `,
     }),
     sky: new THREE.ShaderMaterial({
       side: THREE.BackSide, depthWrite: false,
-      uniforms: { resolution: { value: new THREE.Vector2(size.width, size.height) }, reveal: { value: 0 }, loadingColor: { value: new THREE.Color('#b3bac9') } },
+      uniforms: { ...skyUniforms, night, time: {value:0}, resolution: { value: new THREE.Vector2(size.width, size.height) }, reveal: { value: 0 }, loadingColor: { value: new THREE.Color('#b3bac9') } },
       vertexShader: surfaceVertex,
-      fragmentShader: 'uniform vec2 resolution;uniform float reveal;uniform vec3 loadingColor;void main(){vec2 uv=gl_FragCoord.xy/resolution;float t=pow((uv.x+uv.y)*.5,2.);vec3 sky=mix(vec3(.4287,.4678,.5711),vec3(.6376,.6724,.7682),t);gl_FragColor=vec4(mix(loadingColor,sky,reveal),1.);}',
+      fragmentShader: `${celestial} uniform float night;uniform float time;uniform vec2 resolution;uniform float reveal;uniform vec3 loadingColor;void main(){vec2 uv=gl_FragCoord.xy/resolution;float t=pow((uv.x+uv.y)*.5,2.);vec3 sky=mix(vec3(.4287,.4678,.5711),vec3(.6376,.6724,.7682),t);vec3 nocturne=nightSky(uv,resolution.x/resolution.y,time,1.);float clearSky=smoothstep(.72,.95,uv.y);nocturne=mix(vec3(.031,.042,.059),nocturne,clearSky);sky=mix(sky,nocturne,night);gl_FragColor=vec4(mix(mix(loadingColor,vec3(.002,.004,.012),night),sky,reveal),1.);}`,
     }),
   }), [assets])
   useEffect(()=>{
@@ -391,6 +415,7 @@ function World({ assets, onReady, reduced, journey }: { assets: PolarAssets; onR
       material.uniforms.fillReveal.value = landing.terrainFill
       material.uniforms.introAlpha.value = material===surfaces.mountain?landing.mountainAlpha:landing.terrainAlpha
     }
+    surfaces.snowBed.uniforms.introAlpha.value=landing.terrainAlpha
     surfaces.haze.uniforms.introAlpha.value=landing.mist
     surfaces.sky.uniforms.reveal.value=landing.sky
     const app = gl.domElement.closest('#app'), introduced = String(landing.introduced)
@@ -415,6 +440,7 @@ function World({ assets, onReady, reduced, journey }: { assets: PolarAssets; onR
   return <>
     <group ref={landscape} name="polar-landscape">
     <mesh name="landscape-sky" material={surfaces.sky} renderOrder={-10}><sphereGeometry args={[700, 12, 12]} /></mesh>
+    <mesh name="continuous-snow-bed" material={surfaces.snowBed} position={[0,-2.5,0]} rotation={[-Math.PI/2,0,0]} renderOrder={-5}><planeGeometry args={[1200,1200]} /></mesh>
     {mountains.map((item, index) => <mesh key={`mountain-${index}`} geometry={assets.mountain} material={surfaces.mountain} position={tuple(item.position)} scale={tuple(item.scale)} rotation={tuple(item.rotation.map(radians))} renderOrder={0} />)}
     {terrain.map((item, index) => <mesh key={`terrain-${index}`} geometry={assets.ground} material={surfaces.terrain} position={tuple(item.position)} scale={tuple(item.scale)} rotation={tuple(item.rotation.map(radians))} renderOrder={1} />)}
     <mesh geometry={assets.patch} material={surfaces.patch} position={[-9.34,-1.77,6.96]} scale={7} renderOrder={0} />
@@ -458,9 +484,29 @@ export default function App3D({ onReady, reducedMotion, journey }: { onReady: ()
     return () => document.removeEventListener('visibilitychange', update)
   }, [])
   return <Canvas dpr={[1,1.5]} camera={{ position: [...heroPosition], fov: 30, near: .1, far: 1000 }} gl={{ antialias: true, alpha: false, outputColorSpace: THREE.SRGBColorSpace, toneMapping: THREE.NoToneMapping, powerPreference: 'high-performance' }} frameloop={visible ? 'always' : 'never'}>
+    <SkyMotion journey={journey} reduced={reducedMotion} />
+    <ThemeLighting reduced={reducedMotion} />
     <JourneyMotion journey={journey} reduced={reducedMotion} />
     <SceneController onReady={onReady} reduced={reducedMotion} journey={journey} />
   </Canvas>
+}
+
+// A single visible-tab clock drives every sky, even while the hero is hidden.
+// Accumulating small journey deltas preserves star direction across loop seams.
+function SkyMotion({ journey, reduced }: { journey: React.RefObject<Journey>; reduced: boolean }) {
+  const previous = useRef(journey.current.value)
+  useEffect(() => { skyUniforms.skySeed.value = Math.random() * 1000 }, [])
+  useFrame((_, delta) => {
+    let distance = journey.current.value - previous.current
+    previous.current = journey.current.value
+    if (distance > JOURNEY_END / 2) distance -= JOURNEY_END
+    if (distance < -JOURNEY_END / 2) distance += JOURNEY_END
+    skyUniforms.skyMotion.value = reduced ? 0 : 1
+    if (reduced) return
+    skyUniforms.skyTime.value += Math.min(delta, .1)
+    skyUniforms.starTravel.value += distance * .22
+  }, -3)
+  return null
 }
 
 function JourneyMotion({ journey, reduced }: { journey: React.RefObject<Journey>; reduced: boolean }) {

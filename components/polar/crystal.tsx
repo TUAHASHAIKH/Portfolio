@@ -1,5 +1,8 @@
 'use client'
 
+import { night } from './theme-uniform'
+import { celestial } from './celestial'
+import { skyUniforms } from './sky-motion'
 import { MeshTransmissionMaterial, useFBO } from '@react-three/drei'
 import { useFrame, useThree, type ThreeEvent } from '@react-three/fiber'
 import { createRef, useCallback, useEffect, useMemo, useRef, useState, type RefObject } from 'react'
@@ -79,6 +82,7 @@ function CrystalView({ assets, noise, journey, reduced }: { assets: CrystalAsset
     const compile = material.onBeforeCompile
     material.onBeforeCompile = (shader, renderer) => {
       compile.call(material, shader, renderer)
+      shader.uniforms.night = night
       shader.uniforms.surfaceFrost = fields[index]
       shader.uniforms.clearTransmission = {value:backBuffer.texture}
       shader.uniforms.frostTriangles = { value: assets.triangles }
@@ -87,7 +91,7 @@ function CrystalView({ assets, noise, journey, reduced }: { assets: CrystalAsset
       shader.uniforms.iceSurfaceRoughness = { value: index===2?.7:1 }
       shader.vertexShader = 'attribute vec2 frostUv;varying vec2 vFrostUv;\n'+shader.vertexShader
       shader.vertexShader = shader.vertexShader.replace('#include <uv_vertex>','#include <uv_vertex>\nvFrostUv=frostUv;')
-      shader.fragmentShader = 'uniform vec3 iceTint;uniform float iceTintStrength;uniform float iceSurfaceRoughness;uniform sampler2D clearTransmission;uniform sampler2D surfaceFrost;uniform sampler2D frostTriangles;varying vec2 vFrostUv;\n'+shader.fragmentShader
+      shader.fragmentShader = 'uniform float night;uniform vec3 iceTint;uniform float iceTintStrength;uniform float iceSurfaceRoughness;uniform sampler2D clearTransmission;uniform sampler2D surfaceFrost;uniform sampler2D frostTriangles;varying vec2 vFrostUv;\n'+shader.fragmentShader
       shader.fragmentShader = shader.fragmentShader.replace('vec4 transmittedLight = getTransmissionSample( refractionCoords, roughness, ior );',`vec4 transmittedLight = getTransmissionSample(clamp(refractionCoords,vec2(.001),vec2(.999)),roughness,ior);
         vec4 straightClip=projMatrix*viewMatrix*vec4(position,1.);
         vec2 straightUv=clamp(straightClip.xy/straightClip.w*.5+.5,vec2(.001),vec2(.999));
@@ -95,14 +99,14 @@ function CrystalView({ assets, noise, journey, reduced }: { assets: CrystalAsset
         float valid=step(0.,refractionCoords.x)*step(refractionCoords.x,1.)*step(0.,refractionCoords.y)*step(refractionCoords.y,1.);
         float energy=smoothstep(.004,.035,max(transmittedLight.r,max(transmittedLight.g,transmittedLight.b)));
         transmittedLight=mix(clearLight,transmittedLight,valid*energy);`)
-      shader.fragmentShader = shader.fragmentShader.replace('#include <roughnessmap_fragment>','#include <roughnessmap_fragment>\nroughnessFactor*=iceSurfaceRoughness*(1.-texture2D(surfaceFrost,vFrostUv).r*.95);')
+      shader.fragmentShader = shader.fragmentShader.replace('#include <roughnessmap_fragment>','#include <roughnessmap_fragment>\nroughnessFactor*=mix(1.,.55,night)*iceSurfaceRoughness*(1.-texture2D(surfaceFrost,vFrostUv).r*.95);')
       shader.fragmentShader = shader.fragmentShader.replace('#include <normal_fragment_maps>',THREE.ShaderChunk.normal_fragment_maps.replace('mapN.xy *= normalScale;', 'mapN.xy *= normalScale;mapN.xy*=1.-texture2D(surfaceFrost,vFrostUv).r;'))
       shader.fragmentShader = shader.fragmentShader.replace('vec3 outgoingLight = totalDiffuse + totalSpecular + totalEmissiveRadiance;',`vec2 field=texture2D(surfaceFrost,vFrostUv).rg;
         float grid=texture2D(frostTriangles,vNormalMapUv*9.).r;
         totalEmissiveRadiance+=vec3(.23,.36,.56)*field.g*2.+vec3(grid)*(field.g*10.+field.r*field.r);
         vec3 outgoingLight=totalDiffuse+totalSpecular+totalEmissiveRadiance;`)
       shader.fragmentShader = shader.fragmentShader.replace('#include <dithering_fragment>',
-        '#include <dithering_fragment>\ngl_FragColor.rgb=mix(clamp(gl_FragColor.rgb,0.,1.),iceTint,iceTintStrength);')
+        '#include <dithering_fragment>\ngl_FragColor.rgb=mix(clamp(gl_FragColor.rgb,0.,1.),mix(iceTint,vec3(.018,.065,.09),night),iceTintStrength);gl_FragColor.rgb=mix(gl_FragColor.rgb,gl_FragColor.rgb*vec3(.5,.85,1.)+vec3(.012,.032,.045)*pow(1.-abs(dot(normal,normalize(vViewPosition))),3.),night);')
     }
     material.needsUpdate = true
   }, [assets,fields,backBuffer])
@@ -110,9 +114,9 @@ function CrystalView({ assets, noise, journey, reduced }: { assets: CrystalAsset
     const core = new THREE.MeshBasicMaterial({ map: assets.coreMap })
     const background = new THREE.ShaderMaterial({
       transparent: true, depthTest: true, depthWrite: false,
-      uniforms: { noise: { value: assets.mist }, alpha: { value: 0 }, time: { value: 0 }, aspect: { value: 1 }, resolution: { value: new THREE.Vector2() }, scroll: { value: 0 } },
+      uniforms: { ...skyUniforms, night, noise: { value: assets.mist }, alpha: { value: 0 }, time: { value: 0 }, aspect: { value: 1 }, resolution: { value: new THREE.Vector2() }, scroll: { value: 0 } },
       vertexShader: 'varying vec2 vUv;void main(){vUv=uv;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.);}',
-      fragmentShader: `uniform sampler2D noise;uniform float alpha;uniform float time;uniform float aspect;uniform vec2 resolution;uniform float scroll;varying vec2 vUv;
+      fragmentShader: `${celestial} uniform float night;uniform sampler2D noise;uniform float alpha;uniform float time;uniform float aspect;uniform vec2 resolution;uniform float scroll;varying vec2 vUv;
         float hash(vec2 p){return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453);}
         void main(){vec2 uv=gl_FragCoord.xy/resolution*vec2(aspect,1.)*.3;
           float mist=texture2D(noise,uv+vec2(-time*.075,-scroll*.65+time*.01875)).r;
@@ -123,6 +127,7 @@ function CrystalView({ assets, noise, journey, reduced }: { assets: CrystalAsset
           float dotMask=1.-smoothstep(.006,.025,length(fract(grid)-.5));
           color+=dotMask*(.1+.2*id)*(.65+.35*sin(time*.4+id*25.));
           color+=(hash(gl_FragCoord.xy)-.5)*.001;
+          color=mix(color,nightSky(gl_FragCoord.xy/resolution,aspect,time,.28)+vec3(.002,.004,.009)*mist,night);
           float curtain=smoothstep(0.,.6,alpha*1.6-(gl_FragCoord.y/resolution.y)*.7);
           gl_FragColor=vec4(color,curtain);}`,
     })
