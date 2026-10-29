@@ -1,5 +1,6 @@
 'use client'
 
+import { night } from './theme-uniform'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useFrame, useThree } from '@react-three/fiber'
 import * as THREE from 'three'
@@ -92,6 +93,7 @@ function RingPassage({ assets, journey, noise, reduced }: { assets: RingAssets; 
     root.current.matrixWorldNeedsUpdate=true
     const width=state.size.width*gl.getPixelRatio(),height=state.size.height*gl.getPixelRatio()
     for(const material of materials.materials){
+      material.uniforms.night.value=night.value
       material.uniforms.time.value=clock.current
       material.uniforms.opacity.value=travel.opacity
       material.uniforms.screenLift.value=travel.departure*2
@@ -108,6 +110,7 @@ function RingPassage({ assets, journey, noise, reduced }: { assets: RingAssets; 
     }
     if(tunnel.current){tunnel.current.visible=travel.time<.52*9.2;tunnel.current.rotation.y=roll*.65}
     if(floor.current)floor.current.visible=travel.floor>0&&journey.current.value<8.95
+    materials.accretion.uniforms.opacity.value=travel.opacity*(1-THREE.MathUtils.smoothstep(travel.time,3.4,4.5))
     materials.floor.uniforms.reveal.value=travel.floor
     materials.floor.uniforms.opacity.value=travel.opacity*(1-THREE.MathUtils.smoothstep(journey.current.value,8.6,8.95))
     materials.background.uniforms.opacity.value=travel.opacity*(1-THREE.MathUtils.smoothstep(travel.returning,0,.7))
@@ -116,6 +119,7 @@ function RingPassage({ assets, journey, noise, reduced }: { assets: RingAssets; 
     materials.halo.uniforms.reveal.value=travel.chamber
     materials.chamberField.uniforms.reveal.value=travel.chamber
     if(core.current){core.current.visible=travel.core>0;core.current.rotation.y=reduced?0:clock.current*.045}
+    materials.core.blendDst=night.value>.5?THREE.OneMinusSrcAlphaFactor:THREE.SrcColorFactor
     materials.core.uniforms.reveal.value=travel.core
     materials.core.uniforms.glow.value=travel.coreGlow
     materials.core.uniforms.forming.value=reduced?0:travel.forming
@@ -123,6 +127,7 @@ function RingPassage({ assets, journey, noise, reduced }: { assets: RingAssets; 
   },.15)
   return <group ref={root} name="ring-passage" matrixAutoUpdate={false} visible={false}>
     <mesh material={materials.background} renderOrder={8} frustumCulled={false} raycast={()=>{}}><planeGeometry args={[2,2]} /></mesh>
+    <mesh material={materials.accretion} position={[0,-7.5,0]} rotation={[-Math.PI/2,0,0]} renderOrder={8} raycast={()=>{}}><planeGeometry args={[3.2,3.2]} /></mesh>
     {[0,1,2].map(index=><group key={index}>
       <mesh ref={item=>{portals.current[index]=item}} name={`portal-${index+1}`} geometry={index===1?assets.inner:assets.outer} material={materials.rings[index]} position={[0,-1.65-index*2.5,0]} rotation={[-Math.PI/2,0,0]} renderOrder={9} frustumCulled={false} raycast={()=>{}} />
       <mesh ref={item=>{fields.current[index]=item}} material={materials.fields[index]} position={[0,-1.5-index*2.5,0]} rotation={[-Math.PI/2,0,0]} scale={.65} renderOrder={11} frustumCulled={false} raycast={()=>{}}><planeGeometry args={[1,1]} /></mesh>
