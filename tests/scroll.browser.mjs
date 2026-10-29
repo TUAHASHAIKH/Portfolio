@@ -86,7 +86,9 @@ try {
   for (const progress of [.1, .36, .72]) {
     await go(progress)
     assert((await evaluate('scrollY')) > 0)
+    const previousDocument=await evaluate('performance.timeOrigin')
     await send('Page.reload', { ignoreCache: false })
+    await until('performance.timeOrigin !== '+previousDocument, 'Reload did not replace the document')
     await until('document.querySelector("#app")?.dataset.crystalReady === "true" && document.querySelector("#loader")?.dataset.ready === "true"', 'Reloaded scene did not load')
     await wait(500)
     assert.equal(await evaluate('scrollY'), 0, 'Reload must start at the landing scene')
