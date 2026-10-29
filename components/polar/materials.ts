@@ -1,3 +1,4 @@
+import { night } from './theme-uniform'
 import * as THREE from 'three'
 import type { PolarAssets } from './assets'
 
@@ -51,10 +52,11 @@ export function makeTerrainMaterial(map: THREE.Texture, options: { mountain?: bo
   return new THREE.ShaderMaterial({
     transparent: true,
     depthWrite: true,
-    uniforms: { reveal: { value: 1 }, fillReveal: { value: 1 }, introAlpha: { value: 1 }, introTriangles: { value: options.intro?.introTriangles || map }, introMosaic: { value: options.intro?.introMosaic || map }, surface: { value: map }, glow: { value: options.glow || map }, windTexture: { value: options.wind || map }, time: { value: 0 }, groundLight: { value: 0 }, cursor: { value: new THREE.Vector3(0, -10, 0) }, resolution: { value: new THREE.Vector2(1440, 900) } },
+    uniforms: { night, reveal: { value: 1 }, fillReveal: { value: 1 }, introAlpha: { value: 1 }, introTriangles: { value: options.intro?.introTriangles || map }, introMosaic: { value: options.intro?.introMosaic || map }, surface: { value: map }, glow: { value: options.glow || map }, windTexture: { value: options.wind || map }, time: { value: 0 }, groundLight: { value: 0 }, cursor: { value: new THREE.Vector3(0, -10, 0) }, resolution: { value: new THREE.Vector2(1440, 900) } },
     defines: { MOUNTAIN: options.mountain ? 1 : 0, PATCH: options.patch ? 1 : 0, GROUND_GLOW: options.glow ? 1 : 0, GROUND_WIND: options.wind ? 1 : 0 },
     vertexShader: surfaceVertex,
     fragmentShader: `
+      uniform float night;
       uniform float reveal;
       uniform float fillReveal;
       uniform float introAlpha;
@@ -82,6 +84,8 @@ export function makeTerrainMaterial(map: THREE.Texture, options: { mountain?: bo
       }
       void main() {
         vec3 color = texture2D(surface, surfaceUv).rgb;
+        // Retain the baked relief before daylight haze flattens distant peaks.
+        vec3 relief = color;
         // Unpainted atlas padding must reveal the snowy underlay, not black polygons.
         float painted = smoothstep(.002, .02, max(color.r, max(color.g, color.b)));
         float radius = length(localPoint.xz);
@@ -134,7 +138,28 @@ export function makeTerrainMaterial(map: THREE.Texture, options: { mountain?: bo
         #if MOUNTAIN == 0
           assembly *= introAlpha;
         #endif
-        gl_FragColor = vec4(color, alpha * painted * assembly);
+        // Sharpen existing snow detail at its own texel scale, never screen noise.
+        vec2 texel=2./vec2(textureSize(surface,0));
+        vec3 nearby=(texture2D(surface,surfaceUv+vec2(texel.x,0.)).rgb
+          +texture2D(surface,surfaceUv-vec2(texel.x,0.)).rgb
+          +texture2D(surface,surfaceUv+vec2(0.,texel.y)).rgb
+          +texture2D(surface,surfaceUv-vec2(0.,texel.y)).rgb)*.25;
+        vec3 textured=max(vec3(0.),relief+(relief-nearby)*.4);
+        vec3 moonlit=pow(textured,vec3(2.1))*vec3(.32,.39,.47);
+        #if MOUNTAIN == 1
+          // Light atmospheric perspective preserves the near mountain relief.
+          float nightFog=clamp(viewDepth*.0012,0.,.38);
+          moonlit=mix(moonlit,vec3(.025,.035,.05),nightFog);
+        #else
+          moonlit+=(color-relief)*vec3(.045,.06,.08);
+        #endif
+        #if GROUND_GLOW == 1
+          // Restore the reflected pool of blue-white light beneath open blocks.
+          float spill=texture2D(glow,surfaceUv).r*relief.r*(.25+groundLight*.7);
+          moonlit+=spill*vec3(.20,.32,.48);
+          moonlit+=(1.-smoothstep(0.,5.,distance(cursor.xz,worldPoint.xz)))*groundLight*relief.r*vec3(.012,.024,.04);
+        #endif
+        gl_FragColor = vec4(mix(color,moonlit,night), alpha * painted * assembly);
       }
     `,
   })
@@ -143,7 +168,7 @@ export function makeTerrainMaterial(map: THREE.Texture, options: { mountain?: bo
 export function makeIceMaterial(assets: PolarAssets) {
   return new THREE.ShaderMaterial({
     transparent: true,
-    uniforms: { materialize: { value: 1 }, closed: { value: assets.closed }, opened: { value: assets.opened }, separation: { value: 0 }, bounce: { value: 0 }, time: { value: 0 } },
+    uniforms: { night, materialize: { value: 1 }, closed: { value: assets.closed }, opened: { value: assets.opened }, separation: { value: 0 }, bounce: { value: 0 }, time: { value: 0 } },
     vertexShader: `
       attribute float emission;
       varying vec2 surfaceUv;
@@ -157,6 +182,7 @@ export function makeIceMaterial(assets: PolarAssets) {
       }
     `,
     fragmentShader: `
+      uniform float night;
       uniform float materialize;
       uniform sampler2D closed;
       uniform sampler2D opened;
@@ -170,6 +196,7 @@ export function makeIceMaterial(assets: PolarAssets) {
         vec3 a = texture2D(closed, surfaceUv).rgb;
         vec3 b = texture2D(opened, surfaceUv).rgb + .05;
         vec3 color = mix(a, b, clamp(separation * 5., 0., 1.));
+        vec3 iceRelief=color;
         vec3 point = localPoint;
         vec3 blue = vec3(.5,.7,1.);
         if (materialize < 1.) {
@@ -188,7 +215,24 @@ export function makeIceMaterial(assets: PolarAssets) {
         color += (point.x * .1 + .4) * .15 * min(point.y + .5, 1.);
         color = clamp(color, 0., 1.);
         color += (1. - smoothstep(-1.5, 1., point.y)) * bounce * vec3(.8,.9,1.) * .25;
-        gl_FragColor = vec4(color, 1.);
+        // Preserve the textured night surface, then add the same light release
+        // used by daylight at the seams, moving blocks, and foot of the igloo.
+        vec2 texel=2./vec2(textureSize(closed,0));
+        vec3 nearby=(texture2D(closed,surfaceUv+vec2(texel.x,0.)).rgb
+          +texture2D(closed,surfaceUv-vec2(texel.x,0.)).rgb
+          +texture2D(closed,surfaceUv+vec2(0.,texel.y)).rgb
+          +texture2D(closed,surfaceUv-vec2(0.,texel.y)).rgb)*.25;
+        vec3 textured=max(vec3(0.),iceRelief+(a-nearby)*.5);
+        vec3 moonlit=pow(textured,vec3(2.2))*vec3(.65,.75,.86);
+        float reflectedSky=smoothstep(.2,3.,point.y);
+        moonlit+=textured*vec3(.008,.018,.022)*reflectedSky;
+        vec3 releasedLight=rim*rim*clamp(separation,0.,1.)*blue;
+        releasedLight+=idleGlow*(sin(point.x-time+3.2)*.5+.5);
+        releasedLight+=smoothstep(0.,2.,point.x*.5-point.z*.5)*idleGlow;
+        releasedLight+=(1.-smoothstep(-1.5,1.,point.y))*bounce*vec3(.8,.9,1.)*.25;
+        moonlit+=releasedLight*.85;
+        if(materialize<1.)moonlit+=max(color-iceRelief,vec3(0.))*.3;
+        gl_FragColor = vec4(mix(color,moonlit,night), 1.);
       }
     `,
   })

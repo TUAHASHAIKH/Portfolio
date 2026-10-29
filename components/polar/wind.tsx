@@ -1,5 +1,6 @@
 'use client'
 
+import { night } from './theme-uniform'
 import { useFrame } from '@react-three/fiber'
 import { useEffect, useMemo, type RefObject } from 'react'
 import * as THREE from 'three'
@@ -24,7 +25,7 @@ export function Wind({ intro }: { intro: RefObject<number> }) {
     geometry.setAttribute('offset',offset);geometry.setAttribute('random',new THREE.InstancedBufferAttribute(randoms,4))
     const material=new THREE.ShaderMaterial({
       transparent:true,depthWrite:false,
-      uniforms:{time:{value:0},introAlpha:{value:0}},
+      uniforms:{night,time:{value:0},introAlpha:{value:0}},
       vertexShader:`uniform float time;attribute vec3 offset;attribute vec4 random;varying vec2 vUv;varying vec3 point;varying float depth;
         mat2 turn(float a){return mat2(cos(a),sin(a),-sin(a),cos(a));}
         void main(){vUv=uv;vec3 p=position*mix(.85,1.15,step(random.x,.5));
@@ -33,11 +34,11 @@ export function Wind({ intro }: { intro: RefObject<number> }) {
           p.yz=turn(random.x*6.28318)*p.yz;
           point=p+offset;vec4 view=modelViewMatrix*vec4(point,1.);depth=length(view.xyz);
           gl_Position=projectionMatrix*view;}`,
-      fragmentShader:`uniform float introAlpha;varying vec2 vUv;varying vec3 point;varying float depth;
+      fragmentShader:`uniform float night;uniform float introAlpha;varying vec2 vUv;varying vec3 point;varying float depth;
         void main(){float radius=length(point);float alpha=(1.-min(25.,abs(point.x))/25.)*(1.-min(10.,abs(point.y))/10.)*(1.-min(25.,abs(point.z))/25.);
           alpha*=smoothstep(.5,1.,depth)*smoothstep(0.,2.,point.y)*smoothstep(.5,1.,min(6.,radius)/6.);
           alpha*=max(0.,1.-length(vUv-.5)*2.)*introAlpha;
-          gl_FragColor=vec4(vec3(mix(.75,1.,1.-min(10.,radius)/10.)),clamp(alpha,0.,1.));}`,
+          gl_FragColor=vec4(mix(vec3(1.),vec3(.66,.76,.85),night)*mix(.75,1.,1.-min(10.,radius)/10.),clamp(alpha,0.,1.)*mix(1.,.6,night));}`,
     })
     return {geometry,material,positions,velocities,seeds,offset,time:0,accumulator:0}
   }, [])
