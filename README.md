@@ -64,7 +64,7 @@ Scroll through the pinned 23-viewport track, from the igloo through skills, proj
 
 `components/polar/crystal.tsx` renders the detailed ice shard with an HDR reflection environment, surface normal and roughness maps, a textured inner form and an animated 18-point 3D plexus. Its assets load independently of the hero through `crystal-assets.ts`. `crystal-readout.tsx` supplies sharp HTML annotations and a native modal dialog populated from the existing portfolio skills. The temperature readout is decorative reference-style telemetry, not a live sensor.
 
-Reduced motion removes the radial distortion, camera interpolation and idle crystal/plexus movement. Each crystal opens a native dialog with Escape, keyboard focus containment and a close control. Skills and about show their content; projects opens the six-project gallery.
+Reduced motion removes the radial distortion, camera interpolation and idle crystal/plexus movement. Each crystal opens a native dialog with Escape, keyboard focus containment and a close control. Skills, Projects, and About share the same detail-page layout. Projects lists twelve selected public projects inline, with Pulse first, custom cover artwork, source links, and available live demos.
 
 Crystal rendering uses paired half-float rear/front refraction buffers, the reference's crystal LUT, smoothly filtered Perlin mist and eight transmission samples. The hero retains its original grade. One shared scroll trajectory overlaps camera retreat, bottom-to-top mist, upward landscape movement and the crystal rise; the retreat keeps moving throughout the handoff.
 
@@ -94,3 +94,24 @@ Contact uses 150,000 grains, a persistent 128 x 128 fluid velocity field, and si
 Pointer projection follows the displayed camera lens, aspect ratio, and portrait zoom. Strokes accumulate at a 16 ms cadence and keep circulating after input stops. GitHub, LinkedIn, WhatsApp, and Gmail use the same fluid impulses, bitangent noise, volume attraction, drag, and selection burst. The worker converts Tuaha's icon masks into rounded 128³ distance volumes, retaining the holes and disconnected parts. Flat icons face the reader with a slight rocking motion; GitHub keeps its full rotation. Reduced motion displays a static surface and disables the simulation. Run `npm run test:particles-browser` against the local server to check GPU flow persistence, scattering and recovery for every icon, resting volume accuracy, desktop/portrait projection, and reduced-motion suspension. Screenshots are saved under `.preview/`.
 
 The particle simulation now starts before the ring reveal, with the reference's forming turbulence and white-to-pale fade. Highlights are bounded before bloom, and the ring bloom is narrower and weaker so the distant sculpture remains granular. This removes the dark blue silhouette at low opacity and the blue-white halo during the descent. `npm run test:ring-reveal` scrolls forward and backward through the reveal, reads the GPU's pre-bloom output to check its brightness bounds, and verifies reduced-motion suspension and WebGL errors. Reference and local screenshots were compared at matching reveal stages; the surrounding scene remains the local grey ice implementation.
+
+
+### Daylight / Nightfall
+
+The lower-right theme control switches between the original grey ice scene and a midnight expedition. The first visit follows the system color scheme; a manual choice is saved as `portfolio-theme` in local storage. System changes continue to apply until a manual choice is made. Storage-disabled browsers still support switching for the current visit.
+
+Nightfall uses procedural star fields and layered auroral curtains in the existing sky and crystal transmission shaders, moonlit terrain and ice, spectral ring illumination, and an accretion halo. Mountain geometry stays identical in both themes; switching changes lighting and colors without resizing the landscape. Theme uniforms interpolate without rebuilding the scene or moving the scroll playhead. Reduced motion freezes ambient animation and applies theme changes immediately. No new runtime dependencies, textures, render targets, or postprocessing passes were added.
+
+Run `npm run test:theme-browser` against the development server to verify system preference, persistence, scroll preservation, crystal dialogs, mobile layouts, reduced motion, and WebGL compilation. Review the desktop and mobile captures under `.preview/theme-*.png`. The existing journey, landing, audio, and interaction checks remain available.
+
+
+The night sky uses a shared visible-tab animation clock across all three environments. Forward scrolling moves the stars upward at different depths; reversing retraces their positions, including through the journey loop. Auroral folds continue flowing while idle, and occasional seeded shooting stars appear with short fading trails. Reduced motion freezes the sky and disables shooting stars. The igloo retains the daylight seam illumination, opening glow, and reflected light on the snow, combined with the detailed night ice shading.
+
+Run `npm run test:sky-browser` for GPU uniform checks of continuous sky time, forward/reverse star movement, hover illumination captures, and reduced-motion suspension.
+
+
+### Project artwork
+
+The twelve project covers share a centered 16:10 composition. Full-size WebP files are 1600 x 1000; 800 x 500 variants serve smaller screens. Images use `object-fit: contain`, a fixed aspect ratio, and no zoom so subjects remain fully visible. Original project pictures remain in `public/images/projects/`; generated PNG masters are retained locally in `.preview/project-artwork-sources/`.
+
+The covers are conceptual illustrations generated with the built-in image tool, rather than screenshots of the applications. The final prompt set and repository sources are recorded in `docs/project-artwork.json`. Selection notes are in `docs/project-selection.md`.

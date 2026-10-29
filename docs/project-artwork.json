@@ -1,0 +1,92 @@
+{
+  "generation": "Built-in image_gen",
+  "purpose": "Conceptual editorial project cover art; not actual application screenshots",
+  "style": "Premium editorial 3D software portfolio artwork; midnight navy studio, graphite and frosted glass, restrained project-specific illumination, fine tactile detail, centered assembly, landscape 16:10, middle 75% safe composition. No text or brands. Conceptual covers, not app screenshots.",
+  "projects": [
+    {
+      "name": "Pulse",
+      "slug": "pulse",
+      "repository": "https://github.com/TUAHASHAIKH/Pulse",
+      "output": "public/images/projects/covers/pulse.webp",
+      "prompt": "Use case: stylized-concept. Asset type: premium software-engineering portfolio project cover, landscape 16:10, high resolution. Create an original, beautifully art-directed editorial 3D illustration for 'Pulse', an autonomous multi-agent DevOps and code-review system: a central frosted-glass orchestration core connected by precise flowing paths to three smaller analysis nodes and one isolated translucent repair chamber. Express code review and Docker sandbox repair through abstract illuminated code-like etched lines, not a literal dashboard screenshot. Dark midnight-blue studio backdrop, silver glass and graphite materials, restrained icy cyan and warm coral pulse lighting, realistic reflections and fine tactile detail. Calm, elegant cinematic lighting. Entire assembly centered, level composition, balanced negative space, all elements safely inside the middle 75% of the canvas. No cropped objects. No text, no letters, no numbers, no logos, no watermark. Portfolio cover art, not a claim of an actual application screenshot."
+    },
+    {
+      "name": "Citrus",
+      "slug": "citrus",
+      "repository": "https://github.com/TUAHASHAIKH/Citrus",
+      "output": "public/images/projects/covers/citrus.webp",
+      "prompt": "Use case: stylized-concept. Asset type: high-resolution landscape 16:10 cover for a software engineer's portfolio. Create an original premium editorial 3D illustration representing an offline Windows file converter: a carefully arranged radial wheel of translucent document, image, audio and video sheets transforming around a glowing orange citrus-segment core; refined frosted acrylic file silhouettes, a small understated cursor arrow near the wheel, orange and pale mint accent light. Coherent collection with a dark midnight-navy studio backdrop, subtle floor reflections, graphite and frosted-glass materials, sophisticated realistic lighting and fine tactile surface detail. Center the COMPLETE main assembly with balanced negative space and generous safe margins; the entire subject must fit inside the middle 75% of the canvas. Level camera, elegant restrained composition, beautifully rendered, no extreme perspective. No text, letters, numbers, logos, watermarks, people, dashboards, or fake screenshots. This is a conceptual project illustration."
+    },
+    {
+      "name": "AutoML",
+      "slug": "automl",
+      "repository": "https://github.com/TUAHASHAIKH/AutoML",
+      "output": "public/images/projects/covers/automl.webp",
+      "prompt": "Use case: stylized-concept. Asset type: high-resolution landscape 16:10 cover for a software engineer's portfolio. Create an original premium editorial 3D illustration representing an automated classification machine-learning pipeline: a stream of organized data points enters seven elegant translucent branching model columns, then converges into a single precise luminous result prism; pale cyan and restrained periwinkle accents. Coherent collection with a dark midnight-navy studio backdrop, subtle floor reflections, graphite and frosted-glass materials, sophisticated realistic lighting and fine tactile surface detail. Center the COMPLETE main assembly with balanced negative space and generous safe margins; the entire subject must fit inside the middle 75% of the canvas. Level camera, elegant restrained composition, beautifully rendered, no extreme perspective. No text, letters, numbers, logos, watermarks, people, dashboards, or fake screenshots. This is a conceptual project illustration."
+    },
+    {
+      "name": "SecurePassFS",
+      "slug": "securepassfs",
+      "repository": "https://github.com/TUAHASHAIKH/SecurePassFS",
+      "output": "public/images/projects/covers/securepassfs.webp",
+      "prompt": "Use case: stylized-concept. Asset type: high-resolution landscape 16:10 cover for a software engineer's portfolio. Create an original premium editorial 3D illustration representing an encrypted filesystem password vault: a beautifully machined graphite cube vault with translucent glass layers, an inset keyhole and a few floating encrypted data wafers protected inside; brushed titanium, deep teal and soft silver light. Coherent collection with a dark midnight-navy studio backdrop, subtle floor reflections, graphite and frosted-glass materials, sophisticated realistic lighting and fine tactile surface detail. Center the COMPLETE main assembly with balanced negative space and generous safe margins; the entire subject must fit inside the middle 75% of the canvas. Level camera, elegant restrained composition, beautifully rendered, no extreme perspective. No text, letters, numbers, logos, watermarks, people, dashboards, or fake screenshots. This is a conceptual project illustration."
+    },
+    {
+      "name": "StraySense",
+      "slug": "straysense",
+      "repository": "https://github.com/TUAHASHAIKH/StraySense",
+      "output": "public/images/projects/covers/straysense.webp",
+      "prompt": "Use case: stylized-concept. Asset type: high-resolution landscape 16:10 software portfolio cover. Create an original premium editorial 3D illustration representing a platform connecting animal rescuers, shelters and donors: a small sculptural frosted-glass dog and cat sheltered beneath a beautifully minimal protective arch, linked to three softly illuminated community nodes; pale sage, ivory and warm coral accents. A coherent collection with midnight-navy studio backdrop, graphite and frosted-glass materials, subtle floor reflections, sophisticated realistic lighting and fine tactile detail. Center the COMPLETE assembly, balanced negative space and safe margins, the whole subject inside the middle 75% of the canvas. Level camera, polished but restrained, no extreme perspective. No text, letters, logos, watermarks, people, dashboards or fake screenshots; for a puzzle board only the stated tile numbers are allowed. Conceptual artwork, not a screenshot."
+    },
+    {
+      "name": "SmartRide",
+      "slug": "smart-ride",
+      "repository": "https://github.com/TUAHASHAIKH/Smart-Ride",
+      "output": "public/images/projects/covers/smart-ride.webp",
+      "prompt": "Use case: stylized-concept. Asset type: high-resolution landscape 16:10 software portfolio cover. Create an original premium editorial 3D illustration representing a ride-sharing algorithms project: a compact sculptural silver car on a dark miniature topographic city map, with two clear glass map pins joined by one elegant cyan route and a few restrained amber alternative paths; depict pathfinding and coordinated journeys. A coherent collection with midnight-navy studio backdrop, graphite and frosted-glass materials, subtle floor reflections, sophisticated realistic lighting and fine tactile detail. Center the COMPLETE assembly, balanced negative space and safe margins, the whole subject inside the middle 75% of the canvas. Level camera, polished but restrained, no extreme perspective. No text, letters, logos, watermarks, people, dashboards or fake screenshots; for a puzzle board only the stated tile numbers are allowed. Conceptual artwork, not a screenshot."
+    },
+    {
+      "name": "2048",
+      "slug": "2048-ai",
+      "repository": "https://github.com/TUAHASHAIKH/2048-Ai-Game-Bot",
+      "output": "public/images/projects/covers/2048-ai.webp",
+      "prompt": "Use case: stylized-concept. Asset type: high-resolution landscape 16:10 software portfolio cover. Create an original premium editorial 3D illustration representing an intelligent 2048 game agent: a clean precisely square four-by-four puzzle board with softly beveled ceramic and frosted-glass tiles, arranged in the exact 4 by 4 grid with only these readable numbers on the tiles: 2, 4, 8, 16, 32, 64, 128, 256, 512, 1024, 2048; a subtle branching decision tree of fine glowing lines recedes behind the board; warm ivory, amber, pale cyan accents. Numbers are allowed on the puzzle tiles only. A coherent collection with midnight-navy studio backdrop, graphite and frosted-glass materials, subtle floor reflections, sophisticated realistic lighting and fine tactile detail. Center the COMPLETE assembly, balanced negative space and safe margins, the whole subject inside the middle 75% of the canvas. Level camera, polished but restrained, no extreme perspective. No text, letters, logos, watermarks, people, dashboards or fake screenshots; for a puzzle board only the stated tile numbers are allowed. Conceptual artwork, not a screenshot.",
+      "editPrompt": "Edit target: the supplied 2048 game cover. Correct ONLY the puzzle board to be a true 2048 board with EXACTLY FOUR ROWS AND FOUR COLUMNS of equally sized square cells, 16 CELLS total, a square board face. Add the missing fourth row. Row 1 reads 2,4,8,16. Row 2 reads 32,64,128,256. Row 3 reads 512,1024,2048,empty. Row 4 contains four empty dark glass cells. Keep the warm amber and cyan tile materials, midnight studio, delicate decision tree, cinematic lighting, centered complete composition and 16:10 landscape image. Enlarge the board vertically as needed with everything safely inside the canvas. This is the sole change; maintain the polished existing style. No other text."
+    },
+    {
+      "name": "NUSTFRUTA",
+      "slug": "nustfruta",
+      "repository": "https://github.com/TUAHASHAIKH/NustFruta",
+      "output": "public/images/projects/covers/nustfruta.webp",
+      "prompt": "Use case: stylized-concept. Asset type: high-resolution landscape 16:10 software engineering portfolio cover. Create an original premium editorial 3D illustration representing a campus fruit-delivery and inventory platform: a meticulously arranged small frosted-glass delivery crate holding realistic fresh oranges, apples and bananas, beside a transparent inventory tile with abstract empty rows and a small location pin; warm citrus orange, natural leaf green, ivory accents. Coherent midnight-navy studio backdrop, graphite and frosted-glass materials, subtle floor reflections, sophisticated realistic lighting and fine tactile detail. Center the COMPLETE assembly with balanced negative space, generous safe margins; the entire subject must fit inside the middle 75% of the canvas. Level camera, elegant restrained composition, no extreme perspective. No text, letters, numbers, logos, watermarks, identifiable people, dashboards, or fake screenshots. Conceptual portfolio artwork, not an actual application screenshot."
+    },
+    {
+      "name": "Grabpic",
+      "slug": "grabpic",
+      "repository": "https://github.com/TUAHASHAIKH/vyro-graphics",
+      "output": "public/images/projects/covers/grabpic.webp",
+      "prompt": "Use case: stylized-concept. Asset type: high-resolution landscape 16:10 software engineering portfolio cover. Create an original premium editorial 3D illustration representing a computer-vision event-photo retrieval engine: a sculptural camera lens encircled by six elegant glass photo frames, the frames show abstract faceted anonymous human busts with no identifiable real people; a single cyan scanning ribbon links matching frames to one small translucent key-shaped token; cool silver, icy cyan and soft lavender accents. Coherent midnight-navy studio backdrop, graphite and frosted-glass materials, subtle floor reflections, sophisticated realistic lighting and fine tactile detail. Center the COMPLETE assembly with balanced negative space, generous safe margins; the entire subject must fit inside the middle 75% of the canvas. Level camera, elegant restrained composition, no extreme perspective. No text, letters, numbers, logos, watermarks, identifiable people, dashboards, or fake screenshots. Conceptual portfolio artwork, not an actual application screenshot."
+    },
+    {
+      "name": "MiniCompiler",
+      "slug": "mini-compiler",
+      "repository": "https://github.com/TUAHASHAIKH/Mini-Compiler",
+      "output": "public/images/projects/covers/mini-compiler.webp",
+      "prompt": "Use case: stylized-concept. Asset type: high-resolution landscape 16:10 software engineering portfolio cover. Create an original premium editorial 3D illustration representing a compiler construction pipeline: a delicate silver branching syntax-tree sculpture feeds through a row of four precisely machined translucent processing slabs and emerges as an orderly stack of luminous machine instruction blocks; flowing logical structure, optical glass, graphite and champagne-cyan lighting, no literal code. Coherent midnight-navy studio backdrop, graphite and frosted-glass materials, subtle floor reflections, sophisticated realistic lighting and fine tactile detail. Center the COMPLETE assembly with balanced negative space, generous safe margins; the entire subject must fit inside the middle 75% of the canvas. Level camera, elegant restrained composition, no extreme perspective. No text, letters, numbers, logos, watermarks, identifiable people, dashboards, or fake screenshots. Conceptual portfolio artwork, not an actual application screenshot."
+    },
+    {
+      "name": "UKAccidents",
+      "slug": "uk-accidents",
+      "repository": "https://github.com/TUAHASHAIKH/UK-Accidents-Dataset-Analysis",
+      "output": "public/images/projects/covers/uk-accidents.webp",
+      "prompt": "Use case: stylized-concept. Asset type: high-resolution landscape 16:10 software engineering portfolio cover. Create an original premium editorial 3D illustration representing an interactive UK road-accident analysis dashboard: a precise recognizable upright relief-map silhouette of Great Britain made of smoked glass, with small amber and coral light clusters along its road network and three clear analytical chart slabs with abstract bars beside it; restrained icy cyan, amber and coral accents; imply spatial analysis with no invented numeric claims. Coherent midnight-navy studio backdrop, graphite and frosted-glass materials, subtle floor reflections, sophisticated realistic lighting and fine tactile detail. Center the COMPLETE assembly with balanced negative space, generous safe margins; all objects must fit inside the middle 75% of the canvas. Level camera, elegant restrained composition, no extreme perspective. No text, letters, numbers, logos, watermarks, people, dashboards, or fake screenshots. Conceptual portfolio artwork, not an actual application screenshot."
+    },
+    {
+      "name": "IoTSimulator",
+      "slug": "iot-simulator",
+      "repository": "https://github.com/TUAHASHAIKH/IoT-Sensor-Control-ASP-Simulator",
+      "output": "public/images/projects/covers/iot-simulator.webp",
+      "prompt": "Use case: stylized-concept. Asset type: high-resolution landscape 16:10 software engineering portfolio cover. Create an original premium editorial 3D illustration representing an application-specific IoT processor simulator: a beautifully machined silver microprocessor connected to a tiny frosted-glass sensor and an actuator dial, with five distinct translucent pipeline stages linked across the processor; refined graphite circuit board, brushed titanium, pale turquoise and warm amber signal light. Coherent midnight-navy studio backdrop, graphite and frosted-glass materials, subtle floor reflections, sophisticated realistic lighting and fine tactile detail. Center the COMPLETE assembly with balanced negative space, generous safe margins; all objects must fit inside the middle 75% of the canvas. Level camera, elegant restrained composition, no extreme perspective. No text, letters, numbers, logos, watermarks, people, dashboards, or fake screenshots. Conceptual portfolio artwork, not an actual application screenshot."
+    }
+  ]
+}
