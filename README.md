@@ -1,6 +1,8 @@
 # Tuaha — Portfolio V2
 
-A Next.js App Router portfolio with a React Three Fiber / Drei ice landscape. Development happens on `portfolio-v2`; `main` and `portfolio-v1` retain the original website.
+A Next.js App Router portfolio with a React Three Fiber / Drei ice landscape. `main` publishes V2; focused development commits stay on `portfolio-v2` and are merged with their history intact. `portfolio-v1` preserves the original website.
+
+The unused V1 sections, theme/UI component library, helper hooks, styles, placeholder/profile images, duplicate project images, and source ZIP have been removed from V2. The current project images and portfolio content remain in use. Dependencies now contain only the current scene, Next.js, React, TypeScript, and their types.
 
 ## Run
 
@@ -46,7 +48,7 @@ Run `npm run test:audio` to check the local manifest, mix continuity, glitch env
 
 Set `NEXT_PUBLIC_SITE_URL` to the eventual public origin before deployment so social images resolve to the right domain. An example is in `.env.example`. Next.js provides the route announcer automatically. WebGL2 is required for the scene; descriptive HTML and the sound control remain available when it is unsupported.
 
-Rendering uses compressed GPU textures, capped device pixel ratio of 1.5, worker-based decoding, and pauses when the tab is hidden. Hover uses a stable interaction plane instead of raycasting against moving blocks. The reference's .05 pointer and .06 block interpolation coefficients at 60 Hz are converted into frame-rate-independent damping rates. Lower blocks stay anchored. The camera orbits the target with .07 horizontal and .025 vertical angular gain and .035 reference easing, including when the cursor is over the HTML overlay. Reduced-motion mode disables cursor orbit and the name animation. Actual frame rate depends on device and GPU. No deployment or merge into `main` is part of this screen build.
+Rendering uses compressed GPU textures, capped device pixel ratio of 1.5, worker-based decoding, and pauses when the tab is hidden. Hover uses a stable interaction plane instead of raycasting against moving blocks. The reference's .05 pointer and .06 block interpolation coefficients at 60 Hz are converted into frame-rate-independent damping rates. Lower blocks stay anchored. The camera orbits the target with .07 horizontal and .025 vertical angular gain and .035 reference easing, including when the cursor is over the HTML overlay. Reduced-motion mode disables cursor orbit and the name animation. Actual frame rate depends on device and GPU.
 
 The reference's heading is a raster logo rather than an installable display font. `public/images/tuaha-wordmark.svg` recreates its geometric lettering for Tuaha; surrounding text uses the reference's IBM Plex Mono font files. The personalized wordmark is an interpretation of that logo, not a claim to an identified original font.
 

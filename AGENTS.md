@@ -10,6 +10,6 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 
 ## Portfolio development workflow
 
-- Develop the replacement portfolio on `portfolio-v2`. Preserve `main` and `portfolio-v1` during V2 development.
+- Develop V2 on `portfolio-v2`; `main` contains the published V2 portfolio after the owner's requested merge. Preserve `portfolio-v1` as the original website archive. Merge into `main` only when the owner requests it, preserving the V2 commit history.
 - Commit each completed major coding change separately on `portfolio-v2`, as requested by the owner. Keep camera, interactions, typography, and fixes in focused commits.
 - Preserve the established grey ice-scene appearance and reduced-motion behavior when extending the portfolio.
