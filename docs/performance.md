@@ -33,6 +33,14 @@ Landscape readiness is the first animation frame observing the loader's ready st
 
 The initial CPU profile contained shader-initialization stalls lasting over a second. After target-correct preparation, the captured startup no longer had those multi-second stalls. Frame timing remains dependent on GPU, thermals and browser scheduling; the night crystals are still the heaviest part of the scene. Physical iOS and Android hardware has not been tested.
 
+## Initial loader follow-up
+
+The loader screenshot prompted a separate startup waterfall review. The hero was behind a client-only dynamic import: landscape requests began around 2.1 seconds after navigation, and Basis decoder requests only began around 4.4 seconds. The hero script is now discoverable in the initial HTML (WebGL still mounts only after the browser support check). Eleven fetch preloads start its six large texture maps, igloo geometry and four decoder resources early. Crystals/rings remain lazy-loaded. Fetch mode and credentials match the consumers to avoid duplicate downloads; large binary hints have low priority.
+
+At 1280 x 800, 5 Mbps download / 80 ms latency, the before/after cold-loader comparison was **11.04 s → 8.22 s**. A second run with an empty HTTP cache measured **8.24 s**, followed by **1.00 s** on a cached return visit. The loader measurement observes its ready attribute, before its existing fade and authored entrance sequence. Texture quality, geometry, animation timing and the ready condition are unchanged. These desktop-viewport measurements are separate from the mobile comparison above.
+
+`npm run test:loader-browser` checks early HTML resource discovery, one request per hinted asset, full landscape readiness and cache reuse on return. Set `AUDIT_SLOW=1` for the throttled run. Its report is written to `.preview/loader-verification.json`.
+
 ## Verification and reproduction
 
 - `npm run build`: production compilation and TypeScript.
