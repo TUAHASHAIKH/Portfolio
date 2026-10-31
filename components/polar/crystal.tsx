@@ -14,6 +14,7 @@ import { CrystalPlexus } from './crystal-plexus'
 import { CrystalAnnotations } from './crystal-annotations'
 import { detailPose } from './detail-motion'
 import { portfolioAudio } from './audio-engine'
+import { compileForTarget } from './shader-preparation'
 
 function CrystalView({ assets, noise, journey, reduced }: { assets: CrystalAssets; noise: THREE.Texture; journey: RefObject<Journey>; reduced: boolean }) {
   const rig = useRef<THREE.Group>(null), crystals = useRef<THREE.Group>(null)
@@ -91,14 +92,17 @@ function CrystalView({ assets, noise, journey, reduced }: { assets: CrystalAsset
       shader.uniforms.iceSurfaceRoughness = { value: index===2?.7:1 }
       shader.vertexShader = 'attribute vec2 frostUv;varying vec2 vFrostUv;\n'+shader.vertexShader
       shader.vertexShader = shader.vertexShader.replace('#include <uv_vertex>','#include <uv_vertex>\nvFrostUv=frostUv;')
-      shader.fragmentShader = 'uniform float night;uniform vec3 iceTint;uniform float iceTintStrength;uniform float iceSurfaceRoughness;uniform sampler2D clearTransmission;uniform sampler2D surfaceFrost;uniform sampler2D frostTriangles;varying vec2 vFrostUv;\n'+shader.fragmentShader
-      shader.fragmentShader = shader.fragmentShader.replace('vec4 transmittedLight = getTransmissionSample( refractionCoords, roughness, ior );',`vec4 transmittedLight = getTransmissionSample(clamp(refractionCoords,vec2(.001),vec2(.999)),roughness,ior);
-        vec4 straightClip=projMatrix*viewMatrix*vec4(position,1.);
+      shader.fragmentShader = 'vec4 clearIceLight;uniform float night;uniform vec3 iceTint;uniform float iceTintStrength;uniform float iceSurfaceRoughness;uniform sampler2D clearTransmission;uniform sampler2D surfaceFrost;uniform sampler2D frostTriangles;varying vec2 vFrostUv;\n'+shader.fragmentShader
+      // The straight-through fallback is identical for all 24 RGB refraction
+      // samples. Project and sample it once per surface fragment.
+      shader.fragmentShader = shader.fragmentShader.replace('if (material.transmission != 0.0) {', `if (material.transmission != 0.0) {
+        vec4 straightClip=projectionMatrix*viewMatrix*vec4(vWorldPosition,1.);
         vec2 straightUv=clamp(straightClip.xy/straightClip.w*.5+.5,vec2(.001),vec2(.999));
-        vec4 clearLight=texture2D(clearTransmission,straightUv);
+        clearIceLight=texture2D(clearTransmission,straightUv);`)
+      shader.fragmentShader = shader.fragmentShader.replace('vec4 transmittedLight = getTransmissionSample( refractionCoords, roughness, ior );',`vec4 transmittedLight = getTransmissionSample(clamp(refractionCoords,vec2(.001),vec2(.999)),roughness,ior);
         float valid=step(0.,refractionCoords.x)*step(refractionCoords.x,1.)*step(0.,refractionCoords.y)*step(refractionCoords.y,1.);
         float energy=smoothstep(.004,.035,max(transmittedLight.r,max(transmittedLight.g,transmittedLight.b)));
-        transmittedLight=mix(clearLight,transmittedLight,valid*energy);`)
+        transmittedLight=mix(clearIceLight,transmittedLight,valid*energy);`)
       shader.fragmentShader = shader.fragmentShader.replace('#include <roughnessmap_fragment>','#include <roughnessmap_fragment>\nroughnessFactor*=mix(1.,.55,night)*iceSurfaceRoughness*(1.-texture2D(surfaceFrost,vFrostUv).r*.95);')
       shader.fragmentShader = shader.fragmentShader.replace('#include <normal_fragment_maps>',THREE.ShaderChunk.normal_fragment_maps.replace('mapN.xy *= normalScale;', 'mapN.xy *= normalScale;mapN.xy*=1.-texture2D(surfaceFrost,vFrostUv).r;'))
       shader.fragmentShader = shader.fragmentShader.replace('vec3 outgoingLight = totalDiffuse + totalSpecular + totalEmissiveRadiance;',`vec2 field=texture2D(surfaceFrost,vFrostUv).rg;
@@ -127,7 +131,7 @@ function CrystalView({ assets, noise, journey, reduced }: { assets: CrystalAsset
           float dotMask=1.-smoothstep(.006,.025,length(fract(grid)-.5));
           color+=dotMask*(.1+.2*id)*(.65+.35*sin(time*.4+id*25.));
           color+=(hash(gl_FragCoord.xy)-.5)*.001;
-          color=mix(color,nightSky(gl_FragCoord.xy/resolution,aspect,time,.28)+vec3(.002,.004,.009)*mist,night);
+          if(night>0.)color=mix(color,nightSky(gl_FragCoord.xy/resolution,aspect,time,.28)+vec3(.002,.004,.009)*mist,night);
           float curtain=smoothstep(0.,.6,alpha*1.6-(gl_FragCoord.y/resolution.y)*.7);
           gl_FragColor=vec4(color,curtain);}`,
     })
@@ -151,7 +155,7 @@ function CrystalView({ assets, noise, journey, reduced }: { assets: CrystalAsset
     const target=new THREE.WebGLRenderTarget(16,16,{type:THREE.HalfFloatType})
     // Compile both permanent face variants before either is needed on scroll.
     // A tiny offscreen draw also uploads their textures and initializes the buffers.
-    materialLifetime.preparation=gl.compileAsync(warmScene,warmCamera).then(()=>{
+    materialLifetime.preparation=compileForTarget(gl,warmScene,warmCamera,target).then(()=>{
       if(cancelled)return
       const previous=gl.getRenderTarget()
       try{
@@ -162,6 +166,7 @@ function CrystalView({ assets, noise, journey, reduced }: { assets: CrystalAsset
     return ()=>{cancelled=true;target.dispose();plane.dispose()}
   },[gl,assets,buffer,backBuffer,materials,materialLifetime])
   useFrame(({ gl, scene, camera }) => {
+    if (!rig.current?.visible) return
     camera.updateMatrixWorld()
     capture.frustum.setFromProjectionMatrix(capture.projection.multiplyMatrices(camera.projectionMatrix,camera.matrixWorldInverse))
     const visibleShards=capture.visible

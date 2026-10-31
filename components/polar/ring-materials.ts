@@ -12,7 +12,7 @@ float falloff(float x,float a,float b,float width,float p){float w=width*sign(b-
 vec2 turn(vec2 p,float a){return mat2(cos(a),sin(a),-sin(a),cos(a))*p;}
 vec3 rotateAxis(vec3 p,vec3 axis,float a){return p*cos(a)+cross(axis,p)*sin(a)+axis*dot(axis,p)*(1.-cos(a));}
 float waves(vec3 p){return sin(p.x*2.1+sin(p.y*1.9+p.z))*sin(p.y*1.3-p.z*.7);}
-vec3 sky(vec2 uv){float g=(uv.x+uv.y)*.5;g*=waves(vec3(uv,time*.614))*.5+.5;g*=waves(vec3(uv*2.,time*.17))*.5+.5;return mix(mix(vec3(.144,.159,.205),vec3(.753,.791,.88),g)*1.1,nightSky(uv,resolution.x/resolution.y,time,.08),night);}
+vec3 sky(vec2 uv){if(night==1.)return nightSky(uv,resolution.x/resolution.y,time,.08);float g=(uv.x+uv.y)*.5;g*=waves(vec3(uv,time*.614))*.5+.5;g*=waves(vec3(uv*2.,time*.17))*.5+.5;vec3 color=mix(vec3(.144,.159,.205),vec3(.753,.791,.88),g)*1.1;if(night>0.)color=mix(color,nightSky(uv,resolution.x/resolution.y,time,.08),night);return color;}
 `
 const surface = `varying vec2 vUv;varying vec3 vPos;varying float vDepth;`
 const vertex = `${common}${surface}

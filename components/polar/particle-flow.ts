@@ -1,4 +1,5 @@
 import * as THREE from 'three'
+import { compileForTarget } from './shader-preparation'
 
 // Persistent screen-space flow: pointer strokes deposit velocity, pressure
 // removes divergence, and advection carries that velocity after the mouse stops.
@@ -47,7 +48,7 @@ export class ParticleFlow {
   private target(linear=true){return new THREE.WebGLRenderTarget(128,128,{type:THREE.HalfFloatType,depthBuffer:false,minFilter:linear?THREE.LinearFilter:THREE.NearestFilter,magFilter:linear?THREE.LinearFilter:THREE.NearestFilter})}
   get texture(){return this.velocity[0].texture}
   clear(){this.dirty=true;this.hasPoint=false;this.lastSplat=-Infinity}
-  prepare(renderer:THREE.WebGLRenderer){return renderer.compileAsync(this.scene,this.camera)}
+  prepare(renderer:THREE.WebGLRenderer){return compileForTarget(renderer,this.scene,this.camera,this.velocity[0])}
   update(renderer:THREE.WebGLRenderer,dt:number,point:THREE.Vector2,previous:THREE.Vector2,on:boolean,aspect:number){
     const oldTarget=renderer.getRenderTarget(),oldColor=renderer.getClearColor(this.savedColor),oldAlpha=renderer.getClearAlpha()
     const u=this.material.uniforms

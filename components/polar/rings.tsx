@@ -9,6 +9,7 @@ import { loadRingAssets, type RingAssets } from './ring-assets'
 import { ringJourney } from './ring-journey'
 import { makeRingMaterials } from './ring-materials'
 import { SocialParticles } from './social-particles'
+import { compileForTarget } from './shader-preparation'
 
 export function Rings(props: { journey: React.RefObject<Journey>; noise: THREE.Texture; reduced: boolean }) {
   const { gl } = useThree()
@@ -50,7 +51,7 @@ function RingPassage({ assets, journey, noise, reduced }: { assets: RingAssets; 
     warmCamera.position.set(0,2,-2);warmCamera.lookAt(0,-3,0)
     const target=new THREE.WebGLRenderTarget(16,16,{type:THREE.HalfFloatType})
     // Upload every ring, floor and particle shader before entering the passage.
-    materialLifetime.preparation=gl.compileAsync(warmScene,warmCamera).then(()=>{
+    materialLifetime.preparation=compileForTarget(gl,warmScene,warmCamera,target).then(()=>{
       if(cancelled)return
       const previous=gl.getRenderTarget()
       try{gl.setRenderTarget(target);gl.render(warmScene,warmCamera)}

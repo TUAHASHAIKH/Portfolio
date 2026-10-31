@@ -1,6 +1,7 @@
 'use client'
 
 import { useFrame, useThree } from '@react-three/fiber'
+import { compileForTarget } from './shader-preparation'
 import { useEffect, useMemo, useRef, type RefObject } from 'react'
 import * as THREE from 'three'
 import { FullScreenQuad } from 'three/addons/postprocessing/Pass.js'
@@ -44,7 +45,7 @@ export function useCrystalFrost(assets: CrystalAssets, interaction: RefObject<Cr
     const target=new THREE.WebGLRenderTarget(1,1,{type:THREE.HalfFloatType,depthBuffer:false})
     scene.add(new THREE.Mesh(geometry,simulation.material))
     let cancelled=false
-    const preparation=gl.compileAsync(scene,camera).then(()=>{
+    const preparation=compileForTarget(gl,scene,camera,target).then(()=>{
       if(cancelled)return
       const saved=gl.getRenderTarget()
       try{gl.setRenderTarget(target);simulation.quad.render(gl)}

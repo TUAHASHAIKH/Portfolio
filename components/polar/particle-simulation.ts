@@ -1,6 +1,7 @@
 import * as THREE from 'three'
 import { ParticleFlow } from './particle-flow'
 import { particleNoise } from './particle-noise'
+import { compileForTarget } from './shader-preparation'
 
 // Each grain has its own persistent position and velocity. Pointer strokes
 // impart momentum; surface attraction and drag reform the selected shape.
@@ -17,7 +18,9 @@ export class ParticleSimulation {
   private aspect=1
   private transitionTime=0
   constructor(geometry:THREE.BufferGeometry,private volumes:THREE.Texture[]){
-    const count=geometry.getAttribute('position').count,width=256,height=2**Math.ceil(Math.log2(Math.ceil(count/width)))
+    // WebGL2 float targets do not require power-of-two dimensions. Pack every
+    // grain without simulating 112,144 empty pixels on each contact frame.
+    const count=geometry.getAttribute('position').count,width=256,height=Math.max(1,Math.ceil(count/width))
     this.targets=[0,1].map(()=>new THREE.WebGLRenderTarget(width,height,{count:2,type:THREE.FloatType,depthBuffer:false,minFilter:THREE.NearestFilter,magFilter:THREE.NearestFilter}))
     this.sources=['position','socialPosition1','socialPosition2','socialPosition3'].map(name=>{
       const attribute=geometry.getAttribute(name),data=new Float32Array(width*height*4)
@@ -77,7 +80,7 @@ export class ParticleSimulation {
   get distanceScale(){return this.material.uniforms.distanceScale.value as number}
   get position(){return this.targets[this.current].textures[0]}
   get velocity(){return this.targets[this.current].textures[1]}
-  prepare(renderer:THREE.WebGLRenderer){this.volumes.forEach(volume=>renderer.initTexture(volume));return Promise.all([renderer.compileAsync(this.scene,this.camera),this.flow.prepare(renderer)])}
+  prepare(renderer:THREE.WebGLRenderer){this.volumes.forEach(volume=>renderer.initTexture(volume));return Promise.all([compileForTarget(renderer,this.scene,this.camera,this.targets[0]),this.flow.prepare(renderer)])}
   clear(){this.initialized=false;this.transitionTime=0;this.flow.clear()}
   transition(){this.transitionTime=.5;this.material.uniforms.volumeRotation.value=Math.PI*1.5}
   orient(basis:THREE.Matrix3,projection:THREE.Matrix4,aspect:number,lift:number){

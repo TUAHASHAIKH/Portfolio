@@ -20,6 +20,9 @@ vec3 nightSky(vec2 uv,float aspect,float sceneTime,float aurora){
     vec2 drift=vec2(t*(.0012+layer*.00035),t*.0003);
     vec2 g=(p+drift-vec2(0.,starTravel*(.65+layer*.22)))*(95.+layer*47.);
     vec2 cell=floor(g);float seed=starHash(cell+layer*23.);
+    // Empty star cells contribute exactly zero. Avoid their remaining hashes,
+    // distance and twinkle calculations (over 99% of cells in each layer).
+    if(seed<.991)continue;
     vec2 center=vec2(starHash(cell+5.7),starHash(cell+41.3))*.7+.15;
     float d=length(fract(g)-center);
     float star=(1.-smoothstep(.018,.138,d))*step(.991,seed);
@@ -39,6 +42,14 @@ vec3 nightSky(vec2 uv,float aspect,float sceneTime,float aurora){
     float base=.85+k*.095+arc+(uv.x-.5)*(.10-k*.13);
     float h=uv.y-base;
     float swept=folded+sin(h*8.+flow*.28)*h*.35;
+    float vitality=.55+.45*skyNoise(vec2(swept*4.-flow*.3,k+flow*.07));
+    float envelope=(.25+.75*pow(max(0.,sin(uv.x*3.14159)),.6))*(.6+.4*sin(swept*2.+k+1.));
+    // Below a curtain, its body and upper veil are zero and the Gaussian
+    // fringes underflow. Keep the same diffuse halo without shading its rays.
+    if(h<-.3){
+      col+=vec3(.025,.12,.12)*exp(-abs(h)*24.)*vitality*envelope*aurora*(.95-k*.22);
+      continue;
+    }
     float broad=skyCloud(vec2(swept*8.-flow*.4,h*3.+k*7.));
     float rays=skyNoise(vec2(swept*170.-flow*1.4,flow*.16+k*9.));
     float strands=.65+.35*rays;
@@ -46,8 +57,6 @@ vec3 nightSky(vec2 uv,float aspect,float sceneTime,float aurora){
     float hemDistance=h/(.008+broad*.007);
     float hem=exp(-hemDistance*hemDistance);
     float halo=exp(-abs(h)*24.);
-    float vitality=.55+.45*skyNoise(vec2(swept*4.-flow*.3,k+flow*.07));
-    float envelope=(.25+.75*pow(max(0.,sin(uv.x*3.14159)),.6))*(.6+.4*sin(swept*2.+k+1.));
     // Color follows the height and changing folds of each curtain: emerald
     // bodies, blue-violet fringes, and a diffuse rose canopy above them.
     float colorFlow=.5+.5*sin(swept*3.6-flow*.16+k*2.1);
