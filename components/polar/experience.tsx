@@ -1,6 +1,9 @@
 'use client'
 
-import dynamic from 'next/dynamic'
+// The hero is needed immediately: make its script discoverable in the initial
+// HTML. The support check below still mounts WebGL only in the browser, while
+// crystals and rings remain lazy-loaded inside the scene.
+import App3D from './scene'
 import { Component, useEffect, useRef, useState, type ReactNode } from 'react'
 import { ThemeToggle } from './theme'
 import { Wordmark } from './wordmark'
@@ -12,8 +15,6 @@ import { boundedScrollTarget, ownsNavigationKey, wheelPixels } from './scroll-in
 import { portfolioAudio } from './audio-engine'
 import { useSoundscape } from './use-soundscape'
 import { GlitchEffects } from './glitch-effects'
-
-const App3D = dynamic(() => import('./scene'), { ssr: false })
 
 function Fallback() {
   return <div className="fallback"><p>The expedition needs WebGL 2.<br />Try a browser with hardware acceleration enabled.</p></div>
