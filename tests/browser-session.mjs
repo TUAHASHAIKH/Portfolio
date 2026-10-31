@@ -26,11 +26,17 @@ export async function browser() {
     const message = JSON.parse(event.data)
     if (message.id) {
       const task = pending.get(message.id); pending.delete(message.id)
+      if (task) clearTimeout(task.timer)
       if (message.error) task?.reject(message.error); else task?.resolve(message.result)
     } else if (message.method === 'Runtime.exceptionThrown') errors.push(message.params.exceptionDetails)
     else if (message.method === 'Runtime.consoleAPICalled' && message.params.type === 'error') errors.push(message.params.args.map(arg => arg.value || arg.description))
   })
-  const send = (method, params = {}) => new Promise((resolve, reject) => { const key = ++id; pending.set(key, { resolve, reject }); ws.send(JSON.stringify({ id: key, method, params })) })
+  const send = (method, params = {}) => new Promise((resolve, reject) => {
+    const key = ++id
+    const timer = setTimeout(() => { pending.delete(key); reject(new Error(`Chrome timed out: ${method}`)) }, 45000)
+    pending.set(key, { resolve, reject, timer })
+    ws.send(JSON.stringify({ id: key, method, params }))
+  })
   const evaluate = async expression => {
     const result = await send('Runtime.evaluate', { expression, returnByValue: true, awaitPromise: true })
     if (result.exceptionDetails) throw new Error(JSON.stringify(result.exceptionDetails))
@@ -39,7 +45,7 @@ export async function browser() {
   await send('Runtime.enable'); await send('Page.enable')
   await send('Emulation.setDeviceMetricsOverride', { width: 1280, height: 800, deviceScaleFactor: 1, mobile: false })
   return { send, evaluate, errors,
-    capture: async name => { const shot = await send('Page.captureScreenshot', { format: 'png' }); await writeFile(`.preview/${name}.png`, Buffer.from(shot.data, 'base64')) },
+    capture: async name => { const shot = await send('Page.captureScreenshot', { format: 'png', captureBeyondViewport: false }); await writeFile(`.preview/${name}.png`, Buffer.from(shot.data, 'base64')) },
     close: async () => { ws.send(JSON.stringify({ id: ++id, method: 'Browser.close' })); await wait(100); ws.close(); chrome.kill() },
   }
 }
