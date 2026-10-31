@@ -35,6 +35,10 @@ export function PolarExperience() {
   const journey = useRef<Journey>({ target: 0, value: 0 })
 
   useEffect(() => {
+    if (ready) window.dispatchEvent(new Event('portfolio:scene-ready'))
+  }, [ready])
+
+  useEffect(() => {
     const track = document.querySelector<HTMLElement>('.journey-track')
     let distance = 0
     let centering: number | null = null
