@@ -1,6 +1,6 @@
 import * as THREE from 'three'
-import { DRACOLoader } from 'three/addons/loaders/DRACOLoader.js'
-import { KTX2Loader } from 'three/addons/loaders/KTX2Loader.js'
+import type { DRACOLoader } from 'three/addons/loaders/DRACOLoader.js'
+import { acquireDecoders } from './asset-decoders'
 
 export type IcePiece = { geometry: THREE.BufferGeometry; center: THREE.Vector3; seed: THREE.Vector3 }
 export type PolarAssets = Awaited<ReturnType<typeof loadPolarAssets>>
@@ -51,8 +51,7 @@ function separateIce(source: THREE.BufferGeometry): IcePiece[] {
 }
 
 export async function loadPolarAssets(renderer: THREE.WebGLRenderer) {
-  const draco = new DRACOLoader().setDecoderPath('/scene/draco/').setWorkerLimit(1)
-  const ktx = new KTX2Loader().setTranscoderPath('/scene/basis/').setWorkerLimit(2).detectSupport(renderer)
+  const { draco, ktx, release } = acquireDecoders(renderer)
   const geometries: THREE.BufferGeometry[] = [], textures: THREE.Texture[] = []
   async function geometry(name: string, ice = false, customAttributes?: string[]) {
     const response = await fetch(`/scene/geometry/${name}.drc`)
@@ -68,7 +67,7 @@ export async function loadPolarAssets(renderer: THREE.WebGLRenderer) {
     return result
   }
   async function texture(name: string, data = false) {
-    const result = await ktx.loadAsync(`/scene/textures/${name}.ktx2`)
+    const result = (await ktx.loadAsync(`/scene/textures/${name}.ktx2`)).clone()
     result.colorSpace = data ? THREE.NoColorSpace : THREE.SRGBColorSpace
     if (data) { result.magFilter = THREE.LinearFilter; result.minFilter = THREE.LinearFilter }
     result.needsUpdate = true
@@ -76,7 +75,7 @@ export async function loadPolarAssets(renderer: THREE.WebGLRenderer) {
     textures.push(result)
     return result
   }
-  const dispose = () => { geometries.forEach(item => item.dispose()); textures.forEach(item => item.dispose()); draco.dispose(); ktx.dispose() }
+  const dispose = () => { geometries.forEach(item => item.dispose()); textures.forEach(item => item.dispose()); release() }
   try {
     const [ice, ground, mountain, patch, closed, opened, groundMap, glow, terrainMap, mountainMap, grade, wind, introCage, introOutline, introParticles, numbers, introTriangles, introMosaic] = await Promise.all([
       geometry('igloo', true), geometry('ground'), geometry('mountain'), geometry('patch'),
@@ -98,7 +97,7 @@ export async function loadPolarAssets(renderer: THREE.WebGLRenderer) {
     }
     introMosaic.magFilter = introMosaic.minFilter = THREE.NearestFilter
     // Decoders are only needed during the initial load.
-    draco.dispose(); ktx.dispose()
+    release()
     return { pieces, ground, mountain, patch, closed, opened, groundMap, glow, terrainMap, mountainMap, grade, wind, introCage, introOutline, introParticles, numbers, introTriangles, introMosaic, dispose }
   } catch (error) { dispose(); throw error }
 }

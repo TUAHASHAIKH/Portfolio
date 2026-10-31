@@ -1,6 +1,6 @@
 import * as THREE from 'three'
-import { DRACOLoader } from 'three/addons/loaders/DRACOLoader.js'
-import { KTX2Loader } from 'three/addons/loaders/KTX2Loader.js'
+import type { DRACOLoader } from 'three/addons/loaders/DRACOLoader.js'
+import { acquireDecoders } from './asset-decoders'
 import { socialMasks } from './social-links'
 
 export type RingAssets = Awaited<ReturnType<typeof loadRingAssets>>
@@ -8,11 +8,10 @@ export type RingAssets = Awaited<ReturnType<typeof loadRingAssets>>
 // Decode independently of the landing scene. One decoder worker keeps scrolling
 // responsive while these assets are prepared in the background.
 export async function loadRingAssets(renderer: THREE.WebGLRenderer) {
-  const draco = new DRACOLoader().setDecoderPath('/scene/draco/').setWorkerLimit(1)
-  const ktx = new KTX2Loader().setTranscoderPath('/scene/basis/').setWorkerLimit(1).detectSupport(renderer)
+  const { draco, ktx, release } = acquireDecoders(renderer)
   const resources: { dispose: () => void }[] = []
   let worker: Worker | undefined
-  const dispose = () => { worker?.terminate(); resources.forEach(item => item.dispose()); draco.dispose(); ktx.dispose() }
+  const dispose = () => { worker?.terminate(); resources.forEach(item => item.dispose()); release() }
   async function geometry(name: string, attributes: string[]) {
     const response = await fetch(`/scene/geometry/${name}.drc`)
     if (!response.ok) throw new Error(`Could not load ${name}`)
@@ -26,7 +25,7 @@ export async function loadRingAssets(renderer: THREE.WebGLRenderer) {
     return result
   }
   async function texture(name: string, repeat = false, data = false) {
-    const result = await ktx.loadAsync(`/scene/textures/${name}.ktx2`)
+    const result = (await ktx.loadAsync(`/scene/textures/${name}.ktx2`)).clone()
     result.colorSpace = data || name === 'ring_core_volume' ? THREE.NoColorSpace : THREE.SRGBColorSpace
     if (repeat) result.wrapS = result.wrapT = THREE.RepeatWrapping
     result.needsUpdate = true; resources.push(result)
@@ -69,7 +68,7 @@ export async function loadRingAssets(renderer: THREE.WebGLRenderer) {
       worker!.postMessage({ data, size: image.width, masks }, [data.buffer,...masks.map(mask=>mask.buffer)])
     })
     worker.terminate(); worker = undefined
-    draco.dispose(); ktx.dispose()
+    release()
     return { outer, inner, plasma, floor, outerMap, outerGlow, innerMap, innerGlow, floorMap, clouds, triangles, core, volume, volumes, blue, scroll, dispose }
   } catch (error) { dispose(); throw error }
 }

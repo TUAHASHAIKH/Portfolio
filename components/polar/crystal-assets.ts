@@ -1,6 +1,6 @@
 import * as THREE from 'three'
-import { DRACOLoader } from 'three/addons/loaders/DRACOLoader.js'
-import { KTX2Loader } from 'three/addons/loaders/KTX2Loader.js'
+import type { DRACOLoader } from 'three/addons/loaders/DRACOLoader.js'
+import { acquireDecoders } from './asset-decoders'
 import { EXRLoader } from 'three/addons/loaders/EXRLoader.js'
 
 export type CrystalAssets = Awaited<ReturnType<typeof loadCrystalAssets>>
@@ -25,10 +25,9 @@ function fillCrystalPit(geometry: THREE.BufferGeometry) {
 
 // This section loads independently, so an unavailable crystal never prevents the hero loading.
 export async function loadCrystalAssets(renderer: THREE.WebGLRenderer) {
-  const draco = new DRACOLoader().setDecoderPath('/scene/draco/').setWorkerLimit(1)
-  const ktx = new KTX2Loader().setTranscoderPath('/scene/basis/').setWorkerLimit(1).detectSupport(renderer)
+  const { draco, ktx, release } = acquireDecoders(renderer)
   const resources: { dispose: () => void }[] = []
-  const dispose = () => { resources.forEach(item => item.dispose()); draco.dispose(); ktx.dispose() }
+  const dispose = () => { resources.forEach(item => item.dispose()); release() }
   async function geometry(name: string) {
     const response = await fetch(`/scene/geometry/${name}.drc`)
     if (!response.ok) throw new Error(`Could not load ${name}`)
@@ -48,7 +47,7 @@ export async function loadCrystalAssets(renderer: THREE.WebGLRenderer) {
     return result
   }
   async function texture(name: string, color = false) {
-    const result = await ktx.loadAsync(`/scene/textures/${name}.ktx2`)
+    const result = (await ktx.loadAsync(`/scene/textures/${name}.ktx2`)).clone()
     result.colorSpace = color ? THREE.SRGBColorSpace : THREE.NoColorSpace
     result.magFilter = THREE.LinearFilter
     result.minFilter = result.mipmaps.length > 1 ? THREE.LinearMipmapLinearFilter : THREE.LinearFilter
@@ -74,7 +73,7 @@ export async function loadCrystalAssets(renderer: THREE.WebGLRenderer) {
     const environment = generator.fromEquirectangular(source)
     generator.dispose()
     resources.push(environment)
-    draco.dispose(); ktx.dispose()
+    release()
     return { geometry: geometryMap, core, normal, roughness, coreMap, environment: environment.texture, grade, mist, triangles, advect,
       projects: { geometry: projectsGeometry, normal: projectsNormal, roughness: projectsRoughness },
       about: { geometry: aboutGeometry, normal: aboutNormal, roughness: aboutRoughness }, dispose }
