@@ -138,6 +138,7 @@ export function makeTerrainMaterial(map: THREE.Texture, options: { mountain?: bo
         #if MOUNTAIN == 0
           assembly *= introAlpha;
         #endif
+        if(night==0.){gl_FragColor=vec4(color,alpha*painted*assembly);return;}
         // Sharpen existing snow detail at its own texel scale, never screen noise.
         vec2 texel=2./vec2(textureSize(surface,0));
         vec3 nearby=(texture2D(surface,surfaceUv+vec2(texel.x,0.)).rgb
@@ -215,6 +216,7 @@ export function makeIceMaterial(assets: PolarAssets) {
         color += (point.x * .1 + .4) * .15 * min(point.y + .5, 1.);
         color = clamp(color, 0., 1.);
         color += (1. - smoothstep(-1.5, 1., point.y)) * bounce * vec3(.8,.9,1.) * .25;
+        if(night==0.){gl_FragColor=vec4(color,1.);return;}
         // Preserve the textured night surface, then add the same light release
         // used by daylight at the seams, moving blocks, and foot of the igloo.
         vec2 texel=2./vec2(textureSize(closed,0));

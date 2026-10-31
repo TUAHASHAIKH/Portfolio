@@ -4,11 +4,12 @@ import { useFrame, useThree } from '@react-three/fiber'
 import { useEffect, useMemo, useRef } from 'react'
 import { createRoot } from 'react-dom/client'
 import * as THREE from 'three'
+import type { Journey } from './journey'
 
 type Piece = { center: THREE.Vector3; point: THREE.Vector3; motion: { slow: number } }
 type Node = { id: number; progress: number; leaving: boolean; x: number; y: number }
 
-export function Measurements({ pieces, cursor, reduced, lift }: { pieces: Piece[]; cursor: THREE.Vector3; reduced: boolean; lift?: { value: number } }) {
+export function Measurements({ pieces, cursor, reduced, lift, journey }: { pieces: Piece[]; cursor: THREE.Vector3; reduced: boolean; lift?: { value: number }; journey: React.RefObject<Journey> }) {
   const { camera, size } = useThree()
   const svg = useRef<SVGSVGElement>(null)
   const groups = useRef<(SVGGElement | null)[]>([])
@@ -21,6 +22,15 @@ export function Measurements({ pieces, cursor, reduced, lift }: { pieces: Piece[
 
   useFrame((_, frameDelta) => {
     if (!svg.current) return
+    const away = journey.current.value >= .94 && journey.current.value <= 8.6
+    if (away || reduced) {
+      if (svg.current.style.display !== 'none') svg.current.style.display = 'none'
+      nodes.current.length = 0
+      edges.current.length = 0
+      signature.current = ''
+      return
+    }
+    if (svg.current.style.display === 'none') svg.current.style.display = ''
     const delta = Math.min(frameDelta, .25)
     scratch.towardCamera.copy(camera.position).sub(cursor).normalize()
     scratch.selection.copy(cursor).add(scratch.towardCamera)

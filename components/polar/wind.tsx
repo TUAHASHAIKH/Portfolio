@@ -7,7 +7,7 @@ import * as THREE from 'three'
 import { landingPose } from './landing-motion'
 import { stepWind, WIND_COUNT } from './wind-motion'
 
-export function Wind({ intro }: { intro: RefObject<number> }) {
+export function Wind({ intro, landscape }: { intro: RefObject<number>; landscape: RefObject<THREE.Group | null> }) {
   const resources = useMemo(() => {
     const plane=new THREE.PlaneGeometry(.075,.15)
     const geometry=new THREE.InstancedBufferGeometry()
@@ -44,6 +44,8 @@ export function Wind({ intro }: { intro: RefObject<number> }) {
   }, [])
   useEffect(()=>()=>{resources.geometry.dispose();resources.material.dispose()},[resources])
   useFrame((_,delta)=>{
+    // Hidden ancestors suppress drawing, but do not stop useFrame callbacks.
+    if (!landscape.current?.visible) return
     resources.accumulator+=Math.min(delta,.05)
     while(resources.accumulator>=1/60){resources.time+=1/60;stepWind(resources.positions,resources.velocities,resources.seeds,resources.time);resources.accumulator-=1/60}
     resources.offset.needsUpdate=true
