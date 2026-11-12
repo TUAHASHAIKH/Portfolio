@@ -1,6 +1,6 @@
 # Portfolio rendering and loading review
 
-The optimization preserves the existing art and interaction budgets: original mountain and igloo geometry, baked textures, eight-sample crystal refraction, 150,000 contact particles, full project artwork, and the existing 1.5 device-pixel-ratio cap. No dependencies were added.
+The optimization preserves the existing art and interaction budgets: original mountain and igloo geometry, baked textures, eight-sample crystal refraction, 150,000 contact particles, full project artwork, and the existing 1.5 device-pixel-ratio ceiling. Rendering now adapts between DPR 1 and 1.5 under sustained load. No dependencies were added.
 
 ## Findings and changes
 
@@ -50,3 +50,23 @@ At 1280 x 800, 5 Mbps download / 80 ms latency, the before/after cold-loader com
 - `npm run benchmark:browser`: production load metrics, resource sizes, long tasks, draw counts and frame-time percentiles, written to `.preview/perf-*.json`.
 
 Set `PORTFOLIO_URL` to the running production URL. Optional benchmark variables: `AUDIT_LABEL`, `AUDIT_MOBILE=1`, `AUDIT_SLOW=1`; use `CHROME_BIN` if Chrome is outside the standard locations. Run benchmarks without other browser tests or builds competing for CPU/GPU resources. Timing comparisons should use the same machine, viewport, network profile and motion setting.
+
+## Startup and first-scroll correction (November 2026)
+
+The earlier ready attribute meant assets had decoded, before the first composited frame. Crystal readiness was likewise published before shader preparation. A cold-start probe also observed multi-second shader-link stalls and a roughly 14.7-second delay before the interface entrance began after an immediate scroll.
+
+- Prepare the hero and postprocessing shaders asynchronously against HDR targets, including bloom's blur variants. Dismiss the loader after the first composited hero frame.
+- Retain the current scene until the next scene finishes its shader preparation and texture upload. Keep the original scroll destination and resume toward it when ready, including reverse loop input. The pending caption explains the wait.
+- Start background crystal/ring timers from the first hero paint, with the idle crystal preparation after the entrance. Scroll intent still starts the required downloads immediately.
+- Compress the existing entrance curves from 8.2 seconds to 3.6 seconds, remove the additional 0.7-second empty lead, and reduce the loader fade from 0.9 to 0.35 seconds. The wireframe, ice scan, camera arrival and terrain reveal retain their order. Reduced motion still skips the sequence.
+- Adjust rendering DPR in quarter steps when sustained frame time exceeds 22 ms. Restore detail after eight seconds of frame times below 18 ms. Resize the composer with the renderer so its buffers follow the same budget.
+- Rebuild the canvas and GPU resources once after a lost WebGL context, using DPR 1. A second interruption presents a retry button. A theme-matched clear color prevents the default black background showing during initialization.
+- In reduced-motion mode, invalidate on wheel, navigation key and touch input as well as scroll position changes. Boundary input can change the loop destination while native scrollY stays at zero.
+
+`npm run test:startup-browser` deliberately delays the first crystal's geometry, immediately scrolls after hero readiness, checks that the hero stays on screen, releases the download, verifies the requested transition and samples actual screen pixels for all-black output. It then forces a WebGL context loss and verifies a new canvas reaches readiness. Screenshots and timing samples are written to `.preview/startup-*`.
+
+Sound preference and actual playback are now separate. The audio context attempts autoplay immediately without starting asset downloads; recordings still load after hero readiness or an earlier gesture. The control says `On` only when loop sources are playing through a running context, and `Enable` when browser permission is pending. Clicking a blocked sound button unlocks the existing context instead of accidentally muting it. An explicit mute survives unrelated gestures.
+
+`npm run test:audio-browser` tests both Chrome autoplay policies, measures a nonzero signal at the master gain, checks one-click unlocking and explicit mute, and verifies unmuting reuses the seven loop sources. Browser autoplay restrictions still apply: visitors whose browsers block audible autoplay must click, tap or press a key before playback can start. Physical mobile devices have not been tested.
+
+Validation passed: production build and TypeScript; all 41 unit checks across audio, landing, rendering, journey and theme; browser suites for startup/recovery, both audio policies, desktop/mobile landing, rendering budgets, effects and scrolling. The final four-second scrolling sample recorded a 16.7 ms median and 16.9 ms p95 frame interval. The final cold startup regression recorded its first composited hero at 2.38 seconds and interface entrance at 4.24 seconds while crystal geometry was deliberately delayed. These are local observations, not device or network guarantees; the delayed-geometry scenario is not a matched benchmark against the earlier probe.
