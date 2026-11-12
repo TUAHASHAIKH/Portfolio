@@ -494,16 +494,17 @@ function JourneySections(props: { noise: THREE.Texture; journey: React.RefObject
   const [crystals, setCrystals] = useState(false)
   const [rings, setRings] = useState(false)
   useEffect(() => {
-    // Start idle preparation from the first painted hero, rather than asset
-    // decode completion. Its shader preparation can itself take several seconds.
+    // Warm the next scene during the long wireframe entrance. Its lighting is
+    // already filtered, so preparing it no longer triggers a synchronous PMREM.
     let crystalTimer: ReturnType<typeof setTimeout>, ringTimer: ReturnType<typeof setTimeout>
+    const prepareRings = () => { ringTimer = setTimeout(() => setRings(true),1800) }
     const start = () => {
-      crystalTimer = setTimeout(() => setCrystals(true), 3800)
-      ringTimer = setTimeout(() => setRings(true), 10000)
+      crystalTimer = setTimeout(() => setCrystals(true),250)
     }
+    window.addEventListener('portfolio:crystal-ready',prepareRings,{once:true})
     window.addEventListener('portfolio:scene-ready',start,{once:true})
     if (document.querySelector('#loader')?.getAttribute('data-ready') === 'true') start()
-    return () => { window.removeEventListener('portfolio:scene-ready',start); clearTimeout(crystalTimer); clearTimeout(ringTimer) }
+    return () => { window.removeEventListener('portfolio:scene-ready',start); window.removeEventListener('portfolio:crystal-ready',prepareRings); clearTimeout(crystalTimer); clearTimeout(ringTimer) }
   }, [])
   useFrame(() => {
     const reverse = props.journey.current.reverseTarget !== undefined

@@ -163,6 +163,7 @@ function CrystalView({ assets, noise, journey, reduced }: { assets: CrystalAsset
         gl.setRenderTarget(target);gl.render(warmScene,warmCamera)
       }finally{gl.setRenderTarget(previous);target.dispose();plane.dispose()}
       gl.domElement.closest('#app')?.setAttribute('data-crystal-ready','true')
+      window.dispatchEvent(new Event('portfolio:crystal-ready'))
       invalidate()
     }).catch(error=>{if(!cancelled)console.error('Crystal shader preparation:',error)})
     return ()=>{cancelled=true;target.dispose();plane.dispose()}

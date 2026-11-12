@@ -6,7 +6,11 @@ try {
   // Observe actual GPU draw modes and uniforms, without adding production
   // debug controls or depending on React/Fiber's private object structure.
   await b.send('Page.addScriptToEvaluateOnNewDocument',{source:`
-    window.landingAudit={lineModes:[],ice:[],ground:[]};
+    window.landingAudit={lineModes:[],ice:[],ground:[],readyAt:0,crystalAt:0};
+    const observer=new MutationObserver(()=>{
+      if(!landingAudit.readyAt&&document.querySelector('#loader')?.dataset.ready==='true')landingAudit.readyAt=performance.now();
+      if(!landingAudit.crystalAt&&document.querySelector('#app')?.dataset.crystalReady==='true')landingAudit.crystalAt=performance.now();
+    });observer.observe(document,{subtree:true,attributes:true,childList:true});
     const programs=new WeakMap();
     for(const method of ['drawArrays','drawElements']){
       const original=WebGL2RenderingContext.prototype[method];
@@ -28,7 +32,7 @@ try {
           const now=performance.now();
           if((info.type==='ice'||info.type==='ground')&&now-info.last>60){
             info.last=now;
-            landingAudit[info.type].push(Object.fromEntries(Object.entries(info.locations).map(([name,location])=>[name,this.getUniform(program,location)])));
+            landingAudit[info.type].push({time:now,...Object.fromEntries(Object.entries(info.locations).map(([name,location])=>[name,this.getUniform(program,location)]))});
           }
         }
         return original.call(this,mode,...args);
@@ -49,8 +53,14 @@ try {
   assert(audit.ground.some(x=>x.introAlpha===1&&x.fillReveal>0&&x.fillReveal<1),'The terrain wave was skipped')
   assert(audit.ground.some(x=>Math.abs(x.reveal-x.fillReveal)>.01),'Leading scan and terrain fill must use independent curves')
   assert.equal(audit.ground.at(-1)?.fillReveal,1,'Terrain never finished')
+  const firstIce=audit.ice.find(x=>x.materialize>0),completeIce=audit.ice.find(x=>x.materialize===1)
+  assert(completeIce.time-firstIce.time>1800,'The ice materialization retains the slower reference pacing')
+  assert(audit.ground.at(-1).time-audit.readyAt>6500,'The full entrance must not be compressed into a few seconds')
+  assert(audit.crystalAt>0&&audit.crystalAt<audit.ground.at(-1).time,'The next scene is prepared during the entrance')
+  assert(await b.evaluate('performance.getEntriesByType("resource").some(e=>e.name.endsWith("crystal_environment.bin.gz"))&&!performance.getEntriesByType("resource").some(e=>e.name.endsWith("crystal_env.exr"))'),'Use baked lighting without filtering the EXR during animation')
+  assert.equal(await b.evaluate('document.querySelector(".scene-pending")'),null,'No preparing-the-next-scene caption')
   await b.capture('landing-verified-desktop')
-  console.log('PASS line geometry, top-down ice reveal, delayed terrain, independent scan/fill and completion')
+  console.log('PASS reference-paced ice, camera/terrain sequence, early next-scene preparation, and no waiting caption', {introMs:Math.round(audit.ground.at(-1).time-audit.readyAt),nextSceneMs:Math.round(audit.crystalAt-audit.readyAt)})
 
   await b.send('Emulation.setDeviceMetricsOverride',{width:390,height:844,deviceScaleFactor:1,mobile:true})
   await b.send('Emulation.setEmulatedMedia',{features:[{name:'prefers-reduced-motion',value:'reduce'}]})

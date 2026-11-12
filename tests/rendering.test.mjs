@@ -3,6 +3,7 @@ import { readFile } from 'node:fs/promises'
 import test from 'node:test'
 import ts from 'typescript'
 import * as THREE from 'three'
+import { gunzipSync } from 'node:zlib'
 
 const modules = new Map()
 async function load(name) {
@@ -22,6 +23,29 @@ const { makeIceBatch } = await import(await load('ice-batch'))
 const { compileForTarget } = await import(await load('shader-preparation'))
 const { ParticleSimulation } = await import(await load('particle-simulation'))
 const { readyJourneyTarget } = await import(await load('scene-readiness'))
+const { decodeCrystalEnvironment } = await import(await load('crystal-environment'))
+
+test('baked lighting retains finite HDR samples and the original cube-UV layout', async () => {
+  const bytes=gunzipSync(await readFile(new URL('../public/scene/textures/crystal_environment.bin.gz',import.meta.url)))
+  const buffer=bytes.buffer.slice(bytes.byteOffset,bytes.byteOffset+bytes.byteLength)
+  const texture=decodeCrystalEnvironment(buffer)
+  assert.equal(texture.image.width,384)
+  assert.equal(texture.image.height,512)
+  assert.equal(texture.mapping,THREE.CubeUVReflectionMapping)
+  assert.equal(texture.type,THREE.HalfFloatType)
+  assert.equal(texture.colorSpace,THREE.LinearSRGBColorSpace)
+  const samples=texture.image.data
+  let brightest=0
+  for(let i=0;i<samples.length;i++){
+    const value=THREE.DataUtils.fromHalfFloat(samples[i])
+    assert(Number.isFinite(value),'Every prefiltered sample must be finite')
+    if(i%4!==3)brightest=Math.max(brightest,value)
+  }
+  assert(brightest>1,'Preserve HDR highlights rather than flattening to an LDR image')
+  assert.throws(()=>decodeCrystalEnvironment(buffer.slice(0,32)),/dimensions/)
+  assert.throws(()=>decodeCrystalEnvironment(new ArrayBuffer(12)),/header/)
+  texture.dispose()
+})
 
 test('cold scrolling waits for painted successors without discarding scroll intent', () => {
   assert.equal(readyJourneyTarget(1,false,false,false),0)

@@ -1,7 +1,7 @@
 import * as THREE from 'three'
 import type { DRACOLoader } from 'three/addons/loaders/DRACOLoader.js'
 import { acquireDecoders } from './asset-decoders'
-import { EXRLoader } from 'three/addons/loaders/EXRLoader.js'
+import { loadCrystalEnvironment } from './crystal-environment'
 
 export type CrystalAssets = Awaited<ReturnType<typeof loadCrystalAssets>>
 
@@ -58,10 +58,10 @@ export async function loadCrystalAssets(renderer: THREE.WebGLRenderer) {
     return result
   }
   try {
-    const [geometryMap, core, normal, roughness, coreMap, source, grade, mist, triangles, advect, projectsGeometry, projectsNormal, projectsRoughness, aboutGeometry, aboutNormal, aboutRoughness] = await Promise.all([
+    const [geometryMap, core, normal, roughness, coreMap, environment, grade, mist, triangles, advect, projectsGeometry, projectsNormal, projectsRoughness, aboutGeometry, aboutNormal, aboutRoughness] = await Promise.all([
       geometry('crystal'), geometry('crystal-core'), texture('crystal_normal'),
       texture('crystal_roughness'), texture('crystal_core', true),
-      new EXRLoader().loadAsync('/scene/textures/crystal_env.exr').then(result => { resources.push(result); return result }),
+      loadCrystalEnvironment(renderer).then(result => { resources.push(result); return result }),
       texture('crystal_grade'), texture('crystal_mist'), texture('crystal_triangles', true),
       new THREE.TextureLoader().loadAsync('/scene/textures/crystal_advect.png').then(result => {
         result.colorSpace=THREE.NoColorSpace; result.wrapS=result.wrapT=THREE.RepeatWrapping; resources.push(result); return result
@@ -69,10 +69,6 @@ export async function loadCrystalAssets(renderer: THREE.WebGLRenderer) {
       geometry('projects-crystal'), texture('projects_crystal_normal'), texture('projects_crystal_roughness'),
       geometry('about-crystal'), texture('about_crystal_normal'), texture('about_crystal_roughness'),
     ])
-    const generator = new THREE.PMREMGenerator(renderer)
-    const environment = generator.fromEquirectangular(source)
-    generator.dispose()
-    resources.push(environment)
     release()
     return { geometry: geometryMap, core, normal, roughness, coreMap, environment: environment.texture, grade, mist, triangles, advect,
       projects: { geometry: projectsGeometry, normal: projectsNormal, roughness: projectsRoughness },

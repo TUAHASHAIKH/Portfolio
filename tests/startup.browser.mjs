@@ -45,6 +45,7 @@ try {
   await wait(700)
   assert.equal(await page.evaluate("document.querySelector('#app').dataset.scenePending"),'true','Early scrolling waits for delayed crystal assets')
   assert.equal(await page.evaluate("document.querySelector('#app').dataset.stage"),'igloo','The existing landscape remains visible')
+  assert.equal(await page.evaluate('document.querySelector(".scene-pending")'),null,'Delayed downloads never show a next-scene waiting caption')
   await until("startupAudit.introduced>0",'The entrance finishes while downloads are delayed')
   await page.capture('startup-delayed-crystal')
   assert.equal(await page.evaluate("document.querySelector('#app').dataset.crystalReady"),undefined,'Download completion cannot be confused with GPU readiness')

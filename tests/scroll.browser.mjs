@@ -114,7 +114,8 @@ try {
   await wheel(-120); await wait(150)
   const reversedPosition=await evaluate('scrollY')
   assert(reversedPosition < start + 350, `Reversal did not cancel stale forward intent: ${start} -> ${reversedPosition}`)
-  await wait(800)
+  // The softer response intentionally keeps a longer deceleration tail.
+  await wait(1200)
   const settled = await evaluate('document.querySelector("#app").style.cssText')
   await wait(200)
   assert.equal(await evaluate('document.querySelector("#app").style.cssText'), settled, 'Scroll did not settle after input stopped')

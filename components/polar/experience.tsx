@@ -204,7 +204,6 @@ export function PolarExperience() {
       {supported === false ? <Fallback /> : supported && <SceneBoundary onFailure={() => setReady(true)}><App3D onReady={() => setReady(true)} onLoading={() => setReady(false)} reducedMotion={reducedMotion} journey={journey} /></SceneBoundary>}
     </div>
     <div className="vignette" />
-    <p className="scene-pending" role="status">Preparing the next scene…</p>
     <div id="ice-measurements" aria-hidden="true" />
     <CrystalReadout />
     <CrystalReadout kind="projects" />
