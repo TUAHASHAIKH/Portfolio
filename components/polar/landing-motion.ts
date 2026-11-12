@@ -15,11 +15,11 @@ function curve(t: number, x1: number, y1: number, x2: number, y2: number) {
   return cubic((low + high) / 2, y1, y2)
 }
 
-export const LANDING_DURATION = 3.6
-const authoredDuration = 8.2
+// Match the reference's uncompressed wireframe, materialization and camera timing.
+export const LANDING_DURATION = 8.2
 
 export function landingPose(time: number, reduced = false) {
-  const t = reduced ? authoredDuration : time * authoredDuration / LANDING_DURATION
+  const t = reduced ? LANDING_DURATION : time
   const terrain = phase(t, .7, 7.5)
   return {
     iceVisible: t >= 1.1,
@@ -42,7 +42,7 @@ export function landingPose(time: number, reduced = false) {
     snow: powerInOut(phase(t, 2, 4), 3),
     introduced: t >= 4.5,
     assemblyComplete: t >= 5.2,
-    complete: t >= authoredDuration,
+    complete: t >= LANDING_DURATION,
   }
 }
 

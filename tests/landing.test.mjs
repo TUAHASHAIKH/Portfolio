@@ -10,7 +10,7 @@ const {landingPose,advanceLanding,LANDING_DURATION}=await import(`data:text/java
 test('landing stages preserve the wireframe lead, delayed ground, and final clean scene',()=>{
   const pose=authoredTime=>landingPose(authoredTime*LANDING_DURATION/8.2)
   const initial=pose(0),outline=pose(1),ice=pose(2),ground=pose(2.1),done=landingPose(LANDING_DURATION)
-  assert(LANDING_DURATION<=4,'The opening should finish within four seconds')
+  assert.equal(LANDING_DURATION,8.2,'Keep the reference intro at its original pace')
   assert.equal(initial.iceVisible,false)
   assert.equal(initial.terrainAlpha,0)
   assert(outline.outlineReveal>0 && outline.cageAlpha>0)
