@@ -13,7 +13,13 @@ export function useSoundscape() {
       started = true
       void portfolioAudio.enable()
     }
-    const gesture = () => { start(); portfolioAudio.unlock() }
+    const gesture = (event: Event) => {
+      // The sound button owns its click. A capture-time unlock must not turn
+      // its subsequent "enable" click into an accidental mute.
+      if (event.target instanceof Element && event.target.closest('.sound-toggle,.detail-sound')) return
+      start(); portfolioAudio.unlock()
+    }
+    portfolioAudio.prepare()
     // Prioritize the compressed landscape over 18 audio downloads. A trusted
     // early gesture still starts/unlocks sound immediately, as before.
     window.addEventListener('portfolio:scene-ready', start)

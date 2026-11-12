@@ -84,8 +84,12 @@ test('audio defaults on, reuses loops, throttles beeps, mutes cues, and retries 
     const context = contexts[0]
     assert.equal(context.state, 'suspended', 'Blocked autoplay must not prevent decoding')
     assert.equal(audio.snapshot().loading, false)
-    autoplayBlocked = false; audio.unlock()
+    assert.equal(audio.snapshot().playing, false, 'Suspended autoplay must not claim to be audible')
+    assert.equal(audio.snapshot().blocked, true)
+    autoplayBlocked = false; await audio.toggle()
     assert.equal(context.state, 'running', 'A normal gesture resumes the existing context')
+    assert.equal(audio.snapshot().playing, true, 'The sound button enables blocked sound rather than muting it')
+    assert.equal(audio.snapshot().blocked, false)
     assert.equal(context.sources.filter(source => source.loop).length, 7)
     const count = context.sources.length
     audio.cue('beeps'); audio.cue('beeps2')
@@ -101,7 +105,8 @@ test('audio defaults on, reuses loops, throttles beeps, mutes cues, and retries 
     fail = false
     await audio.toggle()
     assert.equal(audio.snapshot().failed, false)
-    assert.equal(requests.length, 19, 'Retry fetches only the missing recording')
+    assert.equal(requests.filter(url=>url.endsWith('logo.ogg')).length, 3, 'Each retry fetches the missing recording')
+    assert.equal(requests.filter(url=>!url.endsWith('logo.ogg')).length, 17, 'Retries reuse every successfully decoded recording')
     assert.equal(context.sources.filter(source => source.loop).length, 7)
     document.hidden = true; audio.visibility(); await Promise.resolve()
     assert.equal(context.state, 'suspended')

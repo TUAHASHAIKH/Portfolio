@@ -4,7 +4,7 @@ import { mkdir, mkdtemp, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 
 export const wait = ms => new Promise(resolve => setTimeout(resolve, ms))
-export async function browser() {
+export async function browser({ autoplayPolicy = 'document-user-activation-required' } = {}) {
   const executable = process.env.CHROME_BIN || [
     'C:/Program Files/Google/Chrome/Application/chrome.exe', '/usr/bin/google-chrome',
     '/usr/bin/chromium', '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
@@ -14,6 +14,7 @@ export async function browser() {
   await mkdir('.preview', { recursive: true })
   const profile = await mkdtemp(path.resolve('.preview/browser-'))
   const chrome = spawn(executable, ['--headless=new', '--disable-extensions', '--no-first-run',
+    `--autoplay-policy=${autoplayPolicy}`,
     '--no-default-browser-check', `--remote-debugging-port=${port}`,
     `--user-data-dir=${profile}`, 'about:blank'], { windowsHide: true, stdio: 'ignore' })
   let tabs
