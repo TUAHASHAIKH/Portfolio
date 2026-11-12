@@ -16,6 +16,7 @@
     "test:rendering": "node --test tests/rendering.test.mjs",
     "test:performance-browser": "node tests/performance.browser.mjs",
     "test:loader-browser": "node tests/loader.browser.mjs",
+    "test:startup-browser": "node tests/startup.browser.mjs",
     "benchmark:browser": "node tests/benchmark.browser.mjs",
     "test:sky-browser": "node tests/sky.browser.mjs",
     "test:theme-browser": "node tests/theme.browser.mjs",

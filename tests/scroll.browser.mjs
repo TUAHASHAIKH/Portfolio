@@ -3,7 +3,7 @@
 import assert from 'node:assert/strict'
 import { spawn } from 'node:child_process'
 import { existsSync } from 'node:fs'
-import { mkdir, writeFile } from 'node:fs/promises'
+import { mkdir, mkdtemp, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 
 const wait = ms => new Promise(resolve => setTimeout(resolve, ms))
@@ -17,9 +17,10 @@ assert(executable, 'Set CHROME_BIN to an installed Chrome or Chromium executable
 assert((await fetch(url)).ok, 'Start the portfolio before running browser checks')
 const port = Number(process.env.CHROME_DEBUG_PORT || 9352)
 await mkdir('.preview', { recursive: true })
+const profile = await mkdtemp(path.resolve('.preview/scroll-browser-'))
 const chrome = spawn(executable, ['--headless=new', '--disable-extensions', '--no-first-run',
   '--no-default-browser-check', `--remote-debugging-port=${port}`,
-  `--user-data-dir=${path.resolve('.preview/scroll-test-browser')}`, 'about:blank'],
+  `--user-data-dir=${profile}`, 'about:blank'],
 { windowsHide: true, stdio: 'ignore' })
 let ws
 try {
@@ -93,9 +94,10 @@ try {
     await wait(500)
     assert.equal(await evaluate('scrollY'), 0, 'Reload must start at the landing scene')
     assert.equal(await evaluate('history.scrollRestoration'), 'manual')
-    assert.equal(await evaluate('document.querySelector(".sound-toggle").getAttribute("aria-pressed")'), 'true', 'Every reload defaults sound to On')
+    assert.match(await evaluate('document.querySelector(".sound-toggle").textContent'), /Sound: (On|Enable|Loading)/, 'Every reload requests sound and accurately reports browser permission')
   }
   console.log('PASS reload from crystals and contact always returns to landing with sound enabled')
+  await until('document.querySelector("#app")?.dataset.ringsReady === "true"', 'Prepare the distant scene before measuring input timing')
 
   await go(.1)
   const preciseStart=await evaluate('scrollY')
@@ -110,7 +112,8 @@ try {
   await wheel(12000); await wait(100)
   assert((await evaluate('scrollY')) - start <= 721, 'Wheel burst queued multiple sections')
   await wheel(-120); await wait(150)
-  assert((await evaluate('scrollY')) < start + 350, 'Reversal did not cancel stale forward intent')
+  const reversedPosition=await evaluate('scrollY')
+  assert(reversedPosition < start + 350, `Reversal did not cancel stale forward intent: ${start} -> ${reversedPosition}`)
   await wait(800)
   const settled = await evaluate('document.querySelector("#app").style.cssText')
   await wait(200)

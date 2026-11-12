@@ -15,10 +15,11 @@ function curve(t: number, x1: number, y1: number, x2: number, y2: number) {
   return cubic((low + high) / 2, y1, y2)
 }
 
-export const LANDING_DURATION = 8.2
+export const LANDING_DURATION = 3.6
+const authoredDuration = 8.2
 
 export function landingPose(time: number, reduced = false) {
-  const t = reduced ? LANDING_DURATION : time
+  const t = reduced ? authoredDuration : time * authoredDuration / LANDING_DURATION
   const terrain = phase(t, .7, 7.5)
   return {
     iceVisible: t >= 1.1,
@@ -40,11 +41,12 @@ export function landingPose(time: number, reduced = false) {
     mist: powerInOut(phase(t, 2, 3), 3),
     snow: powerInOut(phase(t, 2, 4), 3),
     introduced: t >= 4.5,
-    complete: t >= LANDING_DURATION,
+    assemblyComplete: t >= 5.2,
+    complete: t >= authoredDuration,
   }
 }
 
 // Asset/shader compilation and a resumed tab must not skip the wireframe stage.
 export function advanceLanding(time: number, delta: number, reduced: boolean) {
-  return reduced ? LANDING_DURATION : Math.min(LANDING_DURATION, time + Math.max(0, Math.min(delta, .05)))
+  return reduced ? LANDING_DURATION : Math.min(LANDING_DURATION, time + Math.max(0, Math.min(delta, .1)))
 }

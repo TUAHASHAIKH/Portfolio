@@ -17,6 +17,7 @@ import { loadPolarAssets, type PolarAssets } from './assets'
 import { liftLandscape, makeTerrainMaterial, surfaceVertex } from './materials'
 import { makeIceBatch } from './ice-batch'
 import { compileForTarget } from './shader-preparation'
+import { readyJourneyTarget } from './scene-readiness'
 import { Measurements } from './measurements'
 import { Wind } from './wind'
 import { Assembly } from './assembly'
@@ -54,8 +55,10 @@ const terrain = [
 ]
 const tuple = (values: number[]) => values as [number, number, number]
 
-function PostProcessing({ assets, journey, reduced }: { assets: PolarAssets; journey: React.RefObject<Journey>; reduced: boolean }) {
-  const { gl, scene, camera, size } = useThree()
+function PostProcessing({ assets, journey, reduced, prepared, onReady }: { assets: PolarAssets; journey: React.RefObject<Journey>; reduced: boolean; prepared: React.RefObject<boolean>; onReady: () => void }) {
+  const { gl, scene, camera, size, invalidate } = useThree()
+  const dpr = useThree(state => state.viewport.dpr)
+  const painted = useRef(false)
   const glitch = useRef({ started: -Infinity, duration: .9, seed: 0 })
   useEffect(() => {
     const transition = (event: Event) => {
@@ -145,29 +148,33 @@ function PostProcessing({ assets, journey, reduced }: { assets: PolarAssets; jou
     })
     const output = new OutputPass()
     composer.addPass(render); composer.addPass(grade); composer.addPass(bloom); composer.addPass(distortion); composer.addPass(frost); composer.addPass(output)
-    return { composer, render, grade, bloom, distortion, frost, output }
+    return { composer, render, grade, bloom, distortion, frost, output, prepared: false }
   }, [gl, scene, camera, assets.grade])
   const pipelineLifetime=useMemo(()=>({users:0,preparation:Promise.resolve()}),[pipeline])
-  useEffect(() => { pipeline.composer.setSize(size.width, size.height) }, [pipeline, size])
   useEffect(() => {
-    // This pass starts disabled. Prepare it now instead of compiling at the
-    // first wheel event, when the frame budget is needed for the transition.
+    pipeline.composer.setPixelRatio(dpr)
+    pipeline.composer.setSize(size.width,size.height)
+  }, [pipeline,size.width,size.height,dpr])
+  useEffect(() => {
+    // Prepare the full pass chain, including bloom's five blur variants, before
+    // linking any of it in a visible frame or under the first wheel gesture.
     const warmScene = new THREE.Scene()
     const geometry = new THREE.PlaneGeometry(2, 2)
-    const target = new THREE.WebGLRenderTarget(16,16)
+    const target = new THREE.WebGLRenderTarget(16,16,{type:THREE.HalfFloatType})
     const camera = new THREE.OrthographicCamera(-1,1,1,-1,0,1)
     let cancelled = false
-    warmScene.add(new THREE.Mesh(geometry, pipeline.distortion.material))
-    warmScene.add(new THREE.Mesh(geometry, pipeline.frost.material))
+    for (const material of [pipeline.grade.material,pipeline.distortion.material,pipeline.frost.material,pipeline.bloom.materialHighPassFilter,...pipeline.bloom.separableBlurMaterials,pipeline.bloom.compositeMaterial,pipeline.bloom.blendMaterial]) {
+      warmScene.add(new THREE.Mesh(geometry,material))
+    }
     pipelineLifetime.preparation=compileForTarget(gl, warmScene, camera, target).then(() => {
       if (cancelled) return
-      const previous = gl.getRenderTarget()
-      try { gl.setRenderTarget(target); gl.render(warmScene, camera) }
-      finally { gl.setRenderTarget(previous); target.dispose() }
+      pipeline.prepared = true
+      invalidate(3)
     })
-      .catch(error => console.error('Transition shader preparation:', error))
+      .catch(error => { if (!cancelled) { console.error('Transition shader preparation:', error); pipeline.prepared = true; invalidate(3) } })
+      .finally(() => target.dispose())
     return () => { cancelled = true; geometry.dispose(); target.dispose() }
-  }, [gl, pipeline,pipelineLifetime])
+  }, [gl, pipeline,pipelineLifetime,invalidate])
   useEffect(() => {
     pipelineLifetime.users++
     return()=>{pipelineLifetime.users--;void pipelineLifetime.preparation.then(()=>{
@@ -176,6 +183,7 @@ function PostProcessing({ assets, journey, reduced }: { assets: PolarAssets; jou
     })}
   }, [pipeline,pipelineLifetime])
   useFrame((_, delta) => {
+    if (!prepared.current || !pipeline.prepared) return
     const p = journey.current.value
     // At full night this pass is exactly the identity. Keep it for the
     // transition, then avoid a full-resolution copy and eight 3D LUT reads.
@@ -208,6 +216,11 @@ function PostProcessing({ assets, journey, reduced }: { assets: PolarAssets; jou
     pipeline.distortion.uniforms.curtain.value = returnProgress(p)
     pipeline.distortion.enabled = !reduced && (strength > .001 || glitchAmount > .001)
     pipeline.composer.render(delta)
+    if (!painted.current) {
+      painted.current = true
+      gl.domElement.closest('#app')?.setAttribute('data-hero-ready', 'true')
+      onReady()
+    }
   }, 1)
   return null
 }
@@ -279,7 +292,8 @@ function Ice({ assets, cursor, engaged, reduced, intro, journey, lift }: { asset
 }
 
 function World({ assets, onReady, reduced, journey }: { assets: PolarAssets; onReady: () => void; reduced: boolean; journey: React.RefObject<Journey> }) {
-  const { gl, camera, size } = useThree()
+  const { gl, scene, camera, size, invalidate } = useThree()
+  const prepared = useRef(false)
   const pointer = useMemo(() => new THREE.Vector2(), [])
   const landscape = useRef<THREE.Group>(null)
   const lift = useMemo(()=>({ value: 0 }),[])
@@ -293,7 +307,7 @@ function World({ assets, onReady, reduced, journey }: { assets: PolarAssets; onR
   const worldUp = useMemo(() => new THREE.Vector3(0, 1, 0), [])
   const engaged = useRef(false)
   const windTime = useRef(0)
-  const introTime = useRef(-.7)
+  const introTime = useRef(0)
   const [assembling, setAssembling] = useState(!reduced)
   const introCamera = useMemo(() => new THREE.Vector3(), [])
   const introTarget = useMemo(() => new THREE.Vector3(), [])
@@ -387,9 +401,21 @@ function World({ assets, onReady, reduced, journey }: { assets: PolarAssets; onR
     window.addEventListener('blur', leave)
     return () => { element.removeEventListener('pointermove', move); element.removeEventListener('pointerleave', leave); window.removeEventListener('blur', leave) }
   }, [gl, pointer])
-  useEffect(() => { onReady() }, [onReady])
+  useEffect(() => {
+    let cancelled = false
+    const target = new THREE.WebGLRenderTarget(16,16,{type:THREE.HalfFloatType})
+    // Queue hero shader compilation before the first visible draw. Waiting on
+    // parallel compilation avoids blocking the first animation frame on link.
+    void compileForTarget(gl,scene,camera,target).then(() => {
+      if (!cancelled) { prepared.current = true; invalidate() }
+    }).catch(error => {
+      if (!cancelled) { console.error('Landscape shader preparation:',error); prepared.current = true; invalidate() }
+    }).finally(() => target.dispose())
+    return () => { cancelled = true }
+  }, [gl,scene,camera,invalidate])
   useEffect(() => () => Object.values(surfaces).forEach(material => material.dispose()), [surfaces])
   useFrame((_, frameDelta) => {
+    if (!prepared.current) return
     const delta = Math.min(frameDelta, .25), mobile = size.width < 700
     const p = journey.current.value
     lift.value=reduced?0:landscapeTravel(p)
@@ -409,7 +435,7 @@ function World({ assets, onReady, reduced, journey }: { assets: PolarAssets; onR
     cameraRight.crossVectors(worldUp, normal).normalize()
     cameraUp.crossVectors(normal, cameraRight).normalize()
     cameraOffset.applyAxisAngle(cameraRight, orbit.current.pitch).applyAxisAngle(cameraUp, orbit.current.yaw)
-    if (assembling && introTime.current >= 5.2) setAssembling(false)
+    if (assembling && landing.assemblyComplete) setAssembling(false)
     const arrival = landing.camera
     introCamera.set(-14 * distance, 21 * distance, 14 * distance)
     camera.position.copy(cameraTarget).add(cameraOffset).lerp(introCamera, 1 - arrival)
@@ -460,7 +486,7 @@ function World({ assets, onReady, reduced, journey }: { assets: PolarAssets; onR
     {!reduced && <Wind intro={introTime} landscape={landscape} />}
     </group>
     <JourneySections noise={assets.wind} journey={journey} reduced={reduced} />
-    <PostProcessing assets={assets} journey={journey} reduced={reduced} />
+    <PostProcessing assets={assets} journey={journey} reduced={reduced} prepared={prepared} onReady={onReady} />
   </>
 }
 
@@ -468,15 +494,21 @@ function JourneySections(props: { noise: THREE.Texture; journey: React.RefObject
   const [crystals, setCrystals] = useState(false)
   const [rings, setRings] = useState(false)
   useEffect(() => {
-    // Let the hero paint first. Warm the next section during the introduction,
-    // then the distant passage after it; scroll intent can accelerate either.
-    const crystalTimer = setTimeout(() => setCrystals(true), 700)
-    const ringTimer = setTimeout(() => setRings(true), 10000)
-    return () => { clearTimeout(crystalTimer); clearTimeout(ringTimer) }
+    // Start idle preparation from the first painted hero, rather than asset
+    // decode completion. Its shader preparation can itself take several seconds.
+    let crystalTimer: ReturnType<typeof setTimeout>, ringTimer: ReturnType<typeof setTimeout>
+    const start = () => {
+      crystalTimer = setTimeout(() => setCrystals(true), 3800)
+      ringTimer = setTimeout(() => setRings(true), 10000)
+    }
+    window.addEventListener('portfolio:scene-ready',start,{once:true})
+    if (document.querySelector('#loader')?.getAttribute('data-ready') === 'true') start()
+    return () => { window.removeEventListener('portfolio:scene-ready',start); clearTimeout(crystalTimer); clearTimeout(ringTimer) }
   }, [])
   useFrame(() => {
-    if (!crystals && props.journey.current.target > .02) setCrystals(true)
-    if (!rings && props.journey.current.target > .6) setRings(true)
+    const reverse = props.journey.current.reverseTarget !== undefined
+    if (!crystals && (props.journey.current.target > .02 || reverse)) setCrystals(true)
+    if (!rings && (props.journey.current.target > .6 || reverse)) setRings(true)
   }, -1)
   return <>
     {crystals && <Suspense fallback={null}><Crystal {...props} /></Suspense>}
@@ -502,20 +534,65 @@ function SceneController({ onReady, reduced, journey }: { onReady: () => void; r
   return assets && <World assets={assets} onReady={onReady} reduced={reduced} journey={journey} />
 }
 
-export default function App3D({ onReady, reducedMotion, journey }: { onReady: () => void; reducedMotion: boolean; journey: React.RefObject<Journey> }) {
+export default function App3D({ onReady, onLoading, reducedMotion, journey }: { onReady: () => void; onLoading: () => void; reducedMotion: boolean; journey: React.RefObject<Journey> }) {
   const [visible, setVisible] = useState(true)
+  const [recovery, setRecovery] = useState(0)
+  const [contextFailed, setContextFailed] = useState(false)
+  const recover = () => {
+    const app = document.querySelector<HTMLElement>('#app')
+    if (app) for (const key of ['heroReady','crystalReady','ringsReady']) delete app.dataset[key]
+    if (recovery > 0) { setContextFailed(true); onReady(); return }
+    onLoading()
+    setRecovery(value => value + 1)
+  }
   useEffect(() => {
     const update = () => setVisible(!document.hidden)
     document.addEventListener('visibilitychange', update)
     return () => document.removeEventListener('visibilitychange', update)
   }, [])
-  return <Canvas dpr={[1,1.5]} camera={{ position: [...heroPosition], fov: 30, near: .1, far: 1000 }} gl={{ antialias: true, alpha: false, outputColorSpace: THREE.SRGBColorSpace, toneMapping: THREE.NoToneMapping, powerPreference: 'high-performance' }} frameloop={visible ? reducedMotion ? 'demand' : 'always' : 'never'}>
+  if (contextFailed) return <div className="fallback"><p>Graphics were interrupted.<br /><button onClick={() => { onLoading(); setContextFailed(false); setRecovery(0) }}>Reload the scene</button></p></div>
+  return <Canvas key={recovery} dpr={recovery ? 1 : [1,1.5]} camera={{ position: [...heroPosition], fov: 30, near: .1, far: 1000 }} gl={{ antialias: true, alpha: false, outputColorSpace: THREE.SRGBColorSpace, toneMapping: THREE.NoToneMapping, powerPreference: 'high-performance' }} frameloop={visible ? reducedMotion ? 'demand' : 'always' : 'never'}>
+    <color attach="background" args={['#a0a5b1']} />
+    <ContextRecovery recover={recover} />
+    <FrameBudget reduced={reducedMotion} maximum={recovery ? 1 : 1.5} />
     <FrameActivity reduced={reducedMotion} />
     <SkyMotion journey={journey} reduced={reducedMotion} />
     <ThemeLighting reduced={reducedMotion} />
     <JourneyMotion journey={journey} reduced={reducedMotion} />
     <SceneController onReady={onReady} reduced={reducedMotion} journey={journey} />
   </Canvas>
+}
+
+function ContextRecovery({ recover }: { recover: () => void }) {
+  const canvas = useThree(state => state.gl.domElement)
+  useEffect(() => {
+    const lost = (event: Event) => { event.preventDefault(); recover() }
+    canvas.addEventListener('webglcontextlost',lost)
+    return () => canvas.removeEventListener('webglcontextlost',lost)
+  }, [canvas,recover])
+  return null
+}
+
+function FrameBudget({ reduced, maximum }: { reduced: boolean; maximum: number }) {
+  const { gl, setDpr } = useThree()
+  const budget = useRef({ elapsed: 0, frames: 0, fast: 0 })
+  useFrame((_, delta) => {
+    if (reduced || document.hidden) return
+    const sample = budget.current
+    // Exclude asset stalls and resumed tabs; measure sustained GPU pressure.
+    if (delta > .1) { sample.elapsed = 0; sample.frames = 0; sample.fast = 0; return }
+    sample.elapsed += delta; sample.frames++
+    if (sample.elapsed < 1.5) return
+    const average = sample.elapsed / sample.frames
+    const current = gl.getPixelRatio(), cap = Math.min(devicePixelRatio,maximum)
+    if (average > .022 && current > 1) { setDpr(Math.max(1,current-.25)); sample.fast = 0 }
+    else if (average < .018) {
+      sample.fast += sample.elapsed
+      if (sample.fast > 8 && current < cap) { setDpr(Math.min(cap,current+.25)); sample.fast = 0 }
+    } else sample.fast = 0
+    sample.elapsed = 0; sample.frames = 0
+  }, -3)
+  return null
 }
 
 function FrameActivity({ reduced }: { reduced: boolean }) {
@@ -525,7 +602,9 @@ function FrameActivity({ reduced }: { reduced: boolean }) {
     // Static accessibility mode needs a new frame only when its inputs change.
     // A short burst lets projected labels and render buffers settle together.
     const refresh = () => invalidate(3)
-    const events = ['scroll', 'resize', 'portfolio:theme', 'portfolio:crystal-detail', 'portfolio:social-select', 'portfolio:reset-motion']
+    // At a loop boundary the wheel/key changes intent without changing native
+    // scrollY. Demand rendering must still draw that input to cross the seam.
+    const events = ['scroll', 'wheel', 'keydown', 'touchmove', 'resize', 'portfolio:theme', 'portfolio:crystal-detail', 'portfolio:social-select', 'portfolio:reset-motion']
     events.forEach(event => window.addEventListener(event, refresh, { passive: true }))
     refresh()
     return () => events.forEach(event => window.removeEventListener(event, refresh))
@@ -582,9 +661,21 @@ function JourneyMotion({ journey, reduced }: { journey: React.RefObject<Journey>
     // The same trajectory drives retreat, curtain and crystal, without a stage switch.
     // The canvas pauses in background tabs. Do not integrate the time spent
     // hidden into a single visible camera step when it resumes.
+    const requested = state.target
+    const reverse = state.reverseTarget, forward = state.forwardTarget
+    const allReady = app?.dataset.heroReady === 'true' && app?.dataset.crystalReady === 'true' && app?.dataset.ringsReady === 'true'
+    state.target = readyJourneyTarget(requested, app?.dataset.heroReady === 'true', app?.dataset.crystalReady === 'true', app?.dataset.ringsReady === 'true')
+    const waiting = state.target !== requested || !allReady && (reverse !== undefined || forward !== undefined)
+    if (!allReady) { delete state.reverseTarget; delete state.forwardTarget }
+    if (app && app.dataset.scenePending !== String(waiting)) app.dataset.scenePending = String(waiting)
     advanceJourney(state,motion.current,resumed.current?0:delta,reduced)
+    state.target = requested
+    if (!allReady) {
+      if (reverse !== undefined) state.reverseTarget = reverse
+      if (forward !== undefined) state.forwardTarget = forward
+    }
     resumed.current=false
-    if(reverseAtBoundary(state,motion.current)){
+    if(allReady && reverseAtBoundary(state,motion.current)){
       window.dispatchEvent(new CustomEvent('portfolio:journey-reversed',{detail:state.target}))
     }
     // Both ends render the same assembled hero. Rebase only at the matching

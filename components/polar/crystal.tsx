@@ -23,7 +23,7 @@ function CrystalView({ assets, noise, journey, reduced }: { assets: CrystalAsset
   const rearMeshes = useMemo(() => CRYSTAL_KINDS.map(()=>createRef<THREE.Mesh>()), [])
   const coreMeshes = useMemo(() => CRYSTAL_KINDS.map(()=>createRef<THREE.Mesh>()), [])
   const detail = useRef({ index: -1, target: 0, progress: 0 })
-  const { size, gl, scene } = useThree()
+  const { size, gl, scene, invalidate } = useThree()
   const buffer = useFBO(Math.round(size.width * .75), Math.round(size.height * .75), { type: THREE.HalfFloatType })
   const backBuffer = useFBO(Math.round(size.width*.75),Math.round(size.height*.75),{type:THREE.HalfFloatType})
   const time = useRef(0)
@@ -162,9 +162,11 @@ function CrystalView({ assets, noise, journey, reduced }: { assets: CrystalAsset
         gl.initRenderTarget(buffer);gl.initRenderTarget(backBuffer)
         gl.setRenderTarget(target);gl.render(warmScene,warmCamera)
       }finally{gl.setRenderTarget(previous);target.dispose();plane.dispose()}
+      gl.domElement.closest('#app')?.setAttribute('data-crystal-ready','true')
+      invalidate()
     }).catch(error=>{if(!cancelled)console.error('Crystal shader preparation:',error)})
     return ()=>{cancelled=true;target.dispose();plane.dispose()}
-  },[gl,assets,buffer,backBuffer,materials,materialLifetime])
+  },[gl,assets,buffer,backBuffer,materials,materialLifetime,invalidate])
   useFrame(({ gl, scene, camera }) => {
     if (!rig.current?.visible) return
     camera.updateMatrixWorld()
@@ -283,7 +285,7 @@ export function Crystal({ noise, journey, reduced }: { noise: THREE.Texture; jou
     let cancelled = false, loaded: CrystalAssets | null = null
     loadCrystalAssets(gl).then(result => {
       if (cancelled) result.dispose()
-      else { loaded = result; setAssets(result); document.querySelector('#app')?.setAttribute('data-crystal-ready', 'true') }
+      else { loaded = result; setAssets(result) }
     }).catch(error => { if (!cancelled) { console.error('Crystal:', error); document.querySelector('#app')?.setAttribute('data-crystal-error', 'true') } })
     return () => { cancelled = true; loaded?.dispose() }
   }, [gl])

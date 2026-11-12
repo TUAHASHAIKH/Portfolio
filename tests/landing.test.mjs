@@ -8,7 +8,9 @@ const code=ts.transpileModule(source,{compilerOptions:{module:ts.ModuleKind.ESNe
 const {landingPose,advanceLanding,LANDING_DURATION}=await import(`data:text/javascript;base64,${Buffer.from(code).toString('base64')}`)
 
 test('landing stages preserve the wireframe lead, delayed ground, and final clean scene',()=>{
-  const initial=landingPose(0),outline=landingPose(1),ice=landingPose(2),ground=landingPose(2.1),done=landingPose(LANDING_DURATION)
+  const pose=authoredTime=>landingPose(authoredTime*LANDING_DURATION/8.2)
+  const initial=pose(0),outline=pose(1),ice=pose(2),ground=pose(2.1),done=landingPose(LANDING_DURATION)
+  assert(LANDING_DURATION<=4,'The opening should finish within four seconds')
   assert.equal(initial.iceVisible,false)
   assert.equal(initial.terrainAlpha,0)
   assert(outline.outlineReveal>0 && outline.cageAlpha>0)
@@ -18,9 +20,9 @@ test('landing stages preserve the wireframe lead, delayed ground, and final clea
   assert.equal(ice.terrainAlpha,0)
   assert.equal(ground.terrainAlpha,1)
   assert(ground.terrainFill>0 && ground.terrainFill<1)
-  assert.equal(landingPose(3.35).iceReveal,1)
-  assert.equal(landingPose(4.49).introduced,false)
-  assert.equal(landingPose(4.5).introduced,true)
+  assert.equal(pose(3.35).iceReveal,1)
+  assert.equal(pose(4.49).introduced,false)
+  assert.equal(pose(4.5).introduced,true)
   for(const key of ['iceReveal','terrainScan','terrainFill','camera','sky','mist','snow'])assert.equal(done[key],1,key)
   for(const key of ['outlineAlpha','cageAlpha','numbersAlpha'])assert.equal(done[key],0,key)
   assert.equal(done.complete,true)
@@ -32,13 +34,13 @@ test('all reveal curves remain bounded and move forward without discontinuities'
   for(let i=-99;i<=830;i++){
     const next=landingPose(i/100)
     for(const [key,value] of Object.entries(next))if(typeof value==='number')assert(Number.isFinite(value)&&value>=0&&value<=1,`${key} ${value}`)
-    for(const key of increasing){assert(next[key]>=previous[key]-1e-9,key);assert(next[key]-previous[key]<.03,`${key} jumps between frames`)}
+    for(const key of increasing){assert(next[key]>=previous[key]-1e-9,key);assert(next[key]-previous[key]<.07,`${key} jumps between frames`)}
     previous=next
   }
 })
 
 test('loading stalls and hidden-tab gaps cannot jump over the intro; reduced motion skips it',()=>{
-  assert.equal(advanceLanding(0,12,false),.05)
+  assert.equal(advanceLanding(0,12,false),.1)
   assert.equal(advanceLanding(1,-1,false),1)
   assert.equal(advanceLanding(LANDING_DURATION-.01,1,false),LANDING_DURATION)
   for(const time of [-1,0,1,3,7]){

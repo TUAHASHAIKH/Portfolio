@@ -26,7 +26,7 @@ export function Rings(props: { journey: React.RefObject<Journey>; noise: THREE.T
 }
 
 function RingPassage({ assets, journey, noise, reduced }: { assets: RingAssets; journey: React.RefObject<Journey>; noise: THREE.Texture; reduced: boolean }) {
-  const { gl, camera, scene } = useThree()
+  const { gl, camera, scene, invalidate } = useThree()
   const root = useRef<THREE.Group>(null)
   const portals = useRef<(THREE.Mesh | null)[]>([])
   const fields = useRef<(THREE.Mesh | null)[]>([])
@@ -57,9 +57,10 @@ function RingPassage({ assets, journey, noise, reduced }: { assets: RingAssets; 
       try{gl.setRenderTarget(target);gl.render(warmScene,warmCamera)}
       finally{gl.setRenderTarget(previous);target.dispose()}
       gl.domElement.closest('#app')?.setAttribute('data-rings-ready','true')
+      invalidate()
     }).catch(error=>{if(!cancelled)console.error('Ring shader preparation:',error)})
     return ()=>{cancelled=true;target.dispose()}
-  },[assets,gl,materialLifetime])
+  },[assets,gl,materialLifetime,invalidate])
   useEffect(()=>{
     materialLifetime.users++
     return()=>{materialLifetime.users--;void materialLifetime.preparation.then(()=>{if(materialLifetime.users===0)materials.dispose()})}

@@ -21,6 +21,16 @@ async function load(name) {
 const { makeIceBatch } = await import(await load('ice-batch'))
 const { compileForTarget } = await import(await load('shader-preparation'))
 const { ParticleSimulation } = await import(await load('particle-simulation'))
+const { readyJourneyTarget } = await import(await load('scene-readiness'))
+
+test('cold scrolling waits for painted successors without discarding scroll intent', () => {
+  assert.equal(readyJourneyTarget(1,false,false,false),0)
+  assert.equal(readyJourneyTarget(1,true,false,false),.02)
+  assert.equal(readyJourneyTarget(.01,true,false,false),.01)
+  assert.equal(readyJourneyTarget(8,true,true,false),3.25)
+  assert.equal(readyJourneyTarget(1,true,true,false),1)
+  assert.equal(readyJourneyTarget(8,true,true,true),8)
+})
 
 test('batched ice retains every vertex, triangle, UV and independent block transform', () => {
   const pieces = [new THREE.BoxGeometry(), new THREE.SphereGeometry(1,8,6)].map((geometry,index) => {

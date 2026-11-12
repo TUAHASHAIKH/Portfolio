@@ -1,6 +1,6 @@
 import { spawn } from 'node:child_process'
 import { existsSync } from 'node:fs'
-import { mkdir, writeFile } from 'node:fs/promises'
+import { mkdir, mkdtemp, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 
 export const wait = ms => new Promise(resolve => setTimeout(resolve, ms))
@@ -12,9 +12,10 @@ export async function browser() {
   if (!executable) throw new Error('Set CHROME_BIN to an installed Chrome executable')
   const port = Number(process.env.CHROME_DEBUG_PORT || 9351)
   await mkdir('.preview', { recursive: true })
+  const profile = await mkdtemp(path.resolve('.preview/browser-'))
   const chrome = spawn(executable, ['--headless=new', '--disable-extensions', '--no-first-run',
     '--no-default-browser-check', `--remote-debugging-port=${port}`,
-    `--user-data-dir=${path.resolve('.preview/effects-test-browser')}`, 'about:blank'], { windowsHide: true, stdio: 'ignore' })
+    `--user-data-dir=${profile}`, 'about:blank'], { windowsHide: true, stdio: 'ignore' })
   let tabs
   for (let i = 0; i < 40; i++) { try { tabs = await (await fetch(`http://127.0.0.1:${port}/json`)).json(); break } catch { await wait(250) } }
   if (!tabs) { chrome.kill(); throw new Error('Chrome did not start') }
