@@ -1,2 +1,3 @@
 import { PolarExperience } from '@/components/polar/experience'
-export default function Home() { return <PolarExperience /> }
+import { HeroPreloads } from '@/components/polar/hero-preloads'
+export default function Home() { return <><HeroPreloads /><PolarExperience /></> }

@@ -5,9 +5,12 @@ import ts from 'typescript'
 import vm from 'node:vm'
 import * as THREE from 'three'
 
+const themeSource=await readFile(new URL('../components/polar/theme-uniform.ts',import.meta.url),'utf8')
+const themeUrl=`data:text/javascript;base64,${Buffer.from(themeSource).toString('base64')}`
 const materialsSource=await readFile(new URL('../components/polar/materials.ts',import.meta.url),'utf8')
 const materialsCode=ts.transpileModule(materialsSource,{compilerOptions:{module:ts.ModuleKind.ESNext}}).outputText
   .replace("'three'",JSON.stringify(import.meta.resolve('three')))
+  .replace("'./theme-uniform'",JSON.stringify(themeUrl))
 const {liftLandscape}=await import(`data:text/javascript;base64,${Buffer.from(materialsCode).toString('base64')}`)
 
 test('landscape shader patch survives effect replay with a replacement uniform',()=>{

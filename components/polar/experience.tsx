@@ -1,7 +1,11 @@
 'use client'
 
-import dynamic from 'next/dynamic'
+// The hero is needed immediately: make its script discoverable in the initial
+// HTML. The support check below still mounts WebGL only in the browser, while
+// crystals and rings remain lazy-loaded inside the scene.
+import App3D from './scene'
 import { Component, useEffect, useRef, useState, type ReactNode } from 'react'
+import { ThemeToggle } from './theme'
 import { Wordmark } from './wordmark'
 import { crystalCenter, isCrystalKind, JOURNEY_END, type Journey } from './journey'
 import { CrystalReadout } from './crystal-readout'
@@ -11,8 +15,6 @@ import { boundedScrollTarget, ownsNavigationKey, wheelPixels } from './scroll-in
 import { portfolioAudio } from './audio-engine'
 import { useSoundscape } from './use-soundscape'
 import { GlitchEffects } from './glitch-effects'
-
-const App3D = dynamic(() => import('./scene'), { ssr: false })
 
 function Fallback() {
   return <div className="fallback"><p>The expedition needs WebGL 2.<br />Try a browser with hardware acceleration enabled.</p></div>
@@ -29,9 +31,13 @@ export function PolarExperience() {
   const [ready, setReady] = useState(false)
   const [supported, setSupported] = useState<boolean | null>(null)
   const audioState = useSoundscape()
-  const sound = audioState.enabled
+  const sound = audioState.playing
   const [reducedMotion, setReducedMotion] = useState(false)
   const journey = useRef<Journey>({ target: 0, value: 0 })
+
+  useEffect(() => {
+    if (ready) window.dispatchEvent(new Event('portfolio:scene-ready'))
+  }, [ready])
 
   useEffect(() => {
     const track = document.querySelector<HTMLElement>('.journey-track')
@@ -43,10 +49,11 @@ export function PolarExperience() {
     const point=(event:PointerEvent)=>{pointer.x=event.clientX;pointer.y=event.clientY}
     // Scroll events only sample position; layout is measured when the track resizes.
     const update = () => {
-      journey.current.target = scrollToJourney(JOURNEY_END * Math.min(1, Math.max(0, window.scrollY / distance)))
-      if(window.scrollY>.5)delete journey.current.reverseTarget
-      if(window.scrollY<distance-1)delete journey.current.forwardTarget
-      if (centering !== null && Math.abs(window.scrollY-centering)<1) centering=null
+      const position = window.scrollY
+      journey.current.target = scrollToJourney(JOURNEY_END * Math.min(1, Math.max(0, position / distance)))
+      if(position>.5)delete journey.current.reverseTarget
+      if(position<distance-1)delete journey.current.forwardTarget
+      if (centering !== null && Math.abs(position-centering)<1) centering=null
     }
     const cancelCenter = (preserveWheelFraction = false) => {
       if(!preserveWheelFraction)wheelRemainder=0
@@ -195,7 +202,7 @@ export function PolarExperience() {
   return <div className="journey-track"><main id="app">
     <GlitchEffects />
     <div id="webgl" aria-hidden="true">
-      {supported === false ? <Fallback /> : supported && <SceneBoundary onFailure={() => setReady(true)}><App3D onReady={() => setReady(true)} reducedMotion={reducedMotion} journey={journey} /></SceneBoundary>}
+      {supported === false ? <Fallback /> : supported && <SceneBoundary onFailure={() => setReady(true)}><App3D onReady={() => setReady(true)} onLoading={() => setReady(false)} reducedMotion={reducedMotion} journey={journey} /></SceneBoundary>}
     </div>
     <div className="vignette" />
     <div id="ice-measurements" aria-hidden="true" />
@@ -215,12 +222,13 @@ export function PolarExperience() {
       <nav aria-label="Social links"><a href="https://github.com/TUAHASHAIKH" target="_blank" rel="noreferrer">GitHub ↗</a><a href="https://www.linkedin.com/in/muhammad-tuaha-shaikh" target="_blank" rel="noreferrer">LinkedIn ↗</a></nav>
     </aside>
     <footer className="bottom-bar">
+      <ThemeToggle />
       <button className="sound-toggle" onClick={() => void portfolioAudio.toggle()} aria-pressed={sound} aria-busy={audioState.loading} aria-label={sound ? 'Mute all sounds' : 'Enable scene sounds and music'} data-sound="short" data-glitch-trigger>
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true"><path d="M11 4 5 9H2v6h3l6 5V4Z" />{sound ? <><path d="M15 8c2 2 2 6 0 8M18 5c4 4 4 10 0 14" /></> : <path d="m16 9 6 6m0-6-6 6" />}</svg>
-        <span>Sound: {audioState.loading ? 'Loading' : sound ? 'On' : 'Off'}</span>
+        <span>Sound: {audioState.blocked ? 'Enable' : audioState.loading && !sound ? 'Loading' : sound ? 'On' : 'Off'}</span>
       </button>
     </footer>
-    <span className="sr-only" role="status">{audioState.failed ? 'Some sounds could not load. Toggle sound to retry.' : ''}</span>
+    <span className="sr-only" role="status">{audioState.failed ? 'Some sounds could not load. Toggle sound to retry.' : audioState.blocked ? 'Your browser requires a click or tap to start sound.' : ''}</span>
     <div id="loader" data-ready={ready} role="status" aria-live="polite" aria-label={ready ? 'Scene ready' : 'Preparing the landscape'}>
       <span className="loader-name">TUAHA SHAIKH</span><span className="ascii" aria-hidden="true">---===+++===---</span><span className="loader-caption">ASSEMBLING A SMALL WORLD</span>
     </div>

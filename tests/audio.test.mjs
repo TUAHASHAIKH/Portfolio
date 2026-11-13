@@ -53,7 +53,7 @@ test('detail glitch bursts start and finish quietly and cannot remain active', (
 
 test('audio defaults on, reuses loops, throttles beeps, mutes cues, and retries missing files', async () => {
   const originalFetch = globalThis.fetch, originalContext = globalThis.AudioContext, originalDocument = globalThis.document
-  const contexts = [], requests = []
+  const contexts = [], requests = [], automation = []
   let fail = true, autoplayBlocked = true
   class FakeContext {
     currentTime = 1
@@ -61,7 +61,7 @@ test('audio defaults on, reuses loops, throttles beeps, mutes cues, and retries 
     destination = {}
     sources = []
     constructor() { contexts.push(this) }
-    createGain() { return { gain: { value: 0, setTargetAtTime(value) { this.value = value } }, connect() {}, disconnect() {} } }
+    createGain() { return { gain: { value: 0, setTargetAtTime(value) { this.value = value; automation.push(value) } }, connect() {}, disconnect() {} } }
     createBufferSource() {
       const source = { loop: false, connect() {}, disconnect() {}, start() { this.started = true }, stop() { this.stopped = true } }
       this.sources.push(source); return source
@@ -84,9 +84,19 @@ test('audio defaults on, reuses loops, throttles beeps, mutes cues, and retries 
     const context = contexts[0]
     assert.equal(context.state, 'suspended', 'Blocked autoplay must not prevent decoding')
     assert.equal(audio.snapshot().loading, false)
-    autoplayBlocked = false; audio.unlock()
+    assert.equal(audio.snapshot().playing, false, 'Suspended autoplay must not claim to be audible')
+    assert.equal(audio.snapshot().blocked, true)
+    autoplayBlocked = false; await audio.toggle()
     assert.equal(context.state, 'running', 'A normal gesture resumes the existing context')
+    assert.equal(audio.snapshot().playing, true, 'The sound button enables blocked sound rather than muting it')
+    assert.equal(audio.snapshot().blocked, false)
     assert.equal(context.sources.filter(source => source.loop).length, 7)
+    audio.update(0,1)
+    const unchangedMix=automation.length
+    for(let frame=0;frame<120;frame++)audio.update(0,1/60)
+    assert.equal(automation.length,unchangedMix,'An unchanged mix leaves existing ramps running')
+    audio.update(7,1)
+    assert(automation.length>unchangedMix,'Entering a new scene updates its audio mix')
     const count = context.sources.length
     audio.cue('beeps'); audio.cue('beeps2')
     assert.equal(context.sources.length, count + 1, 'All beep variants share one cooldown')
@@ -101,7 +111,8 @@ test('audio defaults on, reuses loops, throttles beeps, mutes cues, and retries 
     fail = false
     await audio.toggle()
     assert.equal(audio.snapshot().failed, false)
-    assert.equal(requests.length, 19, 'Retry fetches only the missing recording')
+    assert.equal(requests.filter(url=>url.endsWith('logo.ogg')).length, 3, 'Each retry fetches the missing recording')
+    assert.equal(requests.filter(url=>!url.endsWith('logo.ogg')).length, 17, 'Retries reuse every successfully decoded recording')
     assert.equal(context.sources.filter(source => source.loop).length, 7)
     document.hidden = true; audio.visibility(); await Promise.resolve()
     assert.equal(context.state, 'suspended')

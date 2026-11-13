@@ -8,7 +8,9 @@ export function advanceJourney(state: Journey, motion: JourneyMotion, elapsed: n
   const destination=state.forwardTarget??(state.reverseTarget===undefined?state.target:state.reverseTarget-JOURNEY_END)
   if(reduced){state.value=destination;motion.velocity=0;return}
   const steps=Math.max(1,Math.ceil(Math.min(elapsed,.25)*120))
-  const dt=Math.min(elapsed,.25)/steps,rate=14,maxSpeed=1.5
+  // A softer critically damped response gives each gesture a longer glide,
+  // while retaining continuous velocity and the same bounded travel speed.
+  const dt=Math.min(elapsed,.25)/steps,rate=10,maxSpeed=1.5
   for(let i=0;i<steps;i++){
     const target=state.value+Math.max(-2*maxSpeed/rate,Math.min(2*maxSpeed/rate,destination-state.value))
     const offset=state.value-target,decay=Math.exp(-rate*dt)

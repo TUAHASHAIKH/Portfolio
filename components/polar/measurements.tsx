@@ -4,11 +4,15 @@ import { useFrame, useThree } from '@react-three/fiber'
 import { useEffect, useMemo, useRef } from 'react'
 import { createRoot } from 'react-dom/client'
 import * as THREE from 'three'
+import type { Journey } from './journey'
 
 type Piece = { center: THREE.Vector3; point: THREE.Vector3; motion: { slow: number } }
 type Node = { id: number; progress: number; leaving: boolean; x: number; y: number }
+const attribute = (element: SVGElement, name: string, value: string) => {
+  if (element.getAttribute(name) !== value) element.setAttribute(name, value)
+}
 
-export function Measurements({ pieces, cursor, reduced, lift }: { pieces: Piece[]; cursor: THREE.Vector3; reduced: boolean; lift?: { value: number } }) {
+export function Measurements({ pieces, cursor, reduced, lift, journey }: { pieces: Piece[]; cursor: THREE.Vector3; reduced: boolean; lift?: { value: number }; journey: React.RefObject<Journey> }) {
   const { camera, size } = useThree()
   const svg = useRef<SVGSVGElement>(null)
   const groups = useRef<(SVGGElement | null)[]>([])
@@ -21,6 +25,15 @@ export function Measurements({ pieces, cursor, reduced, lift }: { pieces: Piece[
 
   useFrame((_, frameDelta) => {
     if (!svg.current) return
+    const away = journey.current.value >= .94 && journey.current.value <= 8.6
+    if (away || reduced) {
+      if (svg.current.style.display !== 'none') svg.current.style.display = 'none'
+      nodes.current.length = 0
+      edges.current.length = 0
+      signature.current = ''
+      return
+    }
+    if (svg.current.style.display === 'none') svg.current.style.display = ''
     const delta = Math.min(frameDelta, .25)
     scratch.towardCamera.copy(camera.position).sub(cursor).normalize()
     scratch.selection.copy(cursor).add(scratch.towardCamera)
@@ -71,31 +84,31 @@ export function Measurements({ pieces, cursor, reduced, lift }: { pieces: Piece[
     for (let index = 0; index < 5; index++) {
       const node = selected[index], group = groups.current[index]
       if (!group) continue
-      if (!node) { group.setAttribute('opacity', '0'); continue }
+      if (!node) { attribute(group, 'opacity', '0'); continue }
       const piece = pieces[node.id]
       scratch.point.copy(piece.center).normalize().multiplyScalar(.2).add(piece.point).project(camera)
       node.x = (scratch.point.x * .5 + .5) * size.width
       node.y = (-(scratch.point.y+(lift?.value||0)) * .5 + .5) * size.height
-      group.setAttribute('transform', `translate(${node.x} ${node.y}) scale(${node.progress})`)
-      group.setAttribute('opacity', String(node.progress))
-      group.dataset.piece = String(node.id)
+      attribute(group,'transform', `translate(${node.x} ${node.y}) scale(${node.progress})`)
+      attribute(group,'opacity', String(node.progress))
+      if(group.dataset.piece!==String(node.id))group.dataset.piece = String(node.id)
       const number = String(Math.floor(piece.center.distanceTo(piece.point) * 50) % 100).padStart(2, '0')
       const label = labels.current[index]
       if (label) {
-        label.textContent = number
+        if(label.textContent!==number)label.textContent = number
         const rightSide = node.x > size.width * .5
-        label.setAttribute('x', rightSide ? '10' : '-10')
-        label.setAttribute('text-anchor', rightSide ? 'start' : 'end')
+        attribute(label,'x', rightSide ? '10' : '-10')
+        attribute(label,'text-anchor', rightSide ? 'start' : 'end')
       }
     }
     for (let index = 0; index < 10; index++) {
       const path = lines.current[index], edge = edges.current[index]
       if (!path) continue
       const a = edge && selected.find(node => node.id === edge[0]), b = edge && selected.find(node => node.id === edge[1])
-      if (!a || !b) { path.setAttribute('opacity', '0'); continue }
+      if (!a || !b) { attribute(path,'opacity', '0'); continue }
       const progress = Math.min(a.progress, b.progress)
-      path.setAttribute('d', `M${a.x},${a.y} L${THREE.MathUtils.lerp(a.x, b.x, progress)},${THREE.MathUtils.lerp(a.y, b.y, progress)}`)
-      path.setAttribute('opacity', String(.25 * progress))
+      attribute(path,'d', `M${a.x},${a.y} L${THREE.MathUtils.lerp(a.x, b.x, progress)},${THREE.MathUtils.lerp(a.y, b.y, progress)}`)
+      attribute(path,'opacity', String(.25 * progress))
     }
   }, .5)
 

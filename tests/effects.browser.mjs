@@ -17,7 +17,7 @@ try{
  await b.send('Page.navigate',{url:process.env.PORTFOLIO_URL||'http://localhost:3000'})
  for(let i=0;i<80;i++){await wait(250);if(await b.evaluate('document.querySelector("#app")?.dataset.crystalReady')==='true')break}
  assert.equal(await b.evaluate('document.querySelector("#app")?.dataset.crystalReady'),'true','The portfolio server and WebGL scene must be ready before testing effects')
- assert.equal(await b.evaluate('document.querySelector(".sound-toggle").getAttribute("aria-pressed")'),'true','Sound defaults to On')
+ assert.equal(await b.evaluate('document.querySelector(".sound-toggle").getAttribute("aria-pressed")'),'false','Blocked autoplay must not claim to be audible')
  // A normal page gesture unlocks blocked autoplay without toggling sound off.
  const point={x:1100,y:700}
  await b.send('Input.dispatchMouseEvent',{type:'mousePressed',button:'left',clickCount:1,...point})

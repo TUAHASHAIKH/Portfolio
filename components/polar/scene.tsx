@@ -1,8 +1,12 @@
 'use client'
 
+import { night } from './theme-uniform'
+import { ThemeLighting } from './theme-lighting'
+import { celestial } from './celestial'
+import { skyUniforms } from './sky-motion'
 import { Canvas, useFrame, useThree } from '@react-three/fiber'
 import { Html } from '@react-three/drei'
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react'
 import * as THREE from 'three'
 import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js'
 import { RenderPass } from 'three/addons/postprocessing/RenderPass.js'
@@ -10,13 +14,14 @@ import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js'
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js'
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js'
 import { loadPolarAssets, type PolarAssets } from './assets'
-import { liftLandscape, makeIceMaterial, makeTerrainMaterial, surfaceVertex } from './materials'
+import { liftLandscape, makeTerrainMaterial, surfaceVertex } from './materials'
+import { makeIceBatch } from './ice-batch'
+import { compileForTarget } from './shader-preparation'
+import { readyJourneyTarget } from './scene-readiness'
 import { Measurements } from './measurements'
 import { Wind } from './wind'
 import { Assembly } from './assembly'
 import { advanceLanding, landingPose } from './landing-motion'
-import { Crystal } from './crystal'
-import { Rings } from './rings'
 import { ringJourney } from './ring-journey'
 import { advanceJourney, forwardAtBoundary, reverseAtBoundary } from './journey-motion'
 import { portfolioAudio } from './audio-engine'
@@ -24,6 +29,8 @@ import { glitchEnvelope } from './glitch-motion'
 import { ease, range, returnProgress, returnChoreography, landscapeTravel, journeyView, crystalJourney, crystalCenter, isCrystalKind, CRYSTAL_KINDS, JOURNEY_END, type Journey } from './journey'
 
 type Motion = { fast: number; slow: number }
+const Crystal = lazy(() => import('./crystal').then(module => ({ default: module.Crystal })))
+const Rings = lazy(() => import('./rings').then(module => ({ default: module.Rings })))
 const radians = (degrees: number) => degrees * Math.PI / 180
 // Convert the reference's 60 Hz interpolation coefficients into per-second rates.
 const pointerResponse = -60 * Math.log(1 - .05)
@@ -48,8 +55,10 @@ const terrain = [
 ]
 const tuple = (values: number[]) => values as [number, number, number]
 
-function PostProcessing({ assets, journey, reduced }: { assets: PolarAssets; journey: React.RefObject<Journey>; reduced: boolean }) {
-  const { gl, scene, camera, size } = useThree()
+function PostProcessing({ assets, journey, reduced, prepared, onReady }: { assets: PolarAssets; journey: React.RefObject<Journey>; reduced: boolean; prepared: React.RefObject<boolean>; onReady: () => void }) {
+  const { gl, scene, camera, size, invalidate } = useThree()
+  const dpr = useThree(state => state.viewport.dpr)
+  const painted = useRef(false)
   const glitch = useRef({ started: -Infinity, duration: .9, seed: 0 })
   useEffect(() => {
     const transition = (event: Event) => {
@@ -68,12 +77,13 @@ function PostProcessing({ assets, journey, reduced }: { assets: PolarAssets; jou
     const composer = new EffectComposer(gl)
     const render = new RenderPass(scene, camera)
     const grade = new ShaderPass({
-      uniforms: { tDiffuse: { value: null }, grade: { value: assets.grade }, crystalGrade: { value: assets.grade }, crystalMix: { value: 0 }, ringMix: { value: 0 } },
+      uniforms: { night, tDiffuse: { value: null }, grade: { value: assets.grade }, crystalGrade: { value: assets.grade }, crystalMix: { value: 0 }, ringMix: { value: 0 } },
       vertexShader: 'varying vec2 vUv;void main(){vUv=uv;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.);}',
       fragmentShader: `
         uniform sampler2D tDiffuse;
         uniform highp sampler3D grade;
         uniform highp sampler3D crystalGrade;
+        uniform float night;
         uniform float crystalMix;
         uniform float ringMix;
         varying vec2 vUv;
@@ -96,7 +106,7 @@ function PostProcessing({ assets, journey, reduced }: { assets: PolarAssets; jou
           color = mix(color/12.92,pow((color+.055)/1.055,vec3(2.4)),step(vec3(.04045),color));
           // Bound ring highlights before bloom, as the reference LUT does,
           // while preserving the established grey ring palette.
-          gl_FragColor=vec4(mix(color,clamp(original,0.,1.),ringMix),1.);
+          gl_FragColor=vec4(mix(mix(color,clamp(original,0.,1.),ringMix),original,night),1.);
         }
       `,
     })
@@ -138,29 +148,33 @@ function PostProcessing({ assets, journey, reduced }: { assets: PolarAssets; jou
     })
     const output = new OutputPass()
     composer.addPass(render); composer.addPass(grade); composer.addPass(bloom); composer.addPass(distortion); composer.addPass(frost); composer.addPass(output)
-    return { composer, render, grade, bloom, distortion, frost, output }
+    return { composer, render, grade, bloom, distortion, frost, output, prepared: false }
   }, [gl, scene, camera, assets.grade])
   const pipelineLifetime=useMemo(()=>({users:0,preparation:Promise.resolve()}),[pipeline])
-  useEffect(() => { pipeline.composer.setSize(size.width, size.height) }, [pipeline, size])
   useEffect(() => {
-    // This pass starts disabled. Prepare it now instead of compiling at the
-    // first wheel event, when the frame budget is needed for the transition.
+    pipeline.composer.setPixelRatio(dpr)
+    pipeline.composer.setSize(size.width,size.height)
+  }, [pipeline,size.width,size.height,dpr])
+  useEffect(() => {
+    // Prepare the full pass chain, including bloom's five blur variants, before
+    // linking any of it in a visible frame or under the first wheel gesture.
     const warmScene = new THREE.Scene()
     const geometry = new THREE.PlaneGeometry(2, 2)
-    const target = new THREE.WebGLRenderTarget(16,16)
+    const target = new THREE.WebGLRenderTarget(16,16,{type:THREE.HalfFloatType})
     const camera = new THREE.OrthographicCamera(-1,1,1,-1,0,1)
     let cancelled = false
-    warmScene.add(new THREE.Mesh(geometry, pipeline.distortion.material))
-    warmScene.add(new THREE.Mesh(geometry, pipeline.frost.material))
-    pipelineLifetime.preparation=gl.compileAsync(warmScene, camera).then(() => {
+    for (const material of [pipeline.grade.material,pipeline.distortion.material,pipeline.frost.material,pipeline.bloom.materialHighPassFilter,...pipeline.bloom.separableBlurMaterials,pipeline.bloom.compositeMaterial,pipeline.bloom.blendMaterial]) {
+      warmScene.add(new THREE.Mesh(geometry,material))
+    }
+    pipelineLifetime.preparation=compileForTarget(gl, warmScene, camera, target).then(() => {
       if (cancelled) return
-      const previous = gl.getRenderTarget()
-      try { gl.setRenderTarget(target); gl.render(warmScene, camera) }
-      finally { gl.setRenderTarget(previous); target.dispose() }
+      pipeline.prepared = true
+      invalidate(3)
     })
-      .catch(error => console.error('Transition shader preparation:', error))
+      .catch(error => { if (!cancelled) { console.error('Transition shader preparation:', error); pipeline.prepared = true; invalidate(3) } })
+      .finally(() => target.dispose())
     return () => { cancelled = true; geometry.dispose(); target.dispose() }
-  }, [gl, pipeline,pipelineLifetime])
+  }, [gl, pipeline,pipelineLifetime,invalidate])
   useEffect(() => {
     pipelineLifetime.users++
     return()=>{pipelineLifetime.users--;void pipelineLifetime.preparation.then(()=>{
@@ -169,7 +183,12 @@ function PostProcessing({ assets, journey, reduced }: { assets: PolarAssets; jou
     })}
   }, [pipeline,pipelineLifetime])
   useFrame((_, delta) => {
+    if (!prepared.current || !pipeline.prepared) return
     const p = journey.current.value
+    // At full night this pass is exactly the identity. Keep it for the
+    // transition, then avoid a full-resolution copy and eight 3D LUT reads.
+    pipeline.grade.enabled = night.value < 1
+    pipeline.grade.uniforms.night.value = night.value
     pipeline.grade.uniforms.crystalGrade.value = scene.userData.crystalGrade || assets.grade
     pipeline.grade.uniforms.crystalMix.value = ease(range(p, .4, .9))*(1-ease(range(p,8.6,9.8)))
     const rings = Number(scene.userData.ringOpacity || 0)
@@ -197,6 +216,11 @@ function PostProcessing({ assets, journey, reduced }: { assets: PolarAssets; jou
     pipeline.distortion.uniforms.curtain.value = returnProgress(p)
     pipeline.distortion.enabled = !reduced && (strength > .001 || glitchAmount > .001)
     pipeline.composer.render(delta)
+    if (!painted.current) {
+      painted.current = true
+      gl.domElement.closest('#app')?.setAttribute('data-hero-ready', 'true')
+      onReady()
+    }
   }, 1)
   return null
 }
@@ -204,25 +228,27 @@ function PostProcessing({ assets, journey, reduced }: { assets: PolarAssets; jou
 function Ice({ assets, cursor, engaged, reduced, intro, journey, lift }: { assets: PolarAssets; cursor: THREE.Vector3; engaged: React.RefObject<boolean>; reduced: boolean; intro: React.RefObject<number>; journey: React.RefObject<Journey>; lift: { value: number } }) {
   const idle=useRef(0)
   const outline=useRef<THREE.LineBasicMaterial>(null)
-  const meshes = useRef<(THREE.Mesh | null)[]>([])
+  const mesh = useRef<THREE.Mesh>(null)
+  const batch = useMemo(() => makeIceBatch(assets), [assets])
   const resources = useMemo(() => assets.pieces.map(piece => {
-    const material = makeIceMaterial(assets)
-    return { ...piece, material, motion: { fast: 0, slow: 0 } as Motion, bounce: { fast: 0, slow: 0 } as Motion, point: piece.center.clone() }
+    return { ...piece, transform: new THREE.Object3D(), motion: { fast: 0, slow: 0 } as Motion, bounce: { fast: 0, slow: 0 } as Motion, point: piece.center.clone() }
   }), [assets])
-  useEffect(() => () => { resources.forEach(piece => piece.material.dispose()) }, [resources])
+  useEffect(() => () => batch.dispose(), [batch])
   useFrame((_, frameDelta) => {
+    const p=journey.current.value
+    if (p >= .94 && p <= 8.6) return
     const delta = Math.min(frameDelta, .25)
     if(!reduced)idle.current+=delta
-    const p=journey.current.value
     const returning=returnChoreography(p)
     const hero=p>8.6?returnProgress(p):1-ease(range(p,.03,.65))
     const landing=landingPose(intro.current,reduced)
+    if (mesh.current) mesh.current.visible = landing.iceVisible
+    batch.material.uniforms.materialize.value = landing.iceReveal
+    batch.material.uniforms.time.value = idle.current
     const arrival=landing.breathing
     if(outline.current)outline.current.opacity=p>8.6&&!reduced?returning.scatter*returning.arrival*.32:0
     resources.forEach((piece, index) => {
-      const mesh = meshes.current[index]
-      if (!mesh) return
-      mesh.visible=landing.iceVisible
+      const mesh = piece.transform
       const distance = piece.center.distanceTo(cursor)
       const influence = 1 - THREE.MathUtils.smoothstep(distance, 1, 3)
       const anchored = THREE.MathUtils.smoothstep(piece.center.y, .45, .7)
@@ -250,24 +276,24 @@ function Ice({ assets, cursor, engaged, reduced, intro, journey, lift }: { asset
         Math.cos(piece.seed.x * 30 + amount * 2) * amount * .5,
         'YZX',
       )
-      piece.material.uniforms.materialize.value = landing.iceReveal
-      piece.material.uniforms.separation.value = amount
-      piece.material.uniforms.bounce.value = piece.bounce.slow
-      piece.material.uniforms.time.value = time
+      mesh.updateMatrix()
+      batch.write(index, mesh.matrix, amount, piece.bounce.slow)
       piece.point.copy(mesh.position)
     })
+    batch.texture.needsUpdate = true
   })
   return <group name="living-igloo">
     <lineSegments geometry={assets.introOutline} renderOrder={5} raycast={()=>{}}>
       <lineBasicMaterial ref={outline} transparent opacity={0} color="#dceaff" depthWrite={false} blending={THREE.AdditiveBlending} />
     </lineSegments>
-    {resources.map((piece, index) => <mesh key={index} ref={mesh => { meshes.current[index] = mesh }} geometry={piece.geometry} material={piece.material} position={piece.center} renderOrder={4} />)}
-    <Measurements pieces={resources} cursor={cursor} reduced={reduced} lift={lift} />
+    <mesh ref={mesh} geometry={batch.geometry} material={batch.material} frustumCulled={false} renderOrder={4} />
+    <Measurements pieces={resources} cursor={cursor} reduced={reduced} lift={lift} journey={journey} />
   </group>
 }
 
 function World({ assets, onReady, reduced, journey }: { assets: PolarAssets; onReady: () => void; reduced: boolean; journey: React.RefObject<Journey> }) {
-  const { gl, camera, size } = useThree()
+  const { gl, scene, camera, size, invalidate } = useThree()
+  const prepared = useRef(false)
   const pointer = useMemo(() => new THREE.Vector2(), [])
   const landscape = useRef<THREE.Group>(null)
   const lift = useMemo(()=>({ value: 0 }),[])
@@ -281,7 +307,7 @@ function World({ assets, onReady, reduced, journey }: { assets: PolarAssets; onR
   const worldUp = useMemo(() => new THREE.Vector3(0, 1, 0), [])
   const engaged = useRef(false)
   const windTime = useRef(0)
-  const introTime = useRef(-.7)
+  const introTime = useRef(0)
   const [assembling, setAssembling] = useState(!reduced)
   const introCamera = useMemo(() => new THREE.Vector3(), [])
   const introTarget = useMemo(() => new THREE.Vector3(), [])
@@ -295,14 +321,33 @@ function World({ assets, onReady, reduced, journey }: { assets: PolarAssets; onR
     mountain: makeTerrainMaterial(assets.mountainMap, { mountain: true, intro: assets }),
     terrain: makeTerrainMaterial(assets.terrainMap, { wind: assets.wind, intro: assets }),
     patch: makeTerrainMaterial(assets.terrainMap, { patch: true, wind: assets.wind, intro: assets }),
+    // The individual terrain tiles feather to transparent at their edges.
+    // A continuous snow bed closes those seams without changing the skyline.
+    snowBed: new THREE.ShaderMaterial({
+      transparent: true, depthWrite: false,
+      uniforms: { night, noise: { value: assets.wind }, introAlpha: { value: 0 } },
+      vertexShader: surfaceVertex,
+      fragmentShader: `uniform float night;uniform float introAlpha;uniform sampler2D noise;
+        varying vec3 worldPoint;varying float viewDepth;
+        void main(){
+          if(night<.001)discard;
+          float grain=texture2D(noise,worldPoint.xz*.035).r;
+          float detail=texture2D(noise,worldPoint.xz*.19).r;
+          vec3 snow=vec3(.024,.034,.052)*( .86+grain*.2+detail*.08);
+          vec3 horizon=vec3(.026,.036,.052);
+          snow=mix(snow,horizon,smoothstep(20.,140.,viewDepth));
+          gl_FragColor=vec4(snow,night*introAlpha);
+        }`,
+    }),
     haze: new THREE.ShaderMaterial({
       transparent: true, depthWrite: false,
-      uniforms: { noise: { value: assets.wind }, time: { value: 0 }, introAlpha: { value: 0 } },
+      uniforms: { night, noise: { value: assets.wind }, time: { value: 0 }, introAlpha: { value: 0 } },
       vertexShader: surfaceVertex,
       fragmentShader: `
         uniform sampler2D noise;
         uniform float time;
         uniform float introAlpha;
+        uniform float night;
         varying vec2 surfaceUv;
         varying vec3 worldPoint;
         void main(){
@@ -313,15 +358,15 @@ function World({ assets, onReady, reduced, journey }: { assets: PolarAssets; onR
           wisps*=texture2D(noise,uv*.5+vec2(drift.x,-time*.0525)).r;
           float edge=smoothstep(0.,.5,surfaceUv.x)*(1.-smoothstep(.8,1.,surfaceUv.x));
           float veil=wisps*edge*smoothstep(0.,.1,surfaceUv.y)*(1.-surfaceUv.y)*6.;
-          gl_FragColor=vec4(vec3(.86,.88,.92),min(veil,.45)*introAlpha);
+          gl_FragColor=vec4(mix(vec3(.86,.88,.92),vec3(.06,.14,.22),night),min(veil,.45)*introAlpha);
         }
       `,
     }),
     sky: new THREE.ShaderMaterial({
       side: THREE.BackSide, depthWrite: false,
-      uniforms: { resolution: { value: new THREE.Vector2(size.width, size.height) }, reveal: { value: 0 }, loadingColor: { value: new THREE.Color('#b3bac9') } },
+      uniforms: { ...skyUniforms, night, time: {value:0}, resolution: { value: new THREE.Vector2(size.width, size.height) }, reveal: { value: 0 }, loadingColor: { value: new THREE.Color('#b3bac9') } },
       vertexShader: surfaceVertex,
-      fragmentShader: 'uniform vec2 resolution;uniform float reveal;uniform vec3 loadingColor;void main(){vec2 uv=gl_FragCoord.xy/resolution;float t=pow((uv.x+uv.y)*.5,2.);vec3 sky=mix(vec3(.4287,.4678,.5711),vec3(.6376,.6724,.7682),t);gl_FragColor=vec4(mix(loadingColor,sky,reveal),1.);}',
+      fragmentShader: `${celestial} uniform float night;uniform float time;uniform vec2 resolution;uniform float reveal;uniform vec3 loadingColor;void main(){vec2 uv=gl_FragCoord.xy/resolution;float t=pow((uv.x+uv.y)*.5,2.);vec3 sky=mix(vec3(.4287,.4678,.5711),vec3(.6376,.6724,.7682),t);if(night>0.){float clearSky=smoothstep(.72,.95,uv.y);vec3 nocturne=vec3(.031,.042,.059);if(clearSky>0.)nocturne=mix(nocturne,nightSky(uv,resolution.x/resolution.y,time,1.),clearSky);sky=mix(sky,nocturne,night);}gl_FragColor=vec4(mix(mix(loadingColor,vec3(.002,.004,.012),night),sky,reveal),1.);}`,
     }),
   }), [assets])
   useEffect(()=>{
@@ -356,9 +401,21 @@ function World({ assets, onReady, reduced, journey }: { assets: PolarAssets; onR
     window.addEventListener('blur', leave)
     return () => { element.removeEventListener('pointermove', move); element.removeEventListener('pointerleave', leave); window.removeEventListener('blur', leave) }
   }, [gl, pointer])
-  useEffect(() => { onReady() }, [onReady])
+  useEffect(() => {
+    let cancelled = false
+    const target = new THREE.WebGLRenderTarget(16,16,{type:THREE.HalfFloatType})
+    // Queue hero shader compilation before the first visible draw. Waiting on
+    // parallel compilation avoids blocking the first animation frame on link.
+    void compileForTarget(gl,scene,camera,target).then(() => {
+      if (!cancelled) { prepared.current = true; invalidate() }
+    }).catch(error => {
+      if (!cancelled) { console.error('Landscape shader preparation:',error); prepared.current = true; invalidate() }
+    }).finally(() => target.dispose())
+    return () => { cancelled = true }
+  }, [gl,scene,camera,invalidate])
   useEffect(() => () => Object.values(surfaces).forEach(material => material.dispose()), [surfaces])
   useFrame((_, frameDelta) => {
+    if (!prepared.current) return
     const delta = Math.min(frameDelta, .25), mobile = size.width < 700
     const p = journey.current.value
     lift.value=reduced?0:landscapeTravel(p)
@@ -378,7 +435,7 @@ function World({ assets, onReady, reduced, journey }: { assets: PolarAssets; onR
     cameraRight.crossVectors(worldUp, normal).normalize()
     cameraUp.crossVectors(normal, cameraRight).normalize()
     cameraOffset.applyAxisAngle(cameraRight, orbit.current.pitch).applyAxisAngle(cameraUp, orbit.current.yaw)
-    if (assembling && introTime.current >= 5.2) setAssembling(false)
+    if (assembling && landing.assemblyComplete) setAssembling(false)
     const arrival = landing.camera
     introCamera.set(-14 * distance, 21 * distance, 14 * distance)
     camera.position.copy(cameraTarget).add(cameraOffset).lerp(introCamera, 1 - arrival)
@@ -391,6 +448,7 @@ function World({ assets, onReady, reduced, journey }: { assets: PolarAssets; onR
       material.uniforms.fillReveal.value = landing.terrainFill
       material.uniforms.introAlpha.value = material===surfaces.mountain?landing.mountainAlpha:landing.terrainAlpha
     }
+    surfaces.snowBed.uniforms.introAlpha.value=landing.terrainAlpha
     surfaces.haze.uniforms.introAlpha.value=landing.mist
     surfaces.sky.uniforms.reveal.value=landing.sky
     const app = gl.domElement.closest('#app'), introduced = String(landing.introduced)
@@ -415,6 +473,7 @@ function World({ assets, onReady, reduced, journey }: { assets: PolarAssets; onR
   return <>
     <group ref={landscape} name="polar-landscape">
     <mesh name="landscape-sky" material={surfaces.sky} renderOrder={-10}><sphereGeometry args={[700, 12, 12]} /></mesh>
+    <mesh name="continuous-snow-bed" material={surfaces.snowBed} position={[0,-2.5,0]} rotation={[-Math.PI/2,0,0]} renderOrder={-5}><planeGeometry args={[1200,1200]} /></mesh>
     {mountains.map((item, index) => <mesh key={`mountain-${index}`} geometry={assets.mountain} material={surfaces.mountain} position={tuple(item.position)} scale={tuple(item.scale)} rotation={tuple(item.rotation.map(radians))} renderOrder={0} />)}
     {terrain.map((item, index) => <mesh key={`terrain-${index}`} geometry={assets.ground} material={surfaces.terrain} position={tuple(item.position)} scale={tuple(item.scale)} rotation={tuple(item.rotation.map(radians))} renderOrder={1} />)}
     <mesh geometry={assets.patch} material={surfaces.patch} position={[-9.34,-1.77,6.96]} scale={7} renderOrder={0} />
@@ -424,11 +483,37 @@ function World({ assets, onReady, reduced, journey }: { assets: PolarAssets; onR
     <mesh material={surfaces.haze} position={[13.45,3,-4]} rotation={[0,radians(-10),0]} renderOrder={3}><planeGeometry args={[20,5]} /></mesh>
     <Ice assets={assets} cursor={cursor} engaged={engaged} reduced={reduced} intro={introTime} journey={journey} lift={lift} />
     {!reduced && assembling && <Assembly assets={assets} time={introTime} />}
-    {!reduced && <Wind intro={introTime} />}
+    {!reduced && <Wind intro={introTime} landscape={landscape} />}
     </group>
-    <Crystal noise={assets.wind} journey={journey} reduced={reduced} />
-    <Rings noise={assets.wind} journey={journey} reduced={reduced} />
-    <PostProcessing assets={assets} journey={journey} reduced={reduced} />
+    <JourneySections noise={assets.wind} journey={journey} reduced={reduced} />
+    <PostProcessing assets={assets} journey={journey} reduced={reduced} prepared={prepared} onReady={onReady} />
+  </>
+}
+
+function JourneySections(props: { noise: THREE.Texture; journey: React.RefObject<Journey>; reduced: boolean }) {
+  const [crystals, setCrystals] = useState(false)
+  const [rings, setRings] = useState(false)
+  useEffect(() => {
+    // Warm the next scene during the long wireframe entrance. Its lighting is
+    // already filtered, so preparing it no longer triggers a synchronous PMREM.
+    let crystalTimer: ReturnType<typeof setTimeout>, ringTimer: ReturnType<typeof setTimeout>
+    const prepareRings = () => { ringTimer = setTimeout(() => setRings(true),1800) }
+    const start = () => {
+      crystalTimer = setTimeout(() => setCrystals(true),250)
+    }
+    window.addEventListener('portfolio:crystal-ready',prepareRings,{once:true})
+    window.addEventListener('portfolio:scene-ready',start,{once:true})
+    if (document.querySelector('#loader')?.getAttribute('data-ready') === 'true') start()
+    return () => { window.removeEventListener('portfolio:scene-ready',start); window.removeEventListener('portfolio:crystal-ready',prepareRings); clearTimeout(crystalTimer); clearTimeout(ringTimer) }
+  }, [])
+  useFrame(() => {
+    const reverse = props.journey.current.reverseTarget !== undefined
+    if (!crystals && (props.journey.current.target > .02 || reverse)) setCrystals(true)
+    if (!rings && (props.journey.current.target > .6 || reverse)) setRings(true)
+  }, -1)
+  return <>
+    {crystals && <Suspense fallback={null}><Crystal {...props} /></Suspense>}
+    {rings && <Suspense fallback={null}><Rings {...props} /></Suspense>}
   </>
 }
 
@@ -450,17 +535,100 @@ function SceneController({ onReady, reduced, journey }: { onReady: () => void; r
   return assets && <World assets={assets} onReady={onReady} reduced={reduced} journey={journey} />
 }
 
-export default function App3D({ onReady, reducedMotion, journey }: { onReady: () => void; reducedMotion: boolean; journey: React.RefObject<Journey> }) {
+export default function App3D({ onReady, onLoading, reducedMotion, journey }: { onReady: () => void; onLoading: () => void; reducedMotion: boolean; journey: React.RefObject<Journey> }) {
   const [visible, setVisible] = useState(true)
+  const [recovery, setRecovery] = useState(0)
+  const [contextFailed, setContextFailed] = useState(false)
+  const recover = () => {
+    const app = document.querySelector<HTMLElement>('#app')
+    if (app) for (const key of ['heroReady','crystalReady','ringsReady']) delete app.dataset[key]
+    if (recovery > 0) { setContextFailed(true); onReady(); return }
+    onLoading()
+    setRecovery(value => value + 1)
+  }
   useEffect(() => {
     const update = () => setVisible(!document.hidden)
     document.addEventListener('visibilitychange', update)
     return () => document.removeEventListener('visibilitychange', update)
   }, [])
-  return <Canvas dpr={[1,1.5]} camera={{ position: [...heroPosition], fov: 30, near: .1, far: 1000 }} gl={{ antialias: true, alpha: false, outputColorSpace: THREE.SRGBColorSpace, toneMapping: THREE.NoToneMapping, powerPreference: 'high-performance' }} frameloop={visible ? 'always' : 'never'}>
+  if (contextFailed) return <div className="fallback"><p>Graphics were interrupted.<br /><button onClick={() => { onLoading(); setContextFailed(false); setRecovery(0) }}>Reload the scene</button></p></div>
+  return <Canvas key={recovery} resize={{ scroll: false, debounce: { scroll: 150, resize: 150 } }} dpr={recovery ? 1 : [1,1.5]} camera={{ position: [...heroPosition], fov: 30, near: .1, far: 1000 }} gl={{ antialias: true, alpha: false, outputColorSpace: THREE.SRGBColorSpace, toneMapping: THREE.NoToneMapping, powerPreference: 'high-performance' }} frameloop={visible ? reducedMotion ? 'demand' : 'always' : 'never'}>
+    <color attach="background" args={['#a0a5b1']} />
+    <ContextRecovery recover={recover} />
+    <FrameBudget reduced={reducedMotion} maximum={recovery ? 1 : 1.5} />
+    <FrameActivity reduced={reducedMotion} />
+    <SkyMotion journey={journey} reduced={reducedMotion} />
+    <ThemeLighting reduced={reducedMotion} />
     <JourneyMotion journey={journey} reduced={reducedMotion} />
     <SceneController onReady={onReady} reduced={reducedMotion} journey={journey} />
   </Canvas>
+}
+
+function ContextRecovery({ recover }: { recover: () => void }) {
+  const canvas = useThree(state => state.gl.domElement)
+  useEffect(() => {
+    const lost = (event: Event) => { event.preventDefault(); recover() }
+    canvas.addEventListener('webglcontextlost',lost)
+    return () => canvas.removeEventListener('webglcontextlost',lost)
+  }, [canvas,recover])
+  return null
+}
+
+function FrameBudget({ reduced, maximum }: { reduced: boolean; maximum: number }) {
+  const { gl, setDpr } = useThree()
+  const budget = useRef({ elapsed: 0, frames: 0, fast: 0 })
+  useFrame((_, delta) => {
+    if (reduced || document.hidden) return
+    const sample = budget.current
+    // Exclude asset stalls and resumed tabs; measure sustained GPU pressure.
+    if (delta > .1) { sample.elapsed = 0; sample.frames = 0; sample.fast = 0; return }
+    sample.elapsed += delta; sample.frames++
+    if (sample.elapsed < 1.5) return
+    const average = sample.elapsed / sample.frames
+    const current = gl.getPixelRatio(), cap = Math.min(devicePixelRatio,maximum)
+    if (average > .022 && current > 1) { setDpr(Math.max(1,current-.25)); sample.fast = 0 }
+    else if (average < .018) {
+      sample.fast += sample.elapsed
+      if (sample.fast > 8 && current < cap) { setDpr(Math.min(cap,current+.25)); sample.fast = 0 }
+    } else sample.fast = 0
+    sample.elapsed = 0; sample.frames = 0
+  }, -3)
+  return null
+}
+
+function FrameActivity({ reduced }: { reduced: boolean }) {
+  const invalidate = useThree(state => state.invalidate)
+  useEffect(() => {
+    if (!reduced) return
+    // Static accessibility mode needs a new frame only when its inputs change.
+    // A short burst lets projected labels and render buffers settle together.
+    const refresh = () => invalidate(3)
+    // At a loop boundary the wheel/key changes intent without changing native
+    // scrollY. Demand rendering must still draw that input to cross the seam.
+    const events = ['scroll', 'wheel', 'keydown', 'touchmove', 'resize', 'portfolio:theme', 'portfolio:crystal-detail', 'portfolio:social-select', 'portfolio:reset-motion']
+    events.forEach(event => window.addEventListener(event, refresh, { passive: true }))
+    refresh()
+    return () => events.forEach(event => window.removeEventListener(event, refresh))
+  }, [invalidate, reduced])
+  return null
+}
+
+// One visible-tab clock drives every sky; accumulating small journey deltas
+// preserves star direction across loop seams.
+function SkyMotion({ journey, reduced }: { journey: React.RefObject<Journey>; reduced: boolean }) {
+  const previous = useRef(journey.current.value)
+  useEffect(() => { skyUniforms.skySeed.value = Math.random() * 1000 }, [])
+  useFrame((_, delta) => {
+    let distance = journey.current.value - previous.current
+    previous.current = journey.current.value
+    if (distance > JOURNEY_END / 2) distance -= JOURNEY_END
+    if (distance < -JOURNEY_END / 2) distance += JOURNEY_END
+    skyUniforms.skyMotion.value = reduced ? 0 : 1
+    if (reduced) return
+    skyUniforms.skyTime.value += Math.min(delta, .1)
+    skyUniforms.starTravel.value += distance * .22
+  }, -3)
+  return null
 }
 
 function JourneyMotion({ journey, reduced }: { journey: React.RefObject<Journey>; reduced: boolean }) {
@@ -469,12 +637,25 @@ function JourneyMotion({ journey, reduced }: { journey: React.RefObject<Journey>
   const overlay = useRef<HTMLElement | null>(null)
   const laps=useRef(0)
   const resumed=useRef(false)
+  const reveals = useRef<Map<string, { elements: HTMLElement[]; value: string }>>(new Map())
   useEffect(()=>{
+    // Scope each changing value to the layer that actually uses it. Inherited
+    // variables on #app invalidated every overlay and the canvas each frame.
+    const selectors: Record<string, string> = {
+      '--hero-opacity': '.identity,.intro',
+      '--crystal-opacity': '.crystal-atmosphere',
+      '--contact-opacity': '.social-chamber',
+      ...Object.fromEntries(CRYSTAL_KINDS.map(kind => [`--${kind}-opacity`, `.crystal-readout[data-crystal="${kind}"]`])),
+    }
+    for (const [property, selector] of Object.entries(selectors)) {
+      reveals.current.set(property, { elements: Array.from(document.querySelectorAll<HTMLElement>(selector)), value: '' })
+    }
     const reset=()=>{motion.current.velocity=0}
     const visibility=()=>{resumed.current=true;reset()}
     window.addEventListener('portfolio:reset-motion',reset)
     document.addEventListener('visibilitychange',visibility)
     return()=>{
+      reveals.current.clear()
       window.removeEventListener('portfolio:reset-motion',reset)
       document.removeEventListener('visibilitychange',visibility)
     }
@@ -494,9 +675,21 @@ function JourneyMotion({ journey, reduced }: { journey: React.RefObject<Journey>
     // The same trajectory drives retreat, curtain and crystal, without a stage switch.
     // The canvas pauses in background tabs. Do not integrate the time spent
     // hidden into a single visible camera step when it resumes.
+    const requested = state.target
+    const reverse = state.reverseTarget, forward = state.forwardTarget
+    const allReady = app?.dataset.heroReady === 'true' && app?.dataset.crystalReady === 'true' && app?.dataset.ringsReady === 'true'
+    state.target = readyJourneyTarget(requested, app?.dataset.heroReady === 'true', app?.dataset.crystalReady === 'true', app?.dataset.ringsReady === 'true')
+    const waiting = state.target !== requested || !allReady && (reverse !== undefined || forward !== undefined)
+    if (!allReady) { delete state.reverseTarget; delete state.forwardTarget }
+    if (app && app.dataset.scenePending !== String(waiting)) app.dataset.scenePending = String(waiting)
     advanceJourney(state,motion.current,resumed.current?0:delta,reduced)
+    state.target = requested
+    if (!allReady) {
+      if (reverse !== undefined) state.reverseTarget = reverse
+      if (forward !== undefined) state.forwardTarget = forward
+    }
     resumed.current=false
-    if(reverseAtBoundary(state,motion.current)){
+    if(allReady && reverseAtBoundary(state,motion.current)){
       window.dispatchEvent(new CustomEvent('portfolio:journey-reversed',{detail:state.target}))
     }
     // Both ends render the same assembled hero. Rebase only at the matching
@@ -513,14 +706,20 @@ function JourneyMotion({ journey, reduced }: { journey: React.RefObject<Journey>
     const shards = crystalJourney(state.value)
     const contact=ringJourney(state.value).contact
     const contactOpacity=contact.toFixed(4),contactInteractive=String(contact>.05)
-    if(app.style.getPropertyValue('--contact-opacity')!==contactOpacity)app.style.setProperty('--contact-opacity',contactOpacity)
+    const reveal = (property: string, value: string) => {
+      const layer = reveals.current.get(property)
+      if (!layer || layer.value === value) return
+      layer.value = value
+      for (const element of layer.elements) element.style.setProperty(property, value)
+    }
+    reveal('--contact-opacity',contactOpacity)
     if(app.dataset.contactInteractive!==contactInteractive)app.dataset.contactInteractive=contactInteractive
-    if (app.style.getPropertyValue('--hero-opacity') !== hero) app.style.setProperty('--hero-opacity', hero)
-    if (app.style.getPropertyValue('--crystal-opacity') !== crystal) app.style.setProperty('--crystal-opacity', crystal)
+    reveal('--hero-opacity',hero)
+    reveal('--crystal-opacity',crystal)
     for (const kind of CRYSTAL_KINDS) {
       const property = `--${kind}-opacity`
       const formatted = shards[`${kind}Opacity`].toFixed(4)
-      if (app.style.getPropertyValue(property) !== formatted) app.style.setProperty(property,formatted)
+      reveal(property,formatted)
       const enabled = String(shards[`${kind}Interactive`] && shards[`${kind}Opacity`]>.05)
       if(app.dataset[`${kind}Interactive`]!==enabled)app.dataset[`${kind}Interactive`]=enabled
     }

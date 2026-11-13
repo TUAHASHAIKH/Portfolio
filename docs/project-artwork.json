@@ -1,0 +1,286 @@
+{
+  "source": "Owner-supplied tuaha-portfolio-project-artwork collection, imported 2026-11-13",
+  "generation": "Supplied README describes HTML/SVG illustrations rendered in headless Chromium; PNG masters are 3200 x 2000",
+  "purpose": "Conceptual stylized project illustrations, not application screenshots or photoreal 3D renders",
+  "style": "Graphite backgrounds, glass-like panels, project-specific accent colors, centered 16:10 compositions",
+  "localArchive": ".preview/artwork-import-2026-11-13/",
+  "delivery": "Unmodified supplied WebP exports. Each URL uses a version derived from both responsive files to refresh cached artwork.",
+  "projects": [
+    {
+      "name": "Pulse",
+      "slug": "pulse",
+      "repository": "https://github.com/TUAHASHAIKH/Pulse",
+      "alt": "Three analysis nodes feed an orchestration core connected to a repair chamber; conceptual Pulse illustration",
+      "cacheVersion": "adbc452e2524",
+      "outputs": [
+        {
+          "path": "public/images/projects/covers/pulse.webp",
+          "width": 1600,
+          "height": 1000,
+          "bytes": 28212,
+          "sha256": "28e97cf7c7cfc907c5fdaf6eaaead52a543ef819838d0ab8135d3c015006c868"
+        },
+        {
+          "path": "public/images/projects/covers/pulse-800.webp",
+          "width": 800,
+          "height": 500,
+          "bytes": 11586,
+          "sha256": "1c9e7d463f46747bf0d4c29caa1968abcaf5ce12809833cf69209fefa8985dc1"
+        }
+      ]
+    },
+    {
+      "name": "Citrus",
+      "slug": "citrus",
+      "repository": "https://github.com/TUAHASHAIKH/Citrus",
+      "alt": "An orange conversion wheel connects image, audio, video, document, and spreadsheet symbols; conceptual Citrus illustration",
+      "cacheVersion": "3322905ed6c5",
+      "outputs": [
+        {
+          "path": "public/images/projects/covers/citrus.webp",
+          "width": 1600,
+          "height": 1000,
+          "bytes": 40028,
+          "sha256": "e8e75c80b2e2a194a86cd5d6b5a4a718fcbc5051c38a7099d99c0f588a641a64"
+        },
+        {
+          "path": "public/images/projects/covers/citrus-800.webp",
+          "width": 800,
+          "height": 500,
+          "bytes": 18324,
+          "sha256": "6157c337734392440c6f22471cc6a475456b2cbbf4f46f48c59a034e66d263d1"
+        }
+      ]
+    },
+    {
+      "name": "AutoML System for Classification",
+      "slug": "automl",
+      "repository": "https://github.com/TUAHASHAIKH/AutoML",
+      "alt": "Data fragments pass through seven model columns into comparison charts and a result prism; conceptual AutoML illustration",
+      "cacheVersion": "50b3f4a15403",
+      "outputs": [
+        {
+          "path": "public/images/projects/covers/automl.webp",
+          "width": 1600,
+          "height": 1000,
+          "bytes": 24794,
+          "sha256": "9b89d7f291829d8a36fe2079754a3c111b7483e0a8276b93295a07f7725ffc76"
+        },
+        {
+          "path": "public/images/projects/covers/automl-800.webp",
+          "width": 800,
+          "height": 500,
+          "bytes": 11188,
+          "sha256": "ab46229aceec741168d777ad588e9e3dc7ea8a10f87894bea562a58134584f63"
+        }
+      ]
+    },
+    {
+      "name": "SecurePassFS",
+      "slug": "securepassfs",
+      "repository": "https://github.com/TUAHASHAIKH/SecurePassFS",
+      "alt": "A layered vault contains an organized grid of protected storage blocks; conceptual SecurePassFS illustration",
+      "cacheVersion": "47ed3bb3de89",
+      "outputs": [
+        {
+          "path": "public/images/projects/covers/securepassfs.webp",
+          "width": 1600,
+          "height": 1000,
+          "bytes": 33030,
+          "sha256": "3afa976ef7250f5df300b5b860eb682a839f09075d27f2bf76fb75baad2efa53"
+        },
+        {
+          "path": "public/images/projects/covers/securepassfs-800.webp",
+          "width": 800,
+          "height": 500,
+          "bytes": 16382,
+          "sha256": "c8b6d9b6f725113712ab74436978e4d5ce8e19dd47d725e6ded276c2c7c77128"
+        }
+      ]
+    },
+    {
+      "name": "Grabpic",
+      "slug": "grabpic",
+      "repository": "https://github.com/TUAHASHAIKH/vyro-graphics",
+      "alt": "A camera lens and selfie token connect matching anonymous portrait frames; conceptual Grabpic illustration",
+      "cacheVersion": "dc56b8fef8bb",
+      "outputs": [
+        {
+          "path": "public/images/projects/covers/grabpic.webp",
+          "width": 1600,
+          "height": 1000,
+          "bytes": 34114,
+          "sha256": "5e42226f6d5ed88c78c3126d2bee5c003653d9a1960849f6a333f9b6789898bd"
+        },
+        {
+          "path": "public/images/projects/covers/grabpic-800.webp",
+          "width": 800,
+          "height": 500,
+          "bytes": 14788,
+          "sha256": "bdb9f8871d085da4d3598dbfa2160eb0181babf1dea8a0233db1d52f790d17fd"
+        }
+      ]
+    },
+    {
+      "name": "StraySense",
+      "slug": "straysense",
+      "repository": "https://github.com/TUAHASHAIKH/StraySense",
+      "alt": "A dog and cat sit under a protective arch connected to shelter and care symbols; conceptual StraySense illustration",
+      "cacheVersion": "8bccb7902a31",
+      "outputs": [
+        {
+          "path": "public/images/projects/covers/straysense.webp",
+          "width": 1600,
+          "height": 1000,
+          "bytes": 25508,
+          "sha256": "c462904c1e65c8830811523d99691de255587d73bbe98908e590bebc05b492fc"
+        },
+        {
+          "path": "public/images/projects/covers/straysense-800.webp",
+          "width": 800,
+          "height": 500,
+          "bytes": 10946,
+          "sha256": "980220daed85217eee897e175b844e6b20e2ef07baff013a64e54cb510b27fb4"
+        }
+      ]
+    },
+    {
+      "name": "Mini-Compiler",
+      "slug": "mini-compiler",
+      "repository": "https://github.com/TUAHASHAIKH/Mini-Compiler",
+      "alt": "Source tokens pass through a syntax tree and processing layers into instruction blocks; conceptual compiler illustration",
+      "cacheVersion": "41f3c7e816ac",
+      "outputs": [
+        {
+          "path": "public/images/projects/covers/mini-compiler.webp",
+          "width": 1600,
+          "height": 1000,
+          "bytes": 20866,
+          "sha256": "18cfeda414b87bb6e1df7caae0c884cc8dd3c70360db25b4ca192653047570ce"
+        },
+        {
+          "path": "public/images/projects/covers/mini-compiler-800.webp",
+          "width": 800,
+          "height": 500,
+          "bytes": 9280,
+          "sha256": "91a7b572cecdee97225a7ed9883a84d2473be3537dce9e7c2ec48d890a0cded9"
+        }
+      ]
+    },
+    {
+      "name": "AI Bot for 2048 Game",
+      "slug": "2048-ai",
+      "repository": "https://github.com/TUAHASHAIKH/2048-Ai-Game-Bot",
+      "alt": "A four-by-four numbered 2048 board sits beneath branching possible moves; conceptual game-agent illustration",
+      "cacheVersion": "c96061feac15",
+      "outputs": [
+        {
+          "path": "public/images/projects/covers/2048-ai.webp",
+          "width": 1600,
+          "height": 1000,
+          "bytes": 29486,
+          "sha256": "8cf9cb1616d41103a822d34cb61ccea8a76b1f1413ab6446fe780e9ed3abec07"
+        },
+        {
+          "path": "public/images/projects/covers/2048-ai-800.webp",
+          "width": 800,
+          "height": 500,
+          "bytes": 13568,
+          "sha256": "e4763f04f7e1a065b35fd0f6314e43eb22c1b9132cf58dbcc150857af638aa30"
+        }
+      ]
+    },
+    {
+      "name": "IoT Processor Simulator",
+      "slug": "iot-simulator",
+      "repository": "https://github.com/TUAHASHAIKH/IoT-Sensor-Control-ASP-Simulator",
+      "alt": "A sensor connects to five processing stages and an actuator; conceptual IoT simulator illustration",
+      "cacheVersion": "30e97a6c214d",
+      "outputs": [
+        {
+          "path": "public/images/projects/covers/iot-simulator.webp",
+          "width": 1600,
+          "height": 1000,
+          "bytes": 22644,
+          "sha256": "63f9ada28fb64a8059da05e78cf2c9649269b32bebcce9f745e5508506d67083"
+        },
+        {
+          "path": "public/images/projects/covers/iot-simulator-800.webp",
+          "width": 800,
+          "height": 500,
+          "bytes": 10520,
+          "sha256": "3ba21be314eeaac69e4cf1c738e072ebf553c20f0e1104fcb4fbe7d80e421372"
+        }
+      ]
+    },
+    {
+      "name": "UK Road Accident Analysis",
+      "slug": "uk-accidents",
+      "repository": "https://github.com/TUAHASHAIKH/UK-Accidents-Dataset-Analysis",
+      "alt": "A stylized Great Britain map has illuminated clusters beside abstract analytical charts; conceptual accident-analysis illustration",
+      "cacheVersion": "e991b2e7beb3",
+      "outputs": [
+        {
+          "path": "public/images/projects/covers/uk-accidents.webp",
+          "width": 1600,
+          "height": 1000,
+          "bytes": 36048,
+          "sha256": "f3afb3c38d327c98e6fffcdc56a967392be74cb02954c97e029882d7bce43536"
+        },
+        {
+          "path": "public/images/projects/covers/uk-accidents-800.webp",
+          "width": 800,
+          "height": 500,
+          "bytes": 15364,
+          "sha256": "9d91a883f8ca20e21c85a21570ce40cf36995b4493fb50a9c00f61a7434b4277"
+        }
+      ]
+    },
+    {
+      "name": "Smart Ride Application",
+      "slug": "smart-ride",
+      "repository": "https://github.com/TUAHASHAIKH/Smart-Ride",
+      "alt": "A car follows a cyan route through a city graph between two location pins; conceptual Smart Ride illustration",
+      "cacheVersion": "66c1ac7a45ab",
+      "outputs": [
+        {
+          "path": "public/images/projects/covers/smart-ride.webp",
+          "width": 1600,
+          "height": 1000,
+          "bytes": 20684,
+          "sha256": "c3ef5af00cd4034bb564029da5b12da0fa4c56d41c24bf64dc45e154c9927dfa"
+        },
+        {
+          "path": "public/images/projects/covers/smart-ride-800.webp",
+          "width": 800,
+          "height": 500,
+          "bytes": 9300,
+          "sha256": "5a08af8e8cfda9e286f0ce69e665e19de9a5d31c5f9c29dab601ba45fdc1b3ae"
+        }
+      ]
+    },
+    {
+      "name": "NUSTFRUTA",
+      "slug": "nustfruta",
+      "repository": "https://github.com/TUAHASHAIKH/NustFruta",
+      "alt": "A fruit-filled delivery crate sits beside campus buildings and a location pin; conceptual NUSTFRUTA illustration",
+      "cacheVersion": "085bf1f57f65",
+      "outputs": [
+        {
+          "path": "public/images/projects/covers/nustfruta.webp",
+          "width": 1600,
+          "height": 1000,
+          "bytes": 26104,
+          "sha256": "c29e78d7fbed83549a20d212fc9d0b29d345c52a784e32b631a0ca207561808d"
+        },
+        {
+          "path": "public/images/projects/covers/nustfruta-800.webp",
+          "width": 800,
+          "height": 500,
+          "bytes": 11590,
+          "sha256": "6f3c40acbcde5d8d5731e73c29101d3268c6ae68f83fb32880c3f6c9a0071f55"
+        }
+      ]
+    }
+  ]
+}

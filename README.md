@@ -40,7 +40,7 @@ The detailed meshes, baked textures, palette LUT, and font builds match the publ
 
 ## Sound and glitch effects
 
-Sound defaults to On. Mounting loads the 18 Ogg recordings in batches of three. When the browser blocks autoplay, the first click, tap, or keypress resumes the same AudioContext; loading never waits for autoplay permission. Muting before that gesture keeps sound off. Music and room ambience form the background; wind follows the igloo, portal sound follows ring proximity, and crystal/particle textures respond to pointer movement. Logo, labels, links, social selection, and detail entrance/exit have their matching UI cues. The main and detail sound controls share one mixer. Mute cancels pending cues; hidden tabs suspend playback; failed files can be retried without duplicating loops.
+Sound defaults to On. The 18 Ogg recordings load in batches of three after the landscape is ready, or immediately on an earlier user gesture, so audio does not compete with the initial landscape download. When the browser blocks autoplay, the first click, tap, or keypress resumes the same AudioContext; loading never waits for autoplay permission. Muting before that gesture keeps sound off. Music and room ambience form the background; wind follows the igloo, portal sound follows ring proximity, and crystal/particle textures respond to pointer movement. Logo, labels, links, social selection, and detail entrance/exit have their matching UI cues. The main and detail sound controls share one mixer. Mute cancels pending cues; hidden tabs suspend playback; failed files can be retried without duplicating loops.
 
 The logo uses its short sliced reveal. Labels, social controls, and detail links use brief block masks and horizontal offsets. Detail transitions use texture-driven block displacement and a small RGB separation inside the existing distortion pass. These effects finish at rest, preserve the grey scene, and turn off with reduced motion. Audio remains an independent preference.
 
@@ -64,7 +64,7 @@ Scroll through the pinned 23-viewport track, from the igloo through skills, proj
 
 `components/polar/crystal.tsx` renders the detailed ice shard with an HDR reflection environment, surface normal and roughness maps, a textured inner form and an animated 18-point 3D plexus. Its assets load independently of the hero through `crystal-assets.ts`. `crystal-readout.tsx` supplies sharp HTML annotations and a native modal dialog populated from the existing portfolio skills. The temperature readout is decorative reference-style telemetry, not a live sensor.
 
-Reduced motion removes the radial distortion, camera interpolation and idle crystal/plexus movement. Each crystal opens a native dialog with Escape, keyboard focus containment and a close control. Skills and about show their content; projects opens the six-project gallery.
+Reduced motion removes the radial distortion, camera interpolation and idle crystal/plexus movement. Each crystal opens a native dialog with Escape, keyboard focus containment and a close control. Skills, Projects, and About share the same detail-page layout. Projects lists twelve selected public projects inline, with Pulse first, custom cover artwork, source links, and available live demos.
 
 Crystal rendering uses paired half-float rear/front refraction buffers, the reference's crystal LUT, smoothly filtered Perlin mist and eight transmission samples. The hero retains its original grade. One shared scroll trajectory overlaps camera retreat, bottom-to-top mist, upward landscape movement and the crystal rise; the retreat keeps moving throughout the handoff.
 
@@ -94,3 +94,34 @@ Contact uses 150,000 grains, a persistent 128 x 128 fluid velocity field, and si
 Pointer projection follows the displayed camera lens, aspect ratio, and portrait zoom. Strokes accumulate at a 16 ms cadence and keep circulating after input stops. GitHub, LinkedIn, WhatsApp, and Gmail use the same fluid impulses, bitangent noise, volume attraction, drag, and selection burst. The worker converts Tuaha's icon masks into rounded 128³ distance volumes, retaining the holes and disconnected parts. Flat icons face the reader with a slight rocking motion; GitHub keeps its full rotation. Reduced motion displays a static surface and disables the simulation. Run `npm run test:particles-browser` against the local server to check GPU flow persistence, scattering and recovery for every icon, resting volume accuracy, desktop/portrait projection, and reduced-motion suspension. Screenshots are saved under `.preview/`.
 
 The particle simulation now starts before the ring reveal, with the reference's forming turbulence and white-to-pale fade. Highlights are bounded before bloom, and the ring bloom is narrower and weaker so the distant sculpture remains granular. This removes the dark blue silhouette at low opacity and the blue-white halo during the descent. `npm run test:ring-reveal` scrolls forward and backward through the reveal, reads the GPU's pre-bloom output to check its brightness bounds, and verifies reduced-motion suspension and WebGL errors. Reference and local screenshots were compared at matching reveal stages; the surrounding scene remains the local grey ice implementation.
+
+
+### Daylight / Nightfall
+
+The lower-right theme control switches between the original grey ice scene and a midnight expedition. Fresh visits always start in light mode, regardless of the device color scheme. A manual choice is saved as `portfolio-theme` in local storage and restored on later visits. Storage-disabled browsers still support switching for the current visit.
+
+Nightfall uses procedural star fields and layered auroral curtains in the existing sky and crystal transmission shaders, moonlit terrain and ice, spectral ring illumination, and an accretion halo. Mountain geometry stays identical in both themes; switching changes lighting and colors without resizing the landscape. Theme uniforms interpolate without rebuilding the scene or moving the scroll playhead. Reduced motion freezes ambient animation and applies theme changes immediately. No new runtime dependencies, textures, render targets, or postprocessing passes were added.
+
+Run `npm run test:theme-browser` against the development server to verify the light-first default, saved preference persistence, scroll preservation, crystal dialogs, mobile layouts, reduced motion, and WebGL compilation. Review the desktop and mobile captures under `.preview/theme-*.png`. The existing journey, landing, audio, and interaction checks remain available.
+
+
+The night sky uses a shared visible-tab animation clock across all three environments. Forward scrolling moves the stars upward at different depths; reversing retraces their positions, including through the journey loop. Auroral folds continue flowing while idle, and occasional seeded shooting stars appear with short fading trails. Reduced motion freezes the sky and disables shooting stars. The igloo retains the daylight seam illumination, opening glow, and reflected light on the snow, combined with the detailed night ice shading.
+
+Run `npm run test:sky-browser` for GPU uniform checks of continuous sky time, forward/reverse star movement, hover illumination captures, and reduced-motion suspension.
+
+
+### Project artwork
+
+The twelve project covers use the owner's new artwork collection, imported on 2026-11-13. Full-size WebP files are 1600 x 1000; 800 x 500 variants serve smaller screens. Images retain `object-fit: contain`, a fixed 16:10 aspect ratio, lazy loading, and asynchronous decoding. The supplied exports are used without recompression and total 494,354 bytes across all 24 files, about 85% smaller than the previous set. Content-derived URL versions refresh cached artwork when the collection changes.
+
+Only the 24 active cover files and the wordmark remain in `public/images/`. Six unused legacy project PNGs were removed. The supplied masters, contact sheets, and download archives are preserved locally in the ignored `.preview/artwork-import-2026-11-13/` directory, outside the publicly served assets and Git. Earlier generated masters remain in `.preview/project-artwork-sources/`.
+
+The supplied README identifies the new covers as stylized HTML/SVG illustrations rendered in Chromium, rather than application screenshots or photoreal 3D renders. Current asset paths, dimensions, checksums, accessible descriptions, and repository sources are recorded in `docs/project-artwork.json`. Selection notes are in `docs/project-selection.md`.
+
+### Rendering and loading performance
+
+The igloo renders as one batch with independent per-block transforms and illumination. All original vertices, UVs, texture maps, 150,000 contact grains, eight-sample crystal refraction, and the 1.5 DPR cap are retained. Particle buffers use 256 x 586 texels instead of 256 x 1024. Hidden landscape simulations sleep; reduced-motion mode renders on input and then stops until something changes. Animated mode keeps the continuous aurora, snowfall and star motion.
+
+The hero loads first, crystals warm shortly after its first paint, and the rings warm after the introduction or earlier scroll intent. Decoder workers are shared across these stages and released after 30 seconds idle. Shader preparation uses the same HDR render-target configuration as the actual scene, avoiding a second compilation on first use. Local scene, sound, font and image assets have a one-hour browser cache lifetime; edited assets at an unchanged URL may therefore take up to one hour to refresh without a forced reload.
+
+Run `npm run test:rendering` for geometry, transform, shader-target and particle-buffer checks. `npm run test:performance-browser` verifies batched drawing, reduced-motion sleep/wake, and mobile rendering. Use `npm run benchmark:browser` against `npm run build` / `npm start` for load, draw-count and frame-time measurements; set `PORTFOLIO_URL`, `AUDIT_LABEL`, `AUDIT_MOBILE=1` and `AUDIT_SLOW=1` as needed. Results and screenshots go to `.preview/`. See [the performance review](docs/performance.md) for measurements and limitations.

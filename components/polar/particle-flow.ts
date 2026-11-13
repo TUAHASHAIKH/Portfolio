@@ -1,4 +1,5 @@
 import * as THREE from 'three'
+import { compileForTarget } from './shader-preparation'
 
 // Persistent screen-space flow: pointer strokes deposit velocity, pressure
 // removes divergence, and advection carries that velocity after the mouse stops.
@@ -15,6 +16,7 @@ export class ParticleFlow {
   private lastSplat = -Infinity
   private previousPoint = new THREE.Vector2()
   private hasPoint = false
+  private disturbed = false
   private savedColor = new THREE.Color()
   private material = new THREE.ShaderMaterial({
     depthTest: false, depthWrite: false,
@@ -46,8 +48,8 @@ export class ParticleFlow {
   constructor(){this.scene.add(new THREE.Mesh(this.geometry,this.material))}
   private target(linear=true){return new THREE.WebGLRenderTarget(128,128,{type:THREE.HalfFloatType,depthBuffer:false,minFilter:linear?THREE.LinearFilter:THREE.NearestFilter,magFilter:linear?THREE.LinearFilter:THREE.NearestFilter})}
   get texture(){return this.velocity[0].texture}
-  clear(){this.dirty=true;this.hasPoint=false;this.lastSplat=-Infinity}
-  prepare(renderer:THREE.WebGLRenderer){return renderer.compileAsync(this.scene,this.camera)}
+  clear(){this.dirty=true;this.hasPoint=false;this.disturbed=false;this.lastSplat=-Infinity}
+  prepare(renderer:THREE.WebGLRenderer){return compileForTarget(renderer,this.scene,this.camera,this.velocity[0])}
   update(renderer:THREE.WebGLRenderer,dt:number,point:THREE.Vector2,previous:THREE.Vector2,on:boolean,aspect:number){
     const oldTarget=renderer.getRenderTarget(),oldColor=renderer.getClearColor(this.savedColor),oldAlpha=renderer.getClearAlpha()
     const u=this.material.uniforms
@@ -71,11 +73,16 @@ export class ParticleFlow {
           if(this.clock-this.lastSplat<=.15){
             u.point.value.copy(point);u.previous.value.copy(this.previousPoint);u.impulse.value.subVectors(point,this.previousPoint);u.impulse.value.x*=aspect
             u.field.value=this.texture;draw(0,this.velocity[1]);swap(this.velocity)
+            this.disturbed=true
           }
           this.lastSplat=this.clock
         }
         this.previousPoint.copy(point);this.lastUpdate=this.clock
       }
+      // A cleared field stays exactly zero under divergence, pressure and
+      // advection. Keep all seven passes asleep until a real stroke deposits
+      // velocity; thereafter retain the complete fluid simulation and its tail.
+      if(!this.disturbed)return
       u.field.value=this.texture;draw(1,this.divergence)
       u.field.value=this.pressure[0].texture;draw(2,this.pressure[1]);swap(this.pressure)
       u.divergence.value=this.divergence.texture
