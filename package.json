@@ -9,6 +9,7 @@
     "test:landing": "node --test tests/landing.test.mjs",
     "test:landing-browser": "node tests/landing.browser.mjs",
     "test:scroll-browser": "node tests/scroll.browser.mjs",
+    "test:smoothness-browser": "node tests/smoothness.browser.mjs",
     "test:particles-browser": "node tests/particles.browser.mjs",
     "test:ring-reveal": "node tests/ring-reveal.browser.mjs",
     "test:audio": "node --test tests/audio.test.mjs",

@@ -3,7 +3,7 @@ import {browser,wait} from './browser-session.mjs'
 const b=await browser()
 try{
  await b.send('Page.addScriptToEvaluateOnNewDocument',{source:`
-  window.particleAudit={errors:[],draws:0,points:0,request:false,flow:null,particles:null,projectionError:0,noise:0,shape:0,surface:null};
+  window.particleAudit={errors:[],draws:0,flowDraws:0,points:0,request:false,flow:null,particles:null,projectionError:0,noise:0,shape:0,surface:null};
   const known=new WeakMap(),sources=new WeakMap(),attached=new WeakMap(),textureData=new WeakMap();
   for(const method of ['texImage3D','texSubImage3D']){
    const upload=WebGL2RenderingContext.prototype[method];
@@ -24,6 +24,7 @@ try{
     if(mode===this.POINTS)particleAudit.points=Math.max(particleAudit.points,method==='drawArrays'?args[1]:args[0]);
     const uniform=name=>this.getUniform(program,this.getUniformLocation(program,name));
     if(type==='particles'){particleAudit.draws++;simulatedProjection=uniform('projection');particleAudit.noise=uniform('additionalNoise')}
+    if(type==='flow')particleAudit.flowDraws++;
     if(type==='sculpture'&&this.getParameter(this.VIEWPORT)[2]>16&&uniform('simulationMix')>.5&&simulatedProjection){
      const point=[.08,.1,.03,1],a=project(simulatedProjection,point),c=project(uniform('projectionMatrix'),project(uniform('modelViewMatrix'),point));
      particleAudit.projectionError=Math.max(particleAudit.projectionError,Math.abs(a[0]/a[3]-c[0]/c[3]),Math.abs(a[1]/a[3]-c[1]/c[3]));
@@ -65,8 +66,14 @@ try{
  await media(false)
  for(let i=0;i<150;i++){await wait(200);if(await b.evaluate('particleAudit.draws>30'))break}
  assert((await b.evaluate('particleAudit.draws'))>30,'Particle simulation must run')
- const sample=async()=>{
+ const sample=async(emptyFlow=false)=>{
   await b.evaluate('particleAudit.flow=null;particleAudit.particles=null;particleAudit.request=true')
+  if(emptyFlow){
+   assert.equal(await b.evaluate('particleAudit.flowDraws'),0,'Untouched fluid performs no GPU passes')
+   // The cleared field is asleep; sample the actual particle buffer without
+   // waiting for a fluid draw that should never be submitted.
+   await b.evaluate('particleAudit.flow=Array(128*4).fill(0)')
+  }
   for(let i=0;i<100;i++){await wait(50);if(!(await b.evaluate('particleAudit.request')))break}
   const data=await b.evaluate('({flow:particleAudit.flow,particles:particleAudit.particles,surface:particleAudit.surface})')
   assert(data.flow&&data.particles,'Both GPU fields must be readable')
@@ -74,7 +81,7 @@ try{
   for(let i=0;i<data.particles.length;i+=4){assert(Math.abs(data.particles[i+1])<=.351);assert(Math.hypot(data.particles[i],data.particles[i+2])<=.276)}
   return {flow:data.flow.reduce((sum,value,i)=>sum+(i%4<2?Math.abs(value):0),0),positions:data.particles,surface:data.surface}
  }
- const idle=await sample()
+ const idle=await sample(true)
  await b.capture('particles-volume-idle')
  await b.send('Input.dispatchMouseEvent',{type:'mouseMoved',x:380,y:400})
  for(let i=1;i<=24;i++){await b.send('Input.dispatchMouseEvent',{type:'mouseMoved',x:380+i*22,y:400+Math.sin(i/3)*90});await wait(25)}

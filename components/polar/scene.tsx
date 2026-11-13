@@ -552,7 +552,7 @@ export default function App3D({ onReady, onLoading, reducedMotion, journey }: { 
     return () => document.removeEventListener('visibilitychange', update)
   }, [])
   if (contextFailed) return <div className="fallback"><p>Graphics were interrupted.<br /><button onClick={() => { onLoading(); setContextFailed(false); setRecovery(0) }}>Reload the scene</button></p></div>
-  return <Canvas key={recovery} dpr={recovery ? 1 : [1,1.5]} camera={{ position: [...heroPosition], fov: 30, near: .1, far: 1000 }} gl={{ antialias: true, alpha: false, outputColorSpace: THREE.SRGBColorSpace, toneMapping: THREE.NoToneMapping, powerPreference: 'high-performance' }} frameloop={visible ? reducedMotion ? 'demand' : 'always' : 'never'}>
+  return <Canvas key={recovery} resize={{ scroll: false, debounce: { scroll: 150, resize: 150 } }} dpr={recovery ? 1 : [1,1.5]} camera={{ position: [...heroPosition], fov: 30, near: .1, far: 1000 }} gl={{ antialias: true, alpha: false, outputColorSpace: THREE.SRGBColorSpace, toneMapping: THREE.NoToneMapping, powerPreference: 'high-performance' }} frameloop={visible ? reducedMotion ? 'demand' : 'always' : 'never'}>
     <color attach="background" args={['#a0a5b1']} />
     <ContextRecovery recover={recover} />
     <FrameBudget reduced={reducedMotion} maximum={recovery ? 1 : 1.5} />
@@ -637,12 +637,25 @@ function JourneyMotion({ journey, reduced }: { journey: React.RefObject<Journey>
   const overlay = useRef<HTMLElement | null>(null)
   const laps=useRef(0)
   const resumed=useRef(false)
+  const reveals = useRef<Map<string, { elements: HTMLElement[]; value: string }>>(new Map())
   useEffect(()=>{
+    // Scope each changing value to the layer that actually uses it. Inherited
+    // variables on #app invalidated every overlay and the canvas each frame.
+    const selectors: Record<string, string> = {
+      '--hero-opacity': '.identity,.intro',
+      '--crystal-opacity': '.crystal-atmosphere',
+      '--contact-opacity': '.social-chamber',
+      ...Object.fromEntries(CRYSTAL_KINDS.map(kind => [`--${kind}-opacity`, `.crystal-readout[data-crystal="${kind}"]`])),
+    }
+    for (const [property, selector] of Object.entries(selectors)) {
+      reveals.current.set(property, { elements: Array.from(document.querySelectorAll<HTMLElement>(selector)), value: '' })
+    }
     const reset=()=>{motion.current.velocity=0}
     const visibility=()=>{resumed.current=true;reset()}
     window.addEventListener('portfolio:reset-motion',reset)
     document.addEventListener('visibilitychange',visibility)
     return()=>{
+      reveals.current.clear()
       window.removeEventListener('portfolio:reset-motion',reset)
       document.removeEventListener('visibilitychange',visibility)
     }
@@ -693,14 +706,20 @@ function JourneyMotion({ journey, reduced }: { journey: React.RefObject<Journey>
     const shards = crystalJourney(state.value)
     const contact=ringJourney(state.value).contact
     const contactOpacity=contact.toFixed(4),contactInteractive=String(contact>.05)
-    if(app.style.getPropertyValue('--contact-opacity')!==contactOpacity)app.style.setProperty('--contact-opacity',contactOpacity)
+    const reveal = (property: string, value: string) => {
+      const layer = reveals.current.get(property)
+      if (!layer || layer.value === value) return
+      layer.value = value
+      for (const element of layer.elements) element.style.setProperty(property, value)
+    }
+    reveal('--contact-opacity',contactOpacity)
     if(app.dataset.contactInteractive!==contactInteractive)app.dataset.contactInteractive=contactInteractive
-    if (app.style.getPropertyValue('--hero-opacity') !== hero) app.style.setProperty('--hero-opacity', hero)
-    if (app.style.getPropertyValue('--crystal-opacity') !== crystal) app.style.setProperty('--crystal-opacity', crystal)
+    reveal('--hero-opacity',hero)
+    reveal('--crystal-opacity',crystal)
     for (const kind of CRYSTAL_KINDS) {
       const property = `--${kind}-opacity`
       const formatted = shards[`${kind}Opacity`].toFixed(4)
-      if (app.style.getPropertyValue(property) !== formatted) app.style.setProperty(property,formatted)
+      reveal(property,formatted)
       const enabled = String(shards[`${kind}Interactive`] && shards[`${kind}Opacity`]>.05)
       if(app.dataset[`${kind}Interactive`]!==enabled)app.dataset[`${kind}Interactive`]=enabled
     }

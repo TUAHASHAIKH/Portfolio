@@ -116,9 +116,10 @@ try {
   assert(reversedPosition < start + 350, `Reversal did not cancel stale forward intent: ${start} -> ${reversedPosition}`)
   // The softer response intentionally keeps a longer deceleration tail.
   await wait(1200)
-  const settled = await evaluate('document.querySelector("#app").style.cssText')
+  const revealStyles = 'Array.from(document.querySelectorAll(".identity,.intro,.crystal-readout,.crystal-atmosphere,.social-chamber"),element=>element.style.cssText)'
+  const settled = await evaluate(revealStyles)
   await wait(200)
-  assert.equal(await evaluate('document.querySelector("#app").style.cssText'), settled, 'Scroll did not settle after input stopped')
+  assert.deepEqual(await evaluate(revealStyles), settled, 'Scroll did not settle after input stopped')
   console.log('PASS wheel burst, reversal, and settling')
 
   for (const reduced of [false, true]) {

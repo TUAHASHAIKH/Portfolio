@@ -49,10 +49,11 @@ export function PolarExperience() {
     const point=(event:PointerEvent)=>{pointer.x=event.clientX;pointer.y=event.clientY}
     // Scroll events only sample position; layout is measured when the track resizes.
     const update = () => {
-      journey.current.target = scrollToJourney(JOURNEY_END * Math.min(1, Math.max(0, window.scrollY / distance)))
-      if(window.scrollY>.5)delete journey.current.reverseTarget
-      if(window.scrollY<distance-1)delete journey.current.forwardTarget
-      if (centering !== null && Math.abs(window.scrollY-centering)<1) centering=null
+      const position = window.scrollY
+      journey.current.target = scrollToJourney(JOURNEY_END * Math.min(1, Math.max(0, position / distance)))
+      if(position>.5)delete journey.current.reverseTarget
+      if(position<distance-1)delete journey.current.forwardTarget
+      if (centering !== null && Math.abs(position-centering)<1) centering=null
     }
     const cancelCenter = (preserveWheelFraction = false) => {
       if(!preserveWheelFraction)wheelRemainder=0

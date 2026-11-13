@@ -80,7 +80,15 @@ export class ParticleSimulation {
   get distanceScale(){return this.material.uniforms.distanceScale.value as number}
   get position(){return this.targets[this.current].textures[0]}
   get velocity(){return this.targets[this.current].textures[1]}
-  prepare(renderer:THREE.WebGLRenderer){this.volumes.forEach(volume=>renderer.initTexture(volume));return Promise.all([compileForTarget(renderer,this.scene,this.camera,this.targets[0]),this.flow.prepare(renderer)])}
+  async prepare(renderer:THREE.WebGLRenderer){
+    await Promise.all([compileForTarget(renderer,this.scene,this.camera,this.targets[0]),this.flow.prepare(renderer)])
+    // Upload both MRT buffers and every shape while the previous scene is
+    // still on screen, not on the first scrolling frame inside the passage.
+    for(const texture of [...this.volumes,...this.sources])renderer.initTexture(texture)
+    const weights=new THREE.Vector4(1,0,0,0),pointer=new THREE.Vector2(10,10)
+    for(let index=0;index<2;index++)this.update(renderer,0,weights,pointer,pointer,false,0)
+    this.clear()
+  }
   clear(){this.initialized=false;this.transitionTime=0;this.flow.clear()}
   transition(){this.transitionTime=.5;this.material.uniforms.volumeRotation.value=Math.PI*1.5}
   orient(basis:THREE.Matrix3,projection:THREE.Matrix4,aspect:number,lift:number){

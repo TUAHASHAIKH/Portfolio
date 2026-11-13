@@ -22,16 +22,18 @@ export function CrystalReadout({ kind = 'skills' }: { kind?: CrystalKind }) {
     const preference = window.matchMedia('(prefers-reduced-motion: reduce)')
     const started = performance.now()
     const update = () => {
-      if (document.hidden || document.querySelector('#app')?.getAttribute('data-stage') !== 'crystal') return
+      if (document.hidden || document.querySelector('#app')?.getAttribute('data-active-crystal') !== kind) return
       const time = preference.matches ? 0 : (performance.now()-started)/1000
       const degrees = baseTemperature+Math.sin(time*.05+phase)*2
-      if (temperature.current) temperature.current.textContent = (degrees*1.8+32).toFixed(2)
-      if (celsius.current) celsius.current.textContent = `${degrees<0?'-':'+'}${Math.abs(degrees).toFixed(2).padStart(5,'0')}`
+      const fahrenheit=(degrees*1.8+32).toFixed(2)
+      const centigrade=`${degrees<0?'-':'+'}${Math.abs(degrees).toFixed(2).padStart(5,'0')}`
+      if (temperature.current && temperature.current.textContent!==fahrenheit) temperature.current.textContent=fahrenheit
+      if (celsius.current && celsius.current.textContent!==centigrade) celsius.current.textContent=centigrade
     }
     update()
     const timer = window.setInterval(update,100)
     return () => window.clearInterval(timer)
-  }, [baseTemperature,phase])
+  }, [baseTemperature,phase,kind])
   return <section className="crystal-readout" data-crystal={kind} aria-label={`Portfolio crystal: ${kind}`}>
     <svg className="crystal-leaders" viewBox="0 0 1000 1000" preserveAspectRatio="none" aria-hidden="true">
       <path className="title-leader" d="M310 224H390L433 308" />

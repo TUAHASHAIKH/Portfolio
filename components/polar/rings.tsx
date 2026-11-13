@@ -35,6 +35,11 @@ function RingPassage({ assets, journey, noise, reduced }: { assets: RingAssets; 
   const clock = useRef(0)
   const materials = useMemo(() => makeRingMaterials(assets,noise),[assets,noise])
   const materialLifetime = useMemo(() => ({users:0,preparation:Promise.resolve()}),[materials])
+  const simulationReady = useMemo(() => {
+    let resolve!: () => void
+    const promise = new Promise<void>(ready => { resolve = ready })
+    return { promise, resolve }
+  }, [assets])
   const view = useMemo(() => ({ camera:new THREE.PerspectiveCamera(22,1,.02,100), target:new THREE.Vector3(), upright:new THREE.Vector3(0,1,0), scale:new THREE.Matrix4() }),[])
   useEffect(()=>{
     scene.userData.ringBlue=assets.blue;scene.userData.ringScroll=assets.scroll
@@ -51,7 +56,7 @@ function RingPassage({ assets, journey, noise, reduced }: { assets: RingAssets; 
     warmCamera.position.set(0,2,-2);warmCamera.lookAt(0,-3,0)
     const target=new THREE.WebGLRenderTarget(16,16,{type:THREE.HalfFloatType})
     // Upload every ring, floor and particle shader before entering the passage.
-    materialLifetime.preparation=compileForTarget(gl,warmScene,warmCamera,target).then(()=>{
+    materialLifetime.preparation=Promise.all([compileForTarget(gl,warmScene,warmCamera,target),simulationReady.promise]).then(()=>{
       if(cancelled)return
       const previous=gl.getRenderTarget()
       try{gl.setRenderTarget(target);gl.render(warmScene,warmCamera)}
@@ -60,7 +65,7 @@ function RingPassage({ assets, journey, noise, reduced }: { assets: RingAssets; 
       invalidate()
     }).catch(error=>{if(!cancelled)console.error('Ring shader preparation:',error)})
     return ()=>{cancelled=true;target.dispose()}
-  },[assets,gl,materialLifetime,invalidate])
+  },[assets,gl,materialLifetime,invalidate,simulationReady])
   useEffect(()=>{
     materialLifetime.users++
     return()=>{materialLifetime.users--;void materialLifetime.preparation.then(()=>{if(materialLifetime.users===0)materials.dispose()})}
@@ -138,7 +143,7 @@ function RingPassage({ assets, journey, noise, reduced }: { assets: RingAssets; 
     <mesh ref={tunnel} material={materials.tunnel} position={[0,-3.5,0]} renderOrder={10} raycast={()=>{}}><cylinderGeometry args={[1.3,1.3,9,48,1,true]} /></mesh>
     <mesh ref={floor} name="ring-disc" geometry={assets.floor} material={materials.floor} position={[0,-10.19,0]} scale={.73} rotation={[0,Math.PI,0]} renderOrder={9} frustumCulled={false} raycast={()=>{}} />
     <points ref={core} name="ring-particle-core" geometry={assets.core} material={materials.core} position={[0,-9.785,0]} renderOrder={10} frustumCulled={false} raycast={()=>{}} />
-    <SocialParticles core={core} geometry={assets.core} volumes={assets.volumes} material={materials.core} journey={journey} reduced={reduced} virtual={view.camera} />
+    <SocialParticles core={core} geometry={assets.core} volumes={assets.volumes} material={materials.core} journey={journey} reduced={reduced} virtual={view.camera} onPrepared={simulationReady.resolve} />
     <mesh material={materials.halo} position={[0,-9.405,0]} rotation={[-Math.PI/2,0,0]} scale={.57} renderOrder={11} raycast={()=>{}}><planeGeometry args={[1,1]} /></mesh>
     <mesh material={materials.chamberField} position={[0,-9.9,0]} renderOrder={11} raycast={()=>{}}><cylinderGeometry args={[.38,.38,1.5,48,1,true]} /></mesh>
   </group>

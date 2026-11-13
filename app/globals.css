@@ -50,7 +50,11 @@ html{--brand-top:6.7dvh;--brand-left:3.4vw;--brand-width:clamp(155px,10.8vw,244p
 html{scrollbar-width:none;scroll-behavior:auto;overscroll-behavior-y:none}html::-webkit-scrollbar{display:none}
 /* Keep scroll distance stable while the scene follows the dynamic viewport. */
 .journey-track{height:2300svh;position:relative}
-#app{position:sticky;top:0;--hero-opacity:1;--crystal-opacity:0;--skills-opacity:0;--projects-opacity:0;--about-opacity:0}
+#app{position:sticky;top:0}
+.identity,.intro{--hero-opacity:1}
+.crystal-readout{--skills-opacity:0;--projects-opacity:0;--about-opacity:0;contain:layout style}
+.crystal-atmosphere{--crystal-opacity:0}
+#ice-measurements{contain:layout style}
 .identity .role,.identity .specialties,.intro{opacity:var(--hero-opacity)}
 #app[data-stage=crystal] .intro{visibility:hidden;pointer-events:none}
 .crystal-readout{position:absolute;inset:0;z-index:3;pointer-events:none;opacity:var(--skills-opacity);color:#f5f7fb;text-shadow:0 0 2px #ffffff65}

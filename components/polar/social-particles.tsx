@@ -9,7 +9,7 @@ import { ParticleSimulation } from './particle-simulation'
 import { SOCIAL_LINKS,socialIndex } from './social-links'
 import { portfolioAudio } from './audio-engine'
 
-export function SocialParticles({core,geometry,volumes,material,journey,reduced,virtual}:{core:React.RefObject<THREE.Points|null>;geometry:THREE.BufferGeometry;volumes:THREE.Texture[];material:THREE.ShaderMaterial;journey:React.RefObject<Journey>;reduced:boolean;virtual:THREE.PerspectiveCamera}){
+export function SocialParticles({core,geometry,volumes,material,journey,reduced,virtual,onPrepared}:{core:React.RefObject<THREE.Points|null>;geometry:THREE.BufferGeometry;volumes:THREE.Texture[];material:THREE.ShaderMaterial;journey:React.RefObject<Journey>;reduced:boolean;virtual:THREE.PerspectiveCamera;onPrepared:()=>void}){
   const {gl}=useThree()
   const plane=useRef<THREE.Mesh>(null)
   const selected=useRef(0),active=useRef(false),wasReduced=useRef(reduced)
@@ -21,11 +21,12 @@ export function SocialParticles({core,geometry,volumes,material,journey,reduced,
   useEffect(()=>{
     fieldLifetime.users++
     field.clear();material.uniforms.particlePositions.value=field.position
-    const preparation=field.prepare(gl).catch(error=>console.error('Particle field preparation:',error))
+    let cancelled=false
+    const preparation=field.prepare(gl).then(()=>{if(!cancelled)onPrepared()}).catch(error=>console.error('Particle field preparation:',error))
     // Strict Mode replays effects using the same field. Do not delete shader
     // programs while compileAsync is still polling them, or while replay uses them.
-    return()=>{fieldLifetime.users--;void preparation.then(()=>{if(fieldLifetime.users===0)field.dispose()})}
-  },[field,fieldLifetime,gl,material])
+    return()=>{cancelled=true;fieldLifetime.users--;void preparation.then(()=>{if(fieldLifetime.users===0)field.dispose()})}
+  },[field,fieldLifetime,gl,material,onPrepared])
   useEffect(()=>{
     const select=(event:Event)=>{
       const detail=(event as CustomEvent<unknown>).detail

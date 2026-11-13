@@ -22,8 +22,38 @@ async function load(name) {
 const { makeIceBatch } = await import(await load('ice-batch'))
 const { compileForTarget } = await import(await load('shader-preparation'))
 const { ParticleSimulation } = await import(await load('particle-simulation'))
+const { ParticleFlow } = await import(await load('particle-flow'))
 const { readyJourneyTarget } = await import(await load('scene-readiness'))
 const { decodeCrystalEnvironment } = await import(await load('crystal-environment'))
+
+test('empty fluid sleeps, wakes on a stroke, and keeps the full pressure and decay passes', () => {
+  const flow=new ParticleFlow(),screen={},color=new THREE.Color(.2,.3,.4)
+  let current=screen,clears=0
+  const passes=[]
+  const renderer={
+    getRenderTarget:()=>current,setRenderTarget:target=>{current=target},
+    getClearColor:target=>target.copy(color),getClearAlpha:()=>.6,setClearColor:()=>{},
+    clear:()=>{clears++},render:scene=>passes.push(scene.children[0].material.uniforms.pass.value),
+  }
+  const point=new THREE.Vector2(.5,.5),previous=point.clone()
+  for(let frame=0;frame<120;frame++)flow.update(renderer,1/60,point,previous,false,1)
+  assert.equal(clears,5,'Every feedback buffer starts clear')
+  assert.deepEqual(passes,[],'A zero field needs no GPU draws')
+  flow.update(renderer,1/60,point,previous,true,1)
+  assert.deepEqual(passes,[],'A stationary pointer is not a fluid impulse')
+  point.x+=.1
+  flow.update(renderer,1/60,point,previous,true,1)
+  assert.deepEqual(passes,[0,1,2,3,3,3,4,5],'A stroke retains all pressure iterations')
+  passes.length=0
+  flow.update(renderer,1/60,point,previous,false,1)
+  assert.deepEqual(passes,[1,2,3,3,3,4,5],'The moving field continues after the pointer leaves')
+  flow.clear();passes.length=0
+  flow.update(renderer,1/60,point,previous,false,1)
+  assert.equal(clears,10)
+  assert.deepEqual(passes,[])
+  assert.equal(current,screen,'Every early return restores the render destination')
+  flow.dispose()
+})
 
 test('baked lighting retains finite HDR samples and the original cube-UV layout', async () => {
   const bytes=gunzipSync(await readFile(new URL('../public/scene/textures/crystal_environment.bin.gz',import.meta.url)))

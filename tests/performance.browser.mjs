@@ -30,10 +30,13 @@ try {
   await wait(500)
   assert.equal(await b.evaluate('renderAudit.draws'),draws,'Static reduced-motion mode performs no GPU draws')
   await b.capture('performance-static-light')
-  for(const [position,stage] of [[.1,'crystal'],[.4,'rings'],[.78,'contact'],[0,'igloo']]) {
+  for(const [position,stage,kind] of [[.1,'crystal','skills'],[.2,'crystal','projects'],[.3,'crystal','about'],[.4,'rings'],[.78,'contact'],[0,'igloo']]) {
     await b.evaluate(`scrollTo(0,(document.documentElement.scrollHeight-innerHeight)*${position})`)
     await wait(500)
     assert.equal(await b.evaluate("document.querySelector('#app').dataset.stage"),stage,'Scroll redraws the correct scene in demand mode')
+    if(kind)assert.equal(await b.evaluate(`getComputedStyle(document.querySelector('.crystal-readout[data-crystal="${kind}"]')).opacity`),'1','Scoped fades reveal the centered crystal labels')
+    if(stage==='igloo')assert.equal(await b.evaluate("getComputedStyle(document.querySelector('.identity .role')).opacity"),'1','Hero text returns with the loop')
+    if(stage==='contact')assert.equal(await b.evaluate("getComputedStyle(document.querySelector('.social-chamber')).opacity"),'1','Contact controls keep their authored reveal')
   }
   await b.evaluate("document.querySelector('.theme-toggle').click()")
   await wait(500)

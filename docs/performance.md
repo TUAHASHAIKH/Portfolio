@@ -80,3 +80,27 @@ Runtime PMREM environment filtering caused a large main-thread/GPU pause during 
 Run `node scripts/bake-crystal-environment.mjs` after changing the source environment. This uses local Chrome and requires no extra dependency. The rendering unit suite checks the texture dimensions, mapping, precision, finite samples and HDR range. The landing browser suite checks the actual slower ice reveal, scene readiness during the entrance, use of the baked texture without EXR fallback, and absence of the waiting caption. A local run recorded 8.68 seconds from hero readiness to terrain completion, with crystals prepared at 5.86 seconds. The existing forced-delay and context-loss suite continues checking safe rendering without a waiting caption.
 
 Current validation passed: production build and TypeScript; all 33 journey, landing and rendering unit tests; and browser suites for reference-paced landing, cold scrolling/context recovery, scrolling and mobile controls, and rendering budgets. The final scroll sample recorded a 16.7 ms median and 17.0 ms p95 frame interval. Reduced-motion scenes still perform no idle GPU draws.
+
+## Continuous-scroll review (13 November 2026)
+
+Reviewed the production build and the live Igloo reference with actual Chrome wheel input and screenshots. Normal desktop settled scenes were already near 60 fps; continuous input under 4× CPU throttling exposed the remaining hitches, especially around crystals and the ring passage.
+
+- Scope scroll-driven opacity variables to their individual overlays, instead of invalidating the entire `#app` subtree. Contain label/measurement layout, update only the active crystal's temperature, and skip unchanged SVG/text writes.
+- Stop measuring the pinned canvas on scroll. Coalesce viewport resize bursts over 150 ms so changing mobile browser chrome does not repeatedly rebuild render buffers during a gesture. Actual viewport resizing and rotation remain supported.
+- Skip all seven fluid passes while the field is exactly zero. The first moving pointer wakes the original fluid algorithm, including every pressure iteration and the full decay tail. Particle simulation, all 150,000 grains, original textures, geometry, eight refraction samples and DPR limits remain intact.
+- Prepare both particle MRT buffers and all shape textures before allowing entry into the rings. Ring readiness now waits for particle preparation as well as its visible materials.
+
+At 1280 × 800 on the same Intel Iris Xe host, a sampled sequence of 65 wheel inputs under 4× CPU throttling changed as follows:
+
+| Measurement | Before | After |
+| --- | ---: | ---: |
+| Frames longer than 50 ms | 148 / 401 (36.9%) | 66 / 542 (12.2%) |
+| Crystal median / p95 frame interval | 50.0 / 83.3 ms | 16.8 / 66.6 ms |
+| Ring median / p95 frame interval | 33.5 / 83.3 ms | 33.1 / 50.3 ms |
+| Style recalculation time per second sampled | 165 ms | 78 ms |
+
+These are local stress samples, not universal FPS guarantees. The input run took 19.42 seconds before and 17.05 seconds after because the browser processed input more promptly. They precede the additional unchanged-label-write cleanup. A subsequent normal-speed scroll regression check measured 16.7 ms median / 16.9 ms p95. Physical iOS/Android hardware and other browser engines have not been tested.
+
+`npm run test:smoothness-browser` traverses a complete lap on desktop and an emulated 390 × 844 phone, checks every scene and the return seam, and rejects readiness pauses after preparation. Set `AUDIT_CPU=4` to stress the main thread. Its timings are reported, not asserted against a hardware-dependent FPS target; results go to `.preview/smoothness-verification.json`.
+
+Rendering unit checks cover zero-field sleeping, wake-up, retained pressure/decay passes and render-target restoration. The particle browser suite verifies the actual GPU stroke and persistence, all social shapes, 150,000 grains and reduced motion. The scrolling suite covers fractional wheel input, reversal, both loop directions, keyboard ownership, all modal scrolling modes, resize and rotation. The startup suite verifies delayed resources and WebGL recovery.
