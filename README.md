@@ -112,9 +112,11 @@ Run `npm run test:sky-browser` for GPU uniform checks of continuous sky time, fo
 
 ### Project artwork
 
-The twelve project covers share a centered 16:10 composition. Full-size WebP files are 1600 x 1000; 800 x 500 variants serve smaller screens. Images use `object-fit: contain`, a fixed aspect ratio, and no zoom so subjects remain fully visible. Original project pictures remain in `public/images/projects/`; generated PNG masters are retained locally in `.preview/project-artwork-sources/`.
+The twelve project covers use the owner's new artwork collection, imported on 2026-11-13. Full-size WebP files are 1600 x 1000; 800 x 500 variants serve smaller screens. Images retain `object-fit: contain`, a fixed 16:10 aspect ratio, lazy loading, and asynchronous decoding. The supplied exports are used without recompression and total 494,354 bytes across all 24 files, about 85% smaller than the previous set. Content-derived URL versions refresh cached artwork when the collection changes.
 
-The covers are conceptual illustrations generated with the built-in image tool, rather than screenshots of the applications. The final prompt set and repository sources are recorded in `docs/project-artwork.json`. Selection notes are in `docs/project-selection.md`.
+Only the 24 active cover files and the wordmark remain in `public/images/`. Six unused legacy project PNGs were removed. The supplied masters, contact sheets, and download archives are preserved locally in the ignored `.preview/artwork-import-2026-11-13/` directory, outside the publicly served assets and Git. Earlier generated masters remain in `.preview/project-artwork-sources/`.
+
+The supplied README identifies the new covers as stylized HTML/SVG illustrations rendered in Chromium, rather than application screenshots or photoreal 3D renders. Current asset paths, dimensions, checksums, accessible descriptions, and repository sources are recorded in `docs/project-artwork.json`. Selection notes are in `docs/project-selection.md`.
 
 ### Rendering and loading performance
 

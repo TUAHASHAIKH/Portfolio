@@ -12,8 +12,8 @@ export const portfolioProjects = [
       "Docker"
     ],
     "githubLink": "https://github.com/TUAHASHAIKH/Pulse",
-    "image": "/images/projects/covers/pulse.webp",
-    "imageAlt": "Glass orchestration nodes connected to an illuminated repair chamber — conceptual Pulse cover"
+    "image": "/images/projects/covers/pulse.webp?v=adbc452e2524",
+    "imageAlt": "Three analysis nodes feed an orchestration core connected to a repair chamber; conceptual Pulse illustration"
   },
   {
     "id": 8,
@@ -26,8 +26,8 @@ export const portfolioProjects = [
       "FFmpeg"
     ],
     "githubLink": "https://github.com/TUAHASHAIKH/Citrus",
-    "image": "/images/projects/covers/citrus.webp",
-    "imageAlt": "An orange conversion core surrounded by glass file-format tiles — conceptual Citrus cover"
+    "image": "/images/projects/covers/citrus.webp?v=3322905ed6c5",
+    "imageAlt": "An orange conversion wheel connects image, audio, video, document, and spreadsheet symbols; conceptual Citrus illustration"
   },
   {
     "id": 1,
@@ -40,8 +40,8 @@ export const portfolioProjects = [
       "Python"
     ],
     "githubLink": "https://github.com/TUAHASHAIKH/AutoML",
-    "image": "/images/projects/covers/automl.webp",
-    "imageAlt": "Seven glass model branches connecting data to a result prism — conceptual AutoML cover",
+    "image": "/images/projects/covers/automl.webp?v=50b3f4a15403",
+    "imageAlt": "Data fragments pass through seven model columns into comparison charts and a result prism; conceptual AutoML illustration",
     "liveLink": "https://automlnust.streamlit.app/"
   },
   {
@@ -54,8 +54,8 @@ export const portfolioProjects = [
       "Cryptography"
     ],
     "githubLink": "https://github.com/TUAHASHAIKH/SecurePassFS",
-    "image": "/images/projects/covers/securepassfs.webp",
-    "imageAlt": "A layered glass and graphite vault protecting data — conceptual SecurePassFS cover"
+    "image": "/images/projects/covers/securepassfs.webp?v=47ed3bb3de89",
+    "imageAlt": "A layered vault contains an organized grid of protected storage blocks; conceptual SecurePassFS illustration"
   },
   {
     "id": 9,
@@ -68,8 +68,8 @@ export const portfolioProjects = [
       "SQLite"
     ],
     "githubLink": "https://github.com/TUAHASHAIKH/vyro-graphics",
-    "image": "/images/projects/covers/grabpic.webp",
-    "imageAlt": "A camera lens connecting matching abstract portrait frames — conceptual Grabpic cover"
+    "image": "/images/projects/covers/grabpic.webp?v=dc56b8fef8bb",
+    "imageAlt": "A camera lens and selfie token connect matching anonymous portrait frames; conceptual Grabpic illustration"
   },
   {
     "id": 3,
@@ -82,8 +82,8 @@ export const portfolioProjects = [
       "Express.js"
     ],
     "githubLink": "https://github.com/TUAHASHAIKH/StraySense",
-    "image": "/images/projects/covers/straysense.webp",
-    "imageAlt": "A sculptural dog and cat sheltered beneath a community arch — conceptual StraySense cover"
+    "image": "/images/projects/covers/straysense.webp?v=8bccb7902a31",
+    "imageAlt": "A dog and cat sit under a protective arch connected to shelter and care symbols; conceptual StraySense illustration"
   },
   {
     "id": 10,
@@ -96,8 +96,8 @@ export const portfolioProjects = [
       "LLVM"
     ],
     "githubLink": "https://github.com/TUAHASHAIKH/Mini-Compiler",
-    "image": "/images/projects/covers/mini-compiler.webp",
-    "imageAlt": "A branching syntax tree passing through glass compiler stages — conceptual Mini-Compiler cover"
+    "image": "/images/projects/covers/mini-compiler.webp?v=41f3c7e816ac",
+    "imageAlt": "Source tokens pass through a syntax tree and processing layers into instruction blocks; conceptual compiler illustration"
   },
   {
     "id": 5,
@@ -110,8 +110,8 @@ export const portfolioProjects = [
       "Monte Carlo"
     ],
     "githubLink": "https://github.com/TUAHASHAIKH/2048-Ai-Game-Bot",
-    "image": "/images/projects/covers/2048-ai.webp",
-    "imageAlt": "A four-by-four 2048 board beneath a branching decision tree — conceptual game-agent cover"
+    "image": "/images/projects/covers/2048-ai.webp?v=c96061feac15",
+    "imageAlt": "A four-by-four numbered 2048 board sits beneath branching possible moves; conceptual game-agent illustration"
   },
   {
     "id": 11,
@@ -123,8 +123,8 @@ export const portfolioProjects = [
       "Custom ISA"
     ],
     "githubLink": "https://github.com/TUAHASHAIKH/IoT-Sensor-Control-ASP-Simulator",
-    "image": "/images/projects/covers/iot-simulator.webp",
-    "imageAlt": "A silver processor linking five pipeline stages, a sensor, and an actuator — conceptual simulator cover"
+    "image": "/images/projects/covers/iot-simulator.webp?v=30e97a6c214d",
+    "imageAlt": "A sensor connects to five processing stages and an actuator; conceptual IoT simulator illustration"
   },
   {
     "id": 12,
@@ -138,8 +138,8 @@ export const portfolioProjects = [
       "Folium"
     ],
     "githubLink": "https://github.com/TUAHASHAIKH/UK-Accidents-Dataset-Analysis",
-    "image": "/images/projects/covers/uk-accidents.webp",
-    "imageAlt": "A glass map of Great Britain with illuminated clusters and analytical charts — conceptual accident-analysis cover"
+    "image": "/images/projects/covers/uk-accidents.webp?v=e991b2e7beb3",
+    "imageAlt": "A stylized Great Britain map has illuminated clusters beside abstract analytical charts; conceptual accident-analysis illustration"
   },
   {
     "id": 4,
@@ -151,8 +151,8 @@ export const portfolioProjects = [
       "Algorithms"
     ],
     "githubLink": "https://github.com/TUAHASHAIKH/Smart-Ride",
-    "image": "/images/projects/covers/smart-ride.webp",
-    "imageAlt": "A silver car following a luminous route across a miniature city map — conceptual Smart Ride cover"
+    "image": "/images/projects/covers/smart-ride.webp?v=66c1ac7a45ab",
+    "imageAlt": "A car follows a cyan route through a city graph between two location pins; conceptual Smart Ride illustration"
   },
   {
     "id": 6,
@@ -164,8 +164,8 @@ export const portfolioProjects = [
       "MySQL"
     ],
     "githubLink": "https://github.com/TUAHASHAIKH/NustFruta",
-    "image": "/images/projects/covers/nustfruta.webp",
-    "imageAlt": "Fresh fruit in a glass delivery crate beside an inventory panel — conceptual NUSTFRUTA cover"
+    "image": "/images/projects/covers/nustfruta.webp?v=085bf1f57f65",
+    "imageAlt": "A fruit-filled delivery crate sits beside campus buildings and a location pin; conceptual NUSTFRUTA illustration"
   },
 ] as const
 

@@ -19,8 +19,8 @@ AutoML, SecurePassFS, StraySense, Smart Ride, the 2048 AI agent, and NUSTFRUTA r
 
 ## Image treatment
 
-Every selected project has its own generated conceptual cover. The visual metaphor represents documented functionality without inventing application screens, performance figures, customers, or endorsements. Artwork uses the same 16:10 frame and centered composition. The 2048 board was corrected to four rows and four columns during review.
+Every selected project uses a conceptual cover from the owner's collection imported on 2026-11-13. The supplied README describes stylized HTML/SVG artwork rendered in Chromium. These illustrations represent documented functionality without claiming to be application screens or measured analytical results. All covers use centered 16:10 compositions and responsive WebP exports. The 2048 board has four rows and four columns.
 
 Public profile repositories, test fixtures, and personal/private repositories are excluded from this public showcase. Other public work was left out to keep the selection focused; omission is not a judgment of ownership or quality.
 
-See [project-artwork.json](project-artwork.json) for the complete prompts, output filenames, and repository links.
+See [project-artwork.json](project-artwork.json) for current artwork provenance, output filenames, dimensions, checksums, accessible descriptions, and repository links. Superseded generation prompts remain available in Git history.
