@@ -47,7 +47,22 @@ for (const policy of ['document-user-activation-required','no-user-gesture-requi
     await click('.sound-toggle')
     await until('document.querySelector(".sound-toggle").getAttribute("aria-pressed")==="true"')
     assert.equal(await page.evaluate('audioAudit.loops.length'),7,'Unmute reuses all seven loops')
+    await click('.sound-toggle')
+    await page.evaluate("window.dispatchEvent(new PageTransitionEvent('pageshow',{persisted:true}))")
+    await until('document.querySelector(".sound-toggle").getAttribute("aria-pressed")==="true"')
+    assert.equal(await page.evaluate('audioAudit.loops.length'),7,'Restoring a visit enables sound without duplicate loops')
+    await click('.sound-toggle')
+    const previousDocument=await page.evaluate('performance.timeOrigin')
+    await page.send('Page.reload')
+    await until('performance.timeOrigin!=='+previousDocument)
+    await until('audioAudit.loops.length===7 && document.querySelector(".sound-toggle")?.getAttribute("aria-busy")==="false"')
+    assert.match(await page.evaluate('document.querySelector(".sound-toggle").textContent'),/Sound: (On|Enable)/,'A muted visit must not make the next reload default to Off')
+    if(!allowed){
+      await page.send('Input.dispatchKeyEvent',{type:'keyDown',key:'a',code:'KeyA',windowsVirtualKeyCode:65})
+      await page.send('Input.dispatchKeyEvent',{type:'keyUp',key:'a',code:'KeyA',windowsVirtualKeyCode:65})
+    }
+    await until('document.querySelector(".sound-toggle").getAttribute("aria-pressed")==="true"')
     assert.deepEqual(page.errors,[],'No runtime or audio errors')
-    console.log('PASS',policy, 'actual audio signal, truthful control, one-click unlock, explicit mute, and loop reuse')
+    console.log('PASS',policy, 'audio signal, unlock, explicit mute, loop reuse, restored visit, and sound on after reload')
   } finally { await page.close() }
 }

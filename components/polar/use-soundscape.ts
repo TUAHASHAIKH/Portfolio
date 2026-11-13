@@ -19,14 +19,23 @@ export function useSoundscape() {
       if (event.target instanceof Element && event.target.closest('.sound-toggle,.detail-sound')) return
       start(); portfolioAudio.unlock()
     }
+    const revisit = (event: PageTransitionEvent) => {
+      // Back/forward cache restores the old JS heap, including an earlier
+      // mute. Treat returning to the page as a fresh visit, just like reload.
+      if (event.persisted) void portfolioAudio.enable()
+    }
     portfolioAudio.prepare()
     // Prioritize the compressed landscape over 18 audio downloads. A trusted
     // early gesture still starts/unlocks sound immediately, as before.
     window.addEventListener('portfolio:scene-ready', start)
     if (document.querySelector('#loader')?.getAttribute('data-ready') === 'true') start()
     document.addEventListener('pointerdown', gesture)
+    // Some browsers grant activation on release/click rather than pointerdown.
+    // Retrying the existing context is safe and never duplicates loop sources.
+    document.addEventListener('click', gesture)
     document.addEventListener('keydown', gesture)
     document.addEventListener('touchend', gesture)
+    window.addEventListener('pageshow', revisit)
     const detail = (event: Event) => portfolioAudio.detail(Boolean((event as CustomEvent<{ open: boolean }>).detail?.open))
     const select = () => { portfolioAudio.cue('long'); portfolioAudio.excite('particles', 1) }
     const hover = (event: Event) => {
@@ -46,8 +55,10 @@ export function useSoundscape() {
     return () => {
       window.removeEventListener('portfolio:scene-ready', start)
       document.removeEventListener('pointerdown', gesture)
+      document.removeEventListener('click', gesture)
       document.removeEventListener('keydown', gesture)
       document.removeEventListener('touchend', gesture)
+      window.removeEventListener('pageshow', revisit)
       document.removeEventListener('visibilitychange', portfolioAudio.visibility)
       document.removeEventListener('pointerover', hover)
       document.removeEventListener('focusin', hover)

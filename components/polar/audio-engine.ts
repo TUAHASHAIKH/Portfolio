@@ -1,7 +1,7 @@
 import { AUDIO_TRACKS, type SoundName } from './audio-manifest'
 import { audioMix } from './audio-mix'
 
-type Track = { buffer: AudioBuffer; gain: GainNode; source?: AudioBufferSourceNode }
+type Track = { buffer: AudioBuffer; gain: GainNode; level: number; source?: AudioBufferSourceNode }
 const initialState = { enabled: true, loading: false, failed: false, playing: false, blocked: false }
 
 export class PortfolioAudio {
@@ -112,7 +112,7 @@ export class PortfolioAudio {
         const gain = context.createGain()
         gain.gain.value = spec.volume
         gain.connect(master)
-        const track: Track = { buffer, gain }
+        const track: Track = { buffer, gain, level: spec.volume }
         this.tracks.set(name, track)
         if (spec.loop) this.start(name, track)
         this.playbackChanged()
@@ -161,7 +161,13 @@ export class PortfolioAudio {
     if (!this.context || !this.state.enabled) return
     const levels = audioMix(this.progress, this.pulse.shard, this.pulse.particles, this.pulse.brand)
     for (const name of Object.keys(levels) as (keyof typeof levels)[]) {
-      this.tracks.get(name)?.gain.gain.setTargetAtTime(levels[name], this.context.currentTime, .08)
+      const track = this.tracks.get(name)
+      // Leave an existing ramp running when its destination is unchanged.
+      // Requeuing seven identical automation events 30 times/second consumes
+      // audio/main-thread work even while autoplay is waiting for permission.
+      if (!track || track.level === levels[name]) continue
+      track.level = levels[name]
+      track.gain.gain.setTargetAtTime(track.level, this.context.currentTime, .08)
     }
   }
 
